@@ -1,0 +1,566 @@
+'use client';
+
+import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import {
+    seedTestData,
+    deleteLeague,
+    deleteDriver,
+    adminLogin,
+    getAllLeagues,
+    getPointsConfig,
+    updatePointsConfig,
+    joinLeague,
+    scheduleRace
+} from '@/lib/actions';
+import { DEFAULT_CONFIG, PointsConfig } from '@/lib/scoring';
+import { F1_TRACKS_2025 } from '@/lib/constants';
+
+export default function AdminHub() {
+    // Auth State
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [authType, setAuthType] = useState<'global' | 'league' | null>(null);
+    const [leagueName, setLeagueName] = useState('');
+    const [adminPass, setAdminPass] = useState('');
+    const [leagueId, setLeagueId] = useState<string | null>(null);
+
+    // Dynamic Data State
+    const [activeTab, setActiveTab] = useState<'races' | 'drivers' | 'points' | 'global'>('races');
+    const [leaguesList, setLeaguesList] = useState<any[]>([]);
+    const [drivers, setDrivers] = useState<any[]>([]);
+    const [pointsConfig, setPointsConfig] = useState<PointsConfig>(DEFAULT_CONFIG);
+
+    // UI State
+    const [loading, setLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [newDriverName, setNewDriverName] = useState('');
+    const [newDriverTeam, setNewDriverTeam] = useState('');
+    const [scheduleTrack, setScheduleTrack] = useState(F1_TRACKS_2025[0]);
+    const [scheduleDate, setScheduleDate] = useState('');
+    const [scheduledRaces, setScheduledRaces] = useState<any[]>([]);
+
+    useEffect(() => {
+        refreshLeagues();
+        checkSession();
+    }, []);
+
+    const checkSession = async () => {
+        const session = localStorage.getItem('f1_admin_session');
+        if (session) {
+            try {
+                const parsed = JSON.parse(session);
+                if (parsed.type === 'global') {
+                    // Verify global (simple verify)
+                    // In a real app we'd re-verify with server, but here we trust local for UI state
+                    setIsLoggedIn(true);
+                    setAuthType('global');
+                    setActiveTab('global');
+                    setLeagueName('admin');
+                } else if (parsed.type === 'league') {
+                    // Re-login to fetch fresh data
+                    const res = await adminLogin(parsed.name, parsed.pass);
+                    if (res.success) {
+                        setIsLoggedIn(true);
+                        setAuthType('league');
+                        setLeagueName(parsed.name);
+                        setAdminPass(parsed.pass); // keep pass for actions
+                        setLeagueId(res.leagueId);
+                        setDrivers(res.drivers || []);
+                        setActiveTab('races');
+
+                        const pRes = await getPointsConfig(res.leagueId);
+                        if (pRes.success && pRes.config) setPointsConfig(pRes.config);
+                    } else {
+                        localStorage.removeItem('f1_admin_session');
+                    }
+                }
+            } catch (e) {
+                console.error('Session parse error', e);
+                localStorage.removeItem('f1_admin_session');
+            }
+        }
+    };
+
+    async function refreshLeagues() {
+        const res = await getAllLeagues();
+        if (res.success) setLeaguesList(res.leagues || []);
+    }
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+
+        // Global Admin Check
+        if (leagueName === 'admin' && adminPass === 'admin') {
+            setIsLoggedIn(true);
+            setAuthType('global');
+            setActiveTab('global');
+            setLoading(false);
+            localStorage.setItem('f1_admin_session', JSON.stringify({ type: 'global' }));
+            return;
+        }
+
+        // League Admin Check
+        const res = await adminLogin(leagueName, adminPass);
+        if (res.success) {
+            setIsLoggedIn(true);
+            setAuthType('league');
+            setLeagueId(res.leagueId);
+            setDrivers(res.drivers || []);
+            setActiveTab('races');
+            localStorage.setItem('f1_admin_session', JSON.stringify({ type: 'league', name: leagueName, pass: adminPass }));
+
+            // Load points config
+            const pRes = await getPointsConfig(res.leagueId);
+            if (pRes.success && pRes.config) setPointsConfig(pRes.config);
+        } else {
+            alert(res.error || 'Login failed.');
+        }
+        setLoading(false);
+    };
+
+    const handleLogout = () => {
+        setIsLoggedIn(false);
+        setAuthType(null);
+        setLeagueName('');
+        setAdminPass('');
+        setLeagueId(null);
+        localStorage.removeItem('f1_admin_session');
+    }
+
+    const handleUpdatePoints = async () => {
+        if (!leagueId) return;
+        setSubmitting(true);
+        const res = await updatePointsConfig(leagueId, pointsConfig, adminPass);
+        if (res.success) {
+            alert('Points configuration updated!');
+        } else {
+            alert('Failed to update points: ' + res.error);
+        }
+        setSubmitting(false);
+    };
+
+    const handleAddDriver = async () => {
+        if (!leagueName || !newDriverName) return;
+        setSubmitting(true);
+        // Using a join pass isn't strictly needed for admin add, but the action requires it
+        // We fetching it or just pass "admin_add" if we modified the action, but safer to just use one that exists
+        const res = await joinLeague(leagueName, 'any', newDriverName, newDriverTeam);
+        if (res.success) {
+            // Refresh drivers list
+            const authRes = await adminLogin(leagueName, adminPass);
+            if (authRes.success) setDrivers(authRes.drivers || []);
+            setNewDriverName('');
+            setNewDriverTeam('');
+        } else {
+            alert('Failed to add driver: ' + res.error);
+        }
+        setSubmitting(false);
+    };
+
+    const handleDeleteDriver = async (id: string) => {
+        if (!leagueId || !confirm('Are you sure you want to delete this driver?')) return;
+        const res = await deleteDriver(id, leagueId, adminPass);
+        if (res.success) {
+            setDrivers(prev => prev.filter(d => d.id !== id));
+        } else {
+            alert('Error: ' + res.error);
+        }
+    };
+
+    const handleGlobalDeleteLeague = async (id: string) => {
+        console.log('Attempting to delete league', id);
+        if (!confirm('EXTREME DANGER:\n\nAre you sure you want to PERMANENTLY DELETE this league and ALL its data (Drivers, Races, Results)?\n\nThis action cannot be undone.')) {
+            console.log('Deletion cancelled by user');
+            return;
+        }
+
+        try {
+            console.log('Sending delete request...');
+            const res = await deleteLeague(id, 'admin', 'admin');
+            console.log('Delete response:', res);
+
+            if (res.success) {
+                alert('LEAGUE DELETED. Page will reload.');
+                window.location.reload();
+            } else {
+                alert('Error: ' + res.error);
+                console.error('Delete error:', res.error);
+            }
+        } catch (err) {
+            console.error('Unexpected error during deletion:', err);
+            alert('Unexpected error. Check console.');
+        }
+    };
+
+    const handleScheduleRace = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!leagueId || !scheduleDate) return;
+        setSubmitting(true);
+
+        const res = await scheduleRace(leagueId, scheduleTrack, scheduleDate, adminPass);
+        if (res.success) {
+            alert('Race Scheduled!');
+            setScheduleDate('');
+        } else {
+            alert('Error: ' + res.error);
+        }
+        setSubmitting(false);
+    };
+
+    if (!isLoggedIn) {
+        return (
+            <div className="container flex items-center justify-center min-vh-100">
+                <div className="f1-card animate-scale-in" style={{ maxWidth: '450px', width: '100%', padding: '3.5rem 3rem', border: '1px solid var(--glass-border)', boxShadow: '0 20px 80px rgba(0,0,0,0.6)' }}>
+                    <div className="text-center mb-10">
+                        <div className="text-f1 text-gradient mb-2" style={{ fontSize: '2.5rem', letterSpacing: '-2px' }}>ADMIN HUB</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--silver)', fontWeight: 900, letterSpacing: '5px', opacity: 0.8 }}>SYSTEM AUTHORIZATION</div>
+                    </div>
+
+                    <form onSubmit={handleLogin} className="flex flex-col gap-3">
+                        <div className="input-group">
+                            <label>LEAGUE NAME / ADMIN</label>
+                            <input
+                                value={leagueName}
+                                onChange={e => setLeagueName(e.target.value)}
+                                placeholder="e.g. My F1 League"
+                                required
+                            />
+                        </div>
+                        <div className="input-group">
+                            <label>PASSWORD</label>
+                            <input
+                                type="password"
+                                value={adminPass}
+                                onChange={e => setAdminPass(e.target.value)}
+                                placeholder="••••••••"
+                                required
+                            />
+                        </div>
+                        <button type="submit" className="btn-primary mt-4" style={{ width: '100%', justifyContent: 'center' }} disabled={loading}>
+                            {loading ? 'AUTHENTICATING...' : 'LOGIN TO HUB'}
+                        </button>
+                    </form>
+
+                    <div className="text-center mt-6">
+                        <Link href="/" style={{ fontSize: '0.7rem', color: 'var(--silver)', textDecoration: 'none', borderBottom: '1px solid currentColor' }}>
+                            &larr; BACK TO RACECENTER
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="container py-8 animate-fade-in">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                <div>
+                    <h1 className="text-f1 text-gradient" style={{ fontSize: '3rem', letterSpacing: '-2px', marginBottom: '0.5rem' }}>ADMIN HUB</h1>
+                    <div className="flex items-center gap-4 mt-1">
+                        <span className={`status-badge ${authType === 'global' ? 'badge-red' : 'badge-silver'}`} style={{ padding: '6px 16px', borderRadius: '4px', fontSize: '0.7rem', letterSpacing: '2px' }}>
+                            {authType === 'global' ? 'GLOBAL OVERSEER' : `${leagueName.toUpperCase()} ADMIN`}
+                        </span>
+                        <button
+                            onClick={handleLogout}
+                            className="btn-secondary"
+                            style={{
+                                fontSize: '0.65rem',
+                                padding: '6px 14px',
+                                borderRadius: '4px',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                background: 'rgba(255,10,10,0.1)',
+                                color: 'var(--f1-red)',
+                                fontWeight: 900,
+                                letterSpacing: '1px'
+                            }}
+                        >
+                            SIGN OUT
+                        </button>
+                    </div>
+                </div>
+
+                <nav className="f1-tabs flex">
+                    {authType === 'league' && (
+                        <>
+                            <button className={activeTab === 'races' ? 'active' : ''} onClick={() => setActiveTab('races')}>RACE ENTRY</button>
+                            <button className={activeTab === 'drivers' ? 'active' : ''} onClick={() => setActiveTab('drivers')}>DRIVERS</button>
+                            <button className={activeTab === 'points' ? 'active' : ''} onClick={() => setActiveTab('points')}>POINTS</button>
+                        </>
+                    )}
+                    {authType === 'global' && (
+                        <button className={activeTab === 'global' ? 'active' : ''} onClick={() => setActiveTab('global')}>LEAGUE MANAGEMENT</button>
+                    )}
+                </nav>
+            </header>
+
+            <main>
+                {/* RACE ENTRY TAB */}
+                {activeTab === 'races' && (
+                    <div className="grid grid-2 gap-8 animate-fade-in">
+                        <div className="f1-card hover-f1">
+                            <h2 className="text-f1 mb-2" style={{ color: 'var(--f1-red)' }}>AI EXTRACTION</h2>
+                            <p className="mb-4" style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Upload a race recap screenshot and let Gemini do the work.</p>
+                            <Link href="/admin/upload" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>CONTINUE TO EXTRACTION</Link>
+                        </div>
+                        <div className="f1-card hover-f1">
+                            <h2 className="text-f1 mb-2">MANUAL ENTRY</h2>
+                            <p className="mb-4" style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Quickly enter results by hand for maximum control.</p>
+                            <Link href="/admin/results" className="btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>MANUAL INPUT</Link>
+                        </div>
+
+                        <div className="f1-card hover-f1" style={{ gridColumn: 'span 2' }}>
+                            <h2 className="text-f1 mb-4">RACE PLANNER</h2>
+                            <p className="mb-4" style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Schedule upcoming races for your league.</p>
+                            <form onSubmit={handleScheduleRace} className="grid grid-3 gap-4 items-end">
+                                <div className="input-group">
+                                    <label>SELECT TRACK</label>
+                                    <select
+                                        value={scheduleTrack}
+                                        onChange={e => setScheduleTrack(e.target.value)}
+                                        style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
+                                    >
+                                        {F1_TRACKS_2025.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                </div>
+                                <div className="input-group">
+                                    <label>DATE & TIME</label>
+                                    <input
+                                        type="datetime-local"
+                                        value={scheduleDate}
+                                        onChange={e => setScheduleDate(e.target.value)}
+                                        required
+                                        style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
+                                    />
+                                </div>
+                                <button type="submit" disabled={submitting} className="btn-primary" style={{ height: '46px', justifyContent: 'center' }}>
+                                    {submitting ? 'SCHEDULING...' : 'SCHEDULE EVENT'}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* DRIVERS TAB */}
+                {activeTab === 'drivers' && (
+                    <div className="grid grid-2 gap-8 animate-fade-in">
+                        <div className="f1-card">
+                            <h2 className="text-f1 mb-4">DRIVERS LIST</h2>
+                            <div className="flex flex-col gap-2">
+                                {drivers.map(d => (
+                                    <div key={d.id} className="flex justify-between items-center p-3 bg-white/5 rounded border border-white/5">
+                                        <div>
+                                            <div className="text-f1" style={{ fontSize: '1rem' }}>{d.name}</div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--silver)' }}>{d.team || 'Independent'}</div>
+                                        </div>
+                                        <button onClick={() => handleDeleteDriver(d.id)} className="btn-danger-text">REMOVE</button>
+                                    </div>
+                                ))}
+                                {drivers.length === 0 && <p className="text-center py-4" style={{ color: 'var(--silver)' }}>No drivers registered yet.</p>}
+                            </div>
+                        </div>
+
+                        <div className="f1-card">
+                            <h2 className="text-f1 mb-4">ADD NEW DRIVER</h2>
+                            <div className="flex flex-col gap-3">
+                                <div className="input-group">
+                                    <label>FULL NAME</label>
+                                    <input value={newDriverName} onChange={e => setNewDriverName(e.target.value)} placeholder="Max Mustermann" />
+                                </div>
+                                <div className="input-group">
+                                    <label>TEAM CONSTRUCTOR</label>
+                                    <input value={newDriverTeam} onChange={e => setNewDriverTeam(e.target.value)} placeholder="Mercedes-AMG / Privateer" />
+                                </div>
+                                <button onClick={handleAddDriver} disabled={submitting || !newDriverName} className="btn-primary mt-2">
+                                    {submitting ? 'ADDING...' : 'ADD TO LEAGUE'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* POINTS CONFIG TAB */}
+                {activeTab === 'points' && (
+                    <div className="f1-card animate-fade-in">
+                        <h2 className="text-f1 mb-6">POINTS CONFIGURATION</h2>
+
+                        <div className="grid grid-3 gap-6 mb-8">
+                            <div className="input-group">
+                                <label>FASTEST LAP BONUS</label>
+                                <input
+                                    type="number"
+                                    value={pointsConfig.fastestLapBonus}
+                                    onChange={e => setPointsConfig({ ...pointsConfig, fastestLapBonus: parseInt(e.target.value) || 0 })}
+                                />
+                            </div>
+                            <div className="input-group">
+                                <label>CLEAN DRIVER BONUS</label>
+                                <input
+                                    type="number"
+                                    value={pointsConfig.cleanDriverBonus}
+                                    onChange={e => setPointsConfig({ ...pointsConfig, cleanDriverBonus: parseInt(e.target.value) || 0 })}
+                                />
+                            </div>
+                        </div>
+
+                        <h3 className="text-f1 mb-4" style={{ fontSize: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>POSITION POINTS</h3>
+                        <div className="grid grid-4 gap-x-8 gap-y-4 mb-8">
+                            {Array.from({ length: 20 }).map((_, i) => (
+                                <div key={i + 1} className="flex items-center gap-3">
+                                    <span style={{ width: '30px', fontWeight: '900', color: 'var(--silver)', opacity: 0.5 }}>{i + 1}.</span>
+                                    <input
+                                        type="number"
+                                        value={pointsConfig.points[i + 1] || 0}
+                                        onChange={e => {
+                                            const newPoints = { ...pointsConfig.points, [i + 1]: parseInt(e.target.value) || 0 };
+                                            setPointsConfig({ ...pointsConfig, points: newPoints });
+                                        }}
+                                        style={{ width: '100%', padding: '0.5rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: 'white' }}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+
+                        <button onClick={handleUpdatePoints} disabled={submitting} className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
+                            {submitting ? 'SAVING CONFIG...' : 'SAVE POINTS SETTINGS'}
+                        </button>
+                    </div>
+                )}
+
+                {/* GLOBAL ADMIN TAB */}
+                {activeTab === 'global' && (
+                    <div className="flex flex-col gap-6 animate-fade-in">
+                        <div className="f1-card">
+                            <h2 className="text-f1 mb-4" style={{ color: 'var(--f1-red)' }}>LEAGUE OVERVIEW & DELETION</h2>
+                            <div className="flex flex-col gap-2">
+                                {leaguesList.map(l => (
+                                    <div key={l.id} className="flex justify-between items-center p-3 bg-white/5 border border-white/5 rounded">
+                                        <span className="text-f1">{l.name}</span>
+                                        <button onClick={() => handleGlobalDeleteLeague(l.id)} className="btn-danger-text">DELETE LEAGUE</button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="f1-card" style={{ border: '1px dashed var(--glass-border)' }}>
+                            <h2 className="text-f1 mb-2">DEVELOPER ACCESS</h2>
+                            <p className="mb-4" style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Populate the system with a fresh test environment.</p>
+                            <button
+                                onClick={async () => {
+                                    setLoading(true);
+                                    const res = await seedTestData();
+                                    if (res.success) {
+                                        alert('System Seeded!');
+                                        refreshLeagues();
+                                    }
+                                    setLoading(false);
+                                }}
+                                disabled={loading}
+                                className="btn-secondary"
+                                style={{ width: '100%', justifyContent: 'center' }}
+                            >
+                                {loading ? 'SEEDING...' : 'RUN SEED TEST DATA'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </main>
+
+            <style jsx global>{`
+                .min-vh-100 { min-height: 100vh; }
+                .text-center { text-align: center; }
+                .grid { display: grid; }
+                .grid-2 { grid-template-columns: 1fr 1fr; }
+                .grid-3 { grid-template-columns: repeat(3, 1fr); }
+                .grid-4 { grid-template-columns: repeat(4, 1fr); }
+                @media (max-width: 768px) {
+                    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+                }
+                
+                .f1-tabs {
+                    background: var(--f1-carbon-dark);
+                    padding: 0.3rem;
+                    border-radius: 8px;
+                    border: 1px solid var(--glass-border);
+                }
+                .f1-tabs button {
+                    padding: 0.6rem 1.2rem;
+                    border: none;
+                    background: transparent;
+                    color: var(--silver);
+                    font-family: 'F1-Wide', sans-serif;
+                    font-size: 0.6rem;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    border-radius: 6px;
+                }
+                .f1-tabs button.active {
+                    background: var(--f1-red);
+                    color: white;
+                }
+
+                .input-group {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.5rem;
+                }
+                .input-group label {
+                    font-size: 0.6rem;
+                    color: var(--silver);
+                    font-weight: 900;
+                    letter-spacing: 1px;
+                }
+                .input-group input {
+                    padding: 0.8rem;
+                    background: var(--f1-carbon-dark);
+                    border: 1px solid var(--glass-border);
+                    border-radius: 8px;
+                    color: white;
+                    font-size: 0.9rem;
+                    transition: border-color 0.2s;
+                }
+                .input-group input:focus {
+                    outline: none;
+                    border-color: var(--f1-red);
+                }
+
+                .status-badge {
+                    font-size: 0.6rem;
+                    padding: 2px 8px;
+                    border-radius: 4px;
+                    font-weight: 900;
+                    letter-spacing: 1px;
+                }
+                .badge-red { background: var(--f1-red); color: white; }
+                .badge-silver { background: var(--silver); color: black; }
+
+                .btn-text {
+                    background: none;
+                    border: none;
+                    color: var(--silver);
+                    cursor: pointer;
+                    text-decoration: underline;
+                }
+
+                .btn-danger-text {
+                    color: var(--f1-red);
+                    background: none;
+                    border: none;
+                    font-size: 0.7rem;
+                    font-weight: 900;
+                    cursor: pointer;
+                    letter-spacing: 1px;
+                }
+                .btn-danger-text:hover { opacity: 0.7; }
+
+                .animate-scale-in {
+                    animation: scaleIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+                }
+                @keyframes scaleIn {
+                    from { opacity: 0; transform: scale(0.95); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+            `}</style>
+        </div>
+    );
+}
