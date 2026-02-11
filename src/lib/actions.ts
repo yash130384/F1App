@@ -9,14 +9,13 @@ import { calculatePoints, DEFAULT_CONFIG, PointsConfig } from './scoring';
  */
 export async function createLeague(name: string, adminPass: string, joinPass: string) {
     try {
+        const leagueId = crypto.randomUUID();
         await run(
-            `INSERT INTO leagues (name, admin_password, join_password) VALUES (?, ?, ?)`,
-            [name, adminPass, joinPass]
+            `INSERT INTO leagues (id, name, admin_password, join_password) VALUES (?, ?, ?, ?)`,
+            [leagueId, name, adminPass, joinPass]
         );
 
         // Initialize default points config
-        const leagues = await query<any>(`SELECT id FROM leagues WHERE name = ?`, [name]);
-        const leagueId = leagues[0].id;
         await run(
             `INSERT INTO points_config (league_id, points_json, fastest_lap_bonus, clean_driver_bonus)
              VALUES (?, ?, ?, ?)`,
@@ -44,9 +43,12 @@ export async function joinLeague(leagueName: string, joinPass: string, driverNam
         if (leagues.length === 0) throw new Error('League not found.');
         if (leagues[0].join_password !== joinPass) throw new Error('Incorrect Join Password.');
 
+        const leagueId = leagues[0].id;
+        const driverId = crypto.randomUUID();
+
         await run(
-            `INSERT INTO drivers (league_id, name, team) VALUES (?, ?, ?)`,
-            [leagues[0].id, driverName, team]
+            `INSERT INTO drivers (id, league_id, name, team) VALUES (?, ?, ?, ?)`,
+            [driverId, leagueId, driverName, team]
         );
 
         return { success: true };
@@ -118,10 +120,11 @@ export async function saveRaceResults(leagueId: string, track: string, results: 
                 isDnf: res.is_dnf
             }, config);
 
+            const resultId = crypto.randomUUID();
             await run(
-                `INSERT INTO race_results (race_id, driver_id, position, fastest_lap, clean_driver, points_earned, is_dnf)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [raceId, res.driver_id, res.position, res.fastest_lap ? 1 : 0, res.clean_driver ? 1 : 0, points, res.is_dnf ? 1 : 0]
+                `INSERT INTO race_results (id, race_id, driver_id, position, fastest_lap, clean_driver, points_earned, is_dnf)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [resultId, raceId, res.driver_id, res.position, res.fastest_lap ? 1 : 0, res.clean_driver ? 1 : 0, points, res.is_dnf ? 1 : 0]
             );
         }
 
