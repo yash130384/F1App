@@ -11,7 +11,7 @@ export default function AdminResults() {
     const [leagueId, setLeagueId] = useState<string | null>(null);
     const [drivers, setDrivers] = useState<any[]>([]);
     const [track, setTrack] = useState('');
-    const [results, setResults] = useState<Record<string, { position: number; fastestLap: boolean; cleanDriver: boolean }>>({});
+    const [results, setResults] = useState<Record<string, { position: number; fastestLap: boolean; cleanDriver: boolean; isDnf: boolean }>>({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +30,7 @@ export default function AdminResults() {
             // Initialize results state
             const initialResults: any = {};
             (res.drivers || []).forEach((d: any) => {
-                initialResults[d.id] = { position: 20, fastestLap: false, cleanDriver: false };
+                initialResults[d.id] = { position: 20, fastestLap: false, cleanDriver: false, isDnf: false };
             });
             setResults(initialResults);
             setLoading(false);
@@ -56,7 +56,8 @@ export default function AdminResults() {
             driver_id: d.id,
             position: results[d.id].position,
             fastest_lap: results[d.id].fastestLap,
-            clean_driver: results[d.id].cleanDriver
+            clean_driver: results[d.id].cleanDriver,
+            is_dnf: results[d.id].isDnf
         }));
 
         const res = await saveRaceResults(leagueId, track, formattedResults);
@@ -167,6 +168,16 @@ export default function AdminResults() {
                                 />
                                 <span className="checkmark clean"></span>
                                 <span style={{ fontSize: '0.7rem', fontWeight: 900 }}>CD</span>
+                            </label>
+
+                            <label className="checkbox-container">
+                                <input
+                                    type="checkbox"
+                                    checked={results[driver.id]?.isDnf}
+                                    onChange={e => updateResult(driver.id, 'isDnf', e.target.checked)}
+                                />
+                                <span className="checkmark dnf"></span>
+                                <span style={{ fontSize: '0.7rem', fontWeight: 900 }}>DNF</span>
                             </label>
 
                             <div style={{ minWidth: '90px', textAlign: 'right', fontWeight: 900, fontSize: '1.2rem', color: 'var(--white)' }}>

@@ -232,6 +232,12 @@ a {
   box-shadow: 0 0 15px rgba(0, 210, 190, 0.4);
 }
 
+.checkbox-container input:checked+.checkmark.dnf {
+  background: var(--f1-carbon-light);
+  border-color: var(--silver);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
 .checkmark::after {
   content: '';
   position: absolute;

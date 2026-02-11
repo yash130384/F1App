@@ -248,8 +248,14 @@ export default function Dashboard() {
                                                                         <span className="text-f1">{res.driver_name}</span>
                                                                     </div>
                                                                     <div className="flex gap-2 items-center">
-                                                                        {res.fastest_lap && <span title="Fastest Lap" style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.6rem', padding: '2px 4px', borderRadius: '2px', fontWeight: 900 }}>FL</span>}
-                                                                        {res.clean_driver && <span title="Clean Driver" style={{ background: 'var(--success)', color: 'white', fontSize: '0.6rem', padding: '2px 4px', borderRadius: '2px', fontWeight: 900 }}>CD</span>}
+                                                                        {res.is_dnf ? (
+                                                                            <span style={{ color: 'var(--f1-red)', fontSize: '0.7rem', fontWeight: 900, background: 'rgba(255,24,1,0.1)', padding: '2px 8px', borderRadius: '4px' }}>DNF</span>
+                                                                        ) : (
+                                                                            <>
+                                                                                {res.fastest_lap && <span title="Fastest Lap" style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.6rem', padding: '2px 4px', borderRadius: '2px', fontWeight: 900 }}>FL</span>}
+                                                                                {res.clean_driver && <span title="Clean Driver" style={{ background: 'var(--success)', color: 'white', fontSize: '0.6rem', padding: '2px 4px', borderRadius: '2px', fontWeight: 900 }}>CD</span>}
+                                                                            </>
+                                                                        )}
                                                                         <span style={{ fontWeight: 900, color: 'var(--white)', marginLeft: '1rem' }}>{res.points_earned} <span style={{ fontSize: '0.7rem', opacity: 0.3 }}>PTS</span></span>
                                                                     </div>
                                                                 </div>

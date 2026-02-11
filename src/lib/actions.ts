@@ -114,13 +114,14 @@ export async function saveRaceResults(leagueId: string, track: string, results: 
             const points = calculatePoints({
                 position: res.position,
                 fastestLap: res.fastest_lap,
-                cleanDriver: res.clean_driver
+                cleanDriver: res.clean_driver,
+                isDnf: res.is_dnf
             }, config);
 
             await run(
-                `INSERT INTO race_results (race_id, driver_id, position, fastest_lap, clean_driver, points_earned)
-                 VALUES (?, ?, ?, ?, ?, ?)`,
-                [raceId, res.driver_id, res.position, res.fastest_lap ? 1 : 0, res.clean_driver ? 1 : 0, points]
+                `INSERT INTO race_results (race_id, driver_id, position, fastest_lap, clean_driver, points_earned, is_dnf)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [raceId, res.driver_id, res.position, res.fastest_lap ? 1 : 0, res.clean_driver ? 1 : 0, points, res.is_dnf ? 1 : 0]
             );
         }
 
