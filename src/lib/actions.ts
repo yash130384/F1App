@@ -98,14 +98,14 @@ export async function saveRaceResults(leagueId: string, track: string, results: 
         if (!raceId) {
             raceId = crypto.randomUUID();
             await run(
-                `INSERT INTO races (id, league_id, track, is_finished, race_date) VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)`,
+                `INSERT INTO races (id, league_id, track, is_finished, race_date) VALUES (?, ?, ?, true, CURRENT_TIMESTAMP)`,
                 [raceId, leagueId, track]
             );
             console.log(`Race created: ${track} (${raceId})`);
         } else {
             // Update scheduled race to finished
             await run(
-                `UPDATE races SET is_finished = 1, race_date = CURRENT_TIMESTAMP WHERE id = ?`,
+                `UPDATE races SET is_finished = true, race_date = CURRENT_TIMESTAMP WHERE id = ?`,
                 [raceId]
             );
             console.log(`Race finished: ${track} (${raceId})`);
@@ -124,7 +124,7 @@ export async function saveRaceResults(leagueId: string, track: string, results: 
             await run(
                 `INSERT INTO race_results (id, race_id, driver_id, position, fastest_lap, clean_driver, points_earned, is_dnf)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [resultId, raceId, res.driver_id, res.position, res.fastest_lap ? 1 : 0, res.clean_driver ? 1 : 0, points, res.is_dnf ? 1 : 0]
+                [resultId, raceId, res.driver_id, res.position, !!res.fastest_lap, !!res.clean_driver, points, !!res.is_dnf]
             );
         }
 
@@ -161,7 +161,7 @@ export async function scheduleRace(leagueId: string, track: string, date: string
 
         const raceId = crypto.randomUUID();
         await run(
-            `INSERT INTO races (id, league_id, track, is_finished, scheduled_date) VALUES (?, ?, ?, 0, ?)`,
+            `INSERT INTO races (id, league_id, track, is_finished, scheduled_date) VALUES (?, ?, ?, false, ?)`,
             [raceId, leagueId, track, date]
         );
         return { success: true };
@@ -190,16 +190,16 @@ export async function getDashboardData(leagueName: string) {
         `, [leagueId]);
 
         const finishedRaces = await query<any>(
-            `SELECT * FROM races WHERE league_id = ? AND is_finished = 1 ORDER BY race_date DESC LIMIT 10`,
+            `SELECT * FROM races WHERE league_id = ? AND is_finished = true ORDER BY race_date DESC LIMIT 10`,
             [leagueId]
         );
 
         const upcomingRaces = await query<any>(
-            `SELECT * FROM races WHERE league_id = ? AND is_finished = 0 ORDER BY scheduled_date ASC`,
+            `SELECT * FROM races WHERE league_id = ? AND is_finished = false ORDER BY scheduled_date ASC`,
             [leagueId]
         );
 
-        const totalRaces = await query<any>(`SELECT COUNT(*) as count FROM races WHERE league_id = ? AND is_finished = 1`, [leagueId]);
+        const totalRaces = await query<any>(`SELECT COUNT(*) as count FROM races WHERE league_id = ? AND is_finished = true`, [leagueId]);
 
         return {
             success: true,
