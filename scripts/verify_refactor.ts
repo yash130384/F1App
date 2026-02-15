@@ -1,5 +1,5 @@
-import { createLeague, joinLeague, scheduleRace, saveRaceResults, getDashboardData, deleteScheduledRace } from '../src/lib/actions.ts';
-import { query } from '../src/lib/db.ts';
+import { createLeague, joinLeague, scheduleRace, saveRaceResults, getDashboardData, deleteScheduledRace } from '../src/lib/actions';
+import { query } from '../src/lib/db';
 
 async function testRefactor() {
     console.log('--- Testing Admin Refactor ---');

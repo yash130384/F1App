@@ -1,4 +1,4 @@
-import { query, run } from '../src/lib/db.ts';
+import { query, run } from '../src/lib/db';
 
 async function cleanup() {
     console.log('--- Database Cleanup ---');

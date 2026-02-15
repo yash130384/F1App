@@ -1,4 +1,4 @@
-import { query } from '../src/lib/db.ts';
+import { query } from '../src/lib/db';
 
 async function inspect() {
     console.log('--- Database Inspection ---');
