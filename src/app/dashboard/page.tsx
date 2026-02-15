@@ -179,7 +179,7 @@ export default function Dashboard() {
                                         </div>
                                     )}
 
-                                    <h2 className="text-f1" style={{ marginBottom: '1rem', fontSize: '1.2rem', opacity: 0.8 }}>Recent Races</h2>
+                                    <h2 className="text-f1" style={{ marginBottom: '1rem', fontSize: '1.2rem', color: 'var(--f1-red)', opacity: 0.8 }}>RECENT RACES</h2>
                                     <div className="flex flex-col gap-2">
                                         {races.map(race => (
                                             <button
@@ -191,7 +191,7 @@ export default function Dashboard() {
                                                 <div className="flex justify-between items-center">
                                                     <div>
                                                         <div style={{ fontSize: '0.6rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '1px' }} suppressHydrationWarning>{new Date(race.created_at).toLocaleDateString()}</div>
-                                                        <div className="text-f1" style={{ fontSize: '1rem' }}>{race.track || 'Unknown Track'}</div>
+                                                        <div className="text-f1" style={{ fontSize: '1rem', color: 'var(--white)' }}>{race.track || 'Unknown Track'}</div>
                                                     </div>
                                                     <div style={{ opacity: selectedRace?.id === race.id ? 1 : 0.3 }}>&rarr;</div>
                                                 </div>
@@ -230,7 +230,10 @@ export default function Dashboard() {
                                                                                 {res.clean_driver && <span title="Clean Driver" style={{ background: 'var(--success)', color: 'white', fontSize: '0.6rem', padding: '2px 4px', borderRadius: '2px', fontWeight: 900 }}>CD</span>}
                                                                             </>
                                                                         )}
-                                                                        <span style={{ fontWeight: 900, color: 'var(--white)', marginLeft: '1rem' }}>{res.points_earned} <span style={{ fontSize: '0.7rem', opacity: 0.3 }}>PTS</span></span>
+                                                                        <span style={{ fontWeight: 900, color: 'var(--white)', marginLeft: '1rem' }}>
+                                                                            {res.points_earned} <span style={{ fontSize: '0.7rem', opacity: 0.3 }}>PTS</span>
+                                                                            <span style={{ marginLeft: '0.8rem', paddingLeft: '0.8rem', borderLeft: '1px solid rgba(255,255,255,0.1)', color: 'var(--silver)', fontSize: '0.8rem' }}>P{res.position}</span>
+                                                                        </span>
                                                                     </div>
                                                                 </div>
                                                             ))}
