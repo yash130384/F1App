@@ -9,7 +9,7 @@ export default function Home() {
           <span style={{ color: 'var(--f1-red)' }}>Zero Effort.</span>
         </h1>
         <p style={{ color: 'var(--silver)', fontSize: '1.2rem', maxWidth: '600px', margin: '0 auto 2rem' }}>
-          Extract race results with AI, automate scoring, and manage your F1 25 league standings in seconds.
+          Automate scoring and manage your F1 25 league standings in seconds with a professional dashboard.
         </p>
         <div className="flex justify-center gap-2">
           <Link href="/create-league" className="btn-primary" style={{ padding: '1rem 2rem' }}>Create League</Link>
@@ -29,14 +29,6 @@ export default function Home() {
               Real-time leaderboard for drivers and teams. Points are calculated instantly after every race.
             </p>
             <Link href="/dashboard" className="text-f1" style={{ fontSize: '0.8rem', color: 'var(--f1-red)', textDecoration: 'underline' }}>View Leaderboard</Link>
-          </div>
-
-          <div className="f1-card">
-            <h3 className="text-f1" style={{ marginBottom: '1rem', color: 'var(--f1-red)' }}>AI Extraction</h3>
-            <p style={{ color: 'var(--silver-light)', marginBottom: '1.5rem' }}>
-              Upload your race recap screen. Gemini extracts positions and bonuses automatically.
-            </p>
-            <Link href="/admin/upload" className="text-f1" style={{ fontSize: '0.8rem', color: 'var(--f1-red)', textDecoration: 'underline' }}>Try AI Upload</Link>
           </div>
         </div>
       </div>
