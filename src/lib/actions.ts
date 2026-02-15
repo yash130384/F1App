@@ -23,7 +23,7 @@ export async function createLeague(name: string, adminPass: string, joinPass: st
         );
 
         console.log(`League created: ${name}`);
-        return { success: true };
+        return { success: true, leagueId };
     } catch (error: any) {
         console.error('Create League Error:', error);
         return { success: false, error: error.message };
@@ -94,7 +94,19 @@ export async function saveRaceResults(leagueId: string, track: string, results: 
 
         let raceId = existingRaceId;
 
-        // 2. Create Race if not exists
+        // 2. Auto-Link if no ID provided
+        if (!raceId) {
+            const scheduled = await query<any>(
+                `SELECT id FROM races WHERE league_id = ? AND track = ? AND is_finished = false ORDER BY scheduled_date ASC LIMIT 1`,
+                [leagueId, track]
+            );
+            if (scheduled.length > 0) {
+                raceId = scheduled[0].id;
+                console.log(`Auto-linked to scheduled race: ${raceId}`);
+            }
+        }
+
+        // 3. Create Race if not exists
         if (!raceId) {
             raceId = crypto.randomUUID();
             await run(
@@ -179,14 +191,24 @@ export async function scheduleRace(leagueId: string, track: string, date: string
  */
 export async function getDashboardData(leagueName: string) {
     try {
-        const leagues = await query<any>(`SELECT id, name FROM leagues WHERE name = ?`, [leagueName]);
+        // Check if leagueName is actually a UUID
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(leagueName);
+        let leagues;
+        if (isUuid) {
+            leagues = await query<any>(`SELECT id, name FROM leagues WHERE id = ?`, [leagueName]);
+        } else {
+            leagues = await query<any>(`SELECT id, name FROM leagues WHERE name = ?`, [leagueName]);
+        }
+
         if (leagues.length === 0) throw new Error('League not found.');
         const leagueId = leagues[0].id;
 
         const standings = await query<any>(`
             SELECT d.*,
                 (SELECT COUNT(*) FROM race_results rr WHERE rr.driver_id = d.id AND rr.position = 1) as wins,
-                (SELECT COUNT(*) FROM race_results rr WHERE rr.driver_id = d.id AND rr.position <= 3) as podiums
+                (SELECT COUNT(*) FROM race_results rr WHERE rr.driver_id = d.id AND rr.position <= 3) as podiums,
+                (SELECT COUNT(*) FROM race_results rr WHERE rr.driver_id = d.id AND rr.fastest_lap = true) as fastest_laps,
+                (SELECT COUNT(*) FROM race_results rr WHERE rr.driver_id = d.id AND rr.clean_driver = true) as clean_races
             FROM drivers d 
             WHERE d.league_id = ? 
             ORDER BY d.total_points DESC, wins DESC, podiums DESC
@@ -317,34 +339,19 @@ export async function deleteRace(raceId: string, leagueId: string, adminPass: st
 }
 
 /**
- * Deletes an entire league and all associated data.
- * Requires global admin credentials.
+ * Deletes a scheduled race.
  */
-export async function deleteLeague(leagueId: string, globalUser: string, globalPass: string) {
+export async function deleteScheduledRace(raceId: string, leagueId: string, adminPass: string) {
     try {
-        if (globalUser !== 'admin' || globalPass !== 'admin') {
-            throw new Error('Unauthorized: Invalid Global Admin credentials.');
+        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
+        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
+            throw new Error('Unauthorized.');
         }
 
-        // 1. Delete all results for drivers in this league
-        const drivers = await query<any>(`SELECT id FROM drivers WHERE league_id = ?`, [leagueId]);
-        for (const d of drivers) {
-            await run(`DELETE FROM race_results WHERE driver_id = ?`, [d.id]);
-        }
-
-        // 2. Delete all races
-        await run(`DELETE FROM races WHERE league_id = ?`, [leagueId]);
-
-        // 3. Delete all drivers
-        await run(`DELETE FROM drivers WHERE league_id = ?`, [leagueId]);
-
-        // 4. Delete the league
-        await run(`DELETE FROM leagues WHERE id = ?`, [leagueId]);
-
-        console.log(`League deleted: ${leagueId}`);
+        await run(`DELETE FROM races WHERE id = ? AND is_finished = false`, [raceId]);
         return { success: true };
     } catch (error: any) {
-        console.error('Delete League Error:', error);
+        console.error('Delete Scheduled Race Error:', error);
         return { success: false, error: error.message };
     }
 }
@@ -415,9 +422,57 @@ export async function updatePointsConfig(leagueId: string, config: PointsConfig,
             [leagueId, JSON.stringify(config.points), config.fastestLapBonus, config.cleanDriverBonus]
         );
 
+        // Recalculate standings since point rules might have changed
+        await recalculateStandings(leagueId);
+
         return { success: true };
     } catch (error: any) {
         console.error('Update Points Config Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Updates results for an existing race.
+ */
+export async function updateRaceResults(leagueId: string, raceId: string, results: any[], adminPass: string) {
+    try {
+        // 1. Auth Check
+        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
+        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
+            throw new Error('Unauthorized.');
+        }
+
+        // 2. Fetch Points Config
+        const configRes = await getPointsConfig(leagueId);
+        const config = configRes.success ? configRes.config : DEFAULT_CONFIG;
+
+        // 3. Delete existing results for this race
+        await run(`DELETE FROM race_results WHERE race_id = ?`, [raceId]);
+
+        // 4. Insert new (updated) results
+        for (const res of results) {
+            const points = calculatePoints({
+                position: parseInt(res.position as any),
+                fastestLap: !!res.fastest_lap,
+                cleanDriver: !!res.clean_driver,
+                isDnf: !!res.is_dnf
+            }, config);
+
+            const resultId = crypto.randomUUID();
+            await run(
+                `INSERT INTO race_results (id, race_id, driver_id, position, fastest_lap, clean_driver, points_earned, is_dnf)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [resultId, raceId, res.driver_id, res.position, !!res.fastest_lap, !!res.clean_driver, points, !!res.is_dnf]
+            );
+        }
+
+        // 5. Recalculate Standings
+        await recalculateStandings(leagueId);
+
+        return { success: true };
+    } catch (error: any) {
+        console.error('Update Results Error:', error);
         return { success: false, error: error.message };
     }
 }

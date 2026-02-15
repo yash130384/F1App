@@ -15,9 +15,6 @@ export default function Dashboard() {
     const [selectedRace, setSelectedRace] = useState<any | null>(null);
     const [raceResults, setRaceResults] = useState<any[]>([]);
 
-    const [adminPass, setAdminPass] = useState('');
-    const [isDeleting, setIsDeleting] = useState(false);
-
     const [loading, setLoading] = useState(false);
     const [fetchingLeagues, setFetchingLeagues] = useState(true);
     const [fetchingRace, setFetchingRace] = useState(false);
@@ -72,29 +69,6 @@ export default function Dashboard() {
         setFetchingRace(false);
     };
 
-    const handleDeleteRace = async () => {
-        if (!selectedRace || !league || !adminPass) {
-            alert('Please enter Admin Password.');
-            return;
-        }
-
-        if (!confirm(`Are you sure you want to delete the race at ${selectedRace.track}? This will recalculate all standings.`)) {
-            return;
-        }
-
-        setIsDeleting(true);
-        const res = await deleteRace(selectedRace.id, league.id, adminPass);
-
-        if (res.success) {
-            alert('Race deleted successfully.');
-            // Refresh dashboard
-            selectLeague(selectedLeagueName!);
-        } else {
-            alert('Error: ' + res.error);
-        }
-        setIsDeleting(false);
-        setAdminPass('');
-    };
 
     return (
         <div className="container animate-fade-in" style={{ padding: '2rem 1.5rem' }}>
@@ -262,29 +236,6 @@ export default function Dashboard() {
                                                             ))}
                                                         </div>
 
-                                                        <div style={{ padding: '2rem 1.5rem', borderTop: '2px solid var(--f1-red)', background: 'rgba(255, 24, 1, 0.05)', marginTop: '2rem' }}>
-                                                            <form onSubmit={(e) => { e.preventDefault(); handleDeleteRace(); }} className="flex flex-col gap-3">
-                                                                <div style={{ fontSize: '0.7rem', color: 'var(--f1-red)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '0.5rem' }}>ADMIN AUTHENTICATION</div>
-                                                                <div className="flex gap-2">
-                                                                    <input
-                                                                        type="password"
-                                                                        placeholder="ADMIN PASSWORD"
-                                                                        value={adminPass}
-                                                                        onChange={e => setAdminPass(e.target.value)}
-                                                                        style={{ flex: 1, padding: '0.8rem', background: 'var(--f1-carbon)', border: '1px solid var(--glass-border)', borderRadius: '4px', fontSize: '0.8rem', color: 'white', letterSpacing: '2px' }}
-                                                                    />
-                                                                    <button
-                                                                        type="submit"
-                                                                        disabled={isDeleting || !adminPass}
-                                                                        className="btn-primary"
-                                                                        style={{ background: 'var(--f1-red)', border: 'none', padding: '0.8rem 1.5rem', fontSize: '0.75rem', fontWeight: 900 }}
-                                                                    >
-                                                                        {isDeleting ? 'DELETING...' : 'DELETE RACE'}
-                                                                    </button>
-                                                                </div>
-                                                                <p style={{ fontSize: '0.65rem', color: 'var(--silver)', opacity: 0.5, marginTop: '0.5rem' }}>WARNING: THIS ACTION CANNOT BE UNDONE.</p>
-                                                            </form>
-                                                        </div>
                                                     </>
                                                 )}
                                             </div>

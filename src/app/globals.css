@@ -46,6 +46,10 @@ body {
   max-width: 100vw;
   overflow-x: hidden;
   background-color: var(--f1-carbon-dark);
+  background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('/assets/race-bg.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   color: var(--white);
   font-family: var(--font-family);
   -webkit-font-smoothing: antialiased;
@@ -63,6 +67,10 @@ a {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1.5rem;
+}
+
+.grid {
+  display: grid;
 }
 
 .flex {
@@ -91,6 +99,26 @@ a {
 
 .gap-4 {
   gap: 2rem;
+}
+
+.gap-8 {
+  gap: 4rem;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.mb-4 {
+  margin-bottom: 1rem;
+}
+
+.mb-6 {
+  margin-bottom: 1.5rem;
+}
+
+.mb-8 {
+  margin-bottom: 2rem;
 }
 
 /* Dashboard Components */
@@ -168,6 +196,9 @@ a {
   cursor: pointer;
   transition: var(--transition-fast);
   backdrop-filter: var(--glass-blur);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .btn-secondary:hover {

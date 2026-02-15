@@ -4,28 +4,32 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import {
     seedTestData,
-    deleteLeague,
+    deleteRace,
+    deleteScheduledRace,
     deleteDriver,
     adminLogin,
     getAllLeagues,
     getPointsConfig,
     updatePointsConfig,
     joinLeague,
-    scheduleRace
+    scheduleRace,
+    getDashboardData,
+    getRaceDetails,
+    updateRaceResults
 } from '@/lib/actions';
-import { DEFAULT_CONFIG, PointsConfig } from '@/lib/scoring';
+import { DEFAULT_CONFIG, PointsConfig, calculatePoints, formatPoints } from '@/lib/scoring';
 import { F1_TRACKS_2025 } from '@/lib/constants';
 
 export default function AdminHub() {
     // Auth State
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [authType, setAuthType] = useState<'global' | 'league' | null>(null);
+    const [authType, setAuthType] = useState<'league' | null>(null);
     const [leagueName, setLeagueName] = useState('');
     const [adminPass, setAdminPass] = useState('');
     const [leagueId, setLeagueId] = useState<string | null>(null);
 
     // Dynamic Data State
-    const [activeTab, setActiveTab] = useState<'races' | 'drivers' | 'points' | 'global'>('races');
+    const [activeTab, setActiveTab] = useState<'races' | 'drivers' | 'points'>('races');
     const [leaguesList, setLeaguesList] = useState<any[]>([]);
     const [drivers, setDrivers] = useState<any[]>([]);
     const [pointsConfig, setPointsConfig] = useState<PointsConfig>(DEFAULT_CONFIG);
@@ -37,7 +41,13 @@ export default function AdminHub() {
     const [newDriverTeam, setNewDriverTeam] = useState('');
     const [scheduleTrack, setScheduleTrack] = useState(F1_TRACKS_2025[0]);
     const [scheduleDate, setScheduleDate] = useState('');
-    const [scheduledRaces, setScheduledRaces] = useState<any[]>([]);
+    const [upcomingRaces, setUpcomingRaces] = useState<any[]>([]);
+    const [finishedRaces, setFinishedRaces] = useState<any[]>([]);
+
+    // Edit State
+    const [editingRaceId, setEditingRaceId] = useState<string | null>(null);
+    const [editingRaceTrack, setEditingRaceTrack] = useState('');
+    const [editResults, setEditResults] = useState<any[]>([]);
 
     useEffect(() => {
         refreshLeagues();
@@ -49,14 +59,7 @@ export default function AdminHub() {
         if (session) {
             try {
                 const parsed = JSON.parse(session);
-                if (parsed.type === 'global') {
-                    // Verify global (simple verify)
-                    // In a real app we'd re-verify with server, but here we trust local for UI state
-                    setIsLoggedIn(true);
-                    setAuthType('global');
-                    setActiveTab('global');
-                    setLeagueName('admin');
-                } else if (parsed.type === 'league') {
+                if (parsed.type === 'league') {
                     // Re-login to fetch fresh data
                     const res = await adminLogin(parsed.name, parsed.pass);
                     if (res.success) {
@@ -70,6 +73,8 @@ export default function AdminHub() {
 
                         const pRes = await getPointsConfig(res.leagueId);
                         if (pRes.success && pRes.config) setPointsConfig(pRes.config);
+
+                        refreshRaces(res.leagueId);
                     } else {
                         localStorage.removeItem('f1_admin_session');
                     }
@@ -81,6 +86,14 @@ export default function AdminHub() {
         }
     };
 
+    async function refreshRaces(lId: string) {
+        const res = await getDashboardData(lId);
+        if (res.success) {
+            setUpcomingRaces(res.upcoming || []);
+            setFinishedRaces(res.races || []);
+        }
+    }
+
     async function refreshLeagues() {
         const res = await getAllLeagues();
         if (res.success) setLeaguesList(res.leagues || []);
@@ -89,16 +102,6 @@ export default function AdminHub() {
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-
-        // Global Admin Check
-        if (leagueName === 'admin' && adminPass === 'admin') {
-            setIsLoggedIn(true);
-            setAuthType('global');
-            setActiveTab('global');
-            setLoading(false);
-            localStorage.setItem('f1_admin_session', JSON.stringify({ type: 'global' }));
-            return;
-        }
 
         // League Admin Check
         const res = await adminLogin(leagueName, adminPass);
@@ -113,6 +116,8 @@ export default function AdminHub() {
             // Load points config
             const pRes = await getPointsConfig(res.leagueId);
             if (pRes.success && pRes.config) setPointsConfig(pRes.config);
+
+            refreshRaces(res.leagueId);
         } else {
             alert(res.error || 'Login failed.');
         }
@@ -168,28 +173,23 @@ export default function AdminHub() {
         }
     };
 
-    const handleGlobalDeleteLeague = async (id: string) => {
-        console.log('Attempting to delete league', id);
-        if (!confirm('EXTREME DANGER:\n\nAre you sure you want to PERMANENTLY DELETE this league and ALL its data (Drivers, Races, Results)?\n\nThis action cannot be undone.')) {
-            console.log('Deletion cancelled by user');
-            return;
+    const handleDeleteRace = async (id: string, track: string) => {
+        if (!leagueId || !confirm(`Are you sure you want to delete the race at ${track}? This will recalculate all standings.`)) return;
+        const res = await deleteRace(id, leagueId, adminPass);
+        if (res.success) {
+            refreshRaces(leagueId);
+        } else {
+            alert('Error: ' + res.error);
         }
+    };
 
-        try {
-            console.log('Sending delete request...');
-            const res = await deleteLeague(id, 'admin', 'admin');
-            console.log('Delete response:', res);
-
-            if (res.success) {
-                alert('LEAGUE DELETED. Page will reload.');
-                window.location.reload();
-            } else {
-                alert('Error: ' + res.error);
-                console.error('Delete error:', res.error);
-            }
-        } catch (err) {
-            console.error('Unexpected error during deletion:', err);
-            alert('Unexpected error. Check console.');
+    const handleDeleteScheduledRace = async (id: string, track: string) => {
+        if (!leagueId || !confirm(`Are you sure you want to delete the scheduled race at ${track}?`)) return;
+        const res = await deleteScheduledRace(id, leagueId, adminPass);
+        if (res.success) {
+            refreshRaces(leagueId);
+        } else {
+            alert('Error: ' + res.error);
         }
     };
 
@@ -202,49 +202,117 @@ export default function AdminHub() {
         if (res.success) {
             alert('Race Scheduled!');
             setScheduleDate('');
+            refreshRaces(leagueId);
         } else {
             alert('Error: ' + res.error);
         }
         setSubmitting(false);
     };
 
+    const handleStartEdit = async (raceId: string, track: string) => {
+        setLoading(true);
+        const res = await getRaceDetails(raceId);
+        if (res.success) {
+            setEditingRaceId(raceId);
+            setEditingRaceTrack(track);
+            // Ensure data structure is compatible with our update function
+            setEditResults(res.results || []);
+        } else {
+            alert('Error fetching race details: ' + res.error);
+        }
+        setLoading(false);
+    };
+
+    const handleUpdateEditResult = (driverId: string, field: string, value: any) => {
+        setEditResults(prev => prev.map(res =>
+            res.driver_id === driverId ? { ...res, [field]: value } : res
+        ));
+    };
+
+    const handleSaveEdit = async () => {
+        if (!leagueId || !editingRaceId) return;
+        setSubmitting(true);
+        const res = await updateRaceResults(leagueId, editingRaceId, editResults, adminPass);
+        if (res.success) {
+            alert('Race results updated!');
+            setEditingRaceId(null);
+            refreshRaces(leagueId);
+        } else {
+            alert('Error updating race: ' + res.error);
+        }
+        setSubmitting(false);
+    };
+
     if (!isLoggedIn) {
         return (
-            <div className="container flex items-center justify-center min-vh-100">
-                <div className="f1-card animate-scale-in" style={{ maxWidth: '450px', width: '100%', padding: '3.5rem 3rem', border: '1px solid var(--glass-border)', boxShadow: '0 20px 80px rgba(0,0,0,0.6)' }}>
-                    <div className="text-center mb-10">
-                        <div className="text-f1 text-gradient mb-2" style={{ fontSize: '2.5rem', letterSpacing: '-2px' }}>ADMIN HUB</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--silver)', fontWeight: 900, letterSpacing: '5px', opacity: 0.8 }}>SYSTEM AUTHORIZATION</div>
+            <div className="flex items-center justify-center min-h-screen bg-cover bg-center" style={{ backgroundImage: 'url("/assets/login-bg.jpg")', backgroundColor: '#111' }}>
+                <div className="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+                <div className="relative z-10 f1-card animate-scale-in" style={{ maxWidth: '450px', width: '100%', padding: '3rem', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+                    <div className="text-center mb-8">
+                        <h1 className="text-f1 text-gradient mb-2" style={{ fontSize: '2.5rem', lineHeight: 1 }}>ADMIN ACCESS</h1>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--silver)', letterSpacing: '3px', fontWeight: 700 }}>RESTRICTED AREA</p>
                     </div>
 
-                    <form onSubmit={handleLogin} className="flex flex-col gap-3">
-                        <div className="input-group">
-                            <label>LEAGUE NAME / ADMIN</label>
-                            <input
+                    <form onSubmit={handleLogin} className="flex flex-col gap-5">
+                        <div className="flex flex-col gap-2">
+                            <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--silver)', letterSpacing: '1px' }}>SELECT LEAGUE</label>
+                            <select
                                 value={leagueName}
                                 onChange={e => setLeagueName(e.target.value)}
-                                placeholder="e.g. My F1 League"
                                 required
-                            />
+                                style={{
+                                    padding: '1rem',
+                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '8px',
+                                    color: 'white',
+                                    outline: 'none',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <option value="" disabled>Select your league...</option>
+                                {leaguesList.map(l => (
+                                    <option key={l.id} value={l.name} style={{ color: 'black' }}>{l.name}</option>
+                                ))}
+                            </select>
                         </div>
-                        <div className="input-group">
-                            <label>PASSWORD</label>
+                        <div className="flex flex-col gap-2">
+                            <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--silver)', letterSpacing: '1px' }}>PASSWORD</label>
                             <input
                                 type="password"
                                 value={adminPass}
                                 onChange={e => setAdminPass(e.target.value)}
                                 placeholder="••••••••"
                                 required
+                                style={{
+                                    padding: '1rem',
+                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '8px',
+                                    color: 'white',
+                                    outline: 'none'
+                                }}
                             />
                         </div>
-                        <button type="submit" className="btn-primary mt-4" style={{ width: '100%', justifyContent: 'center' }} disabled={loading}>
-                            {loading ? 'AUTHENTICATING...' : 'LOGIN TO HUB'}
+                        <button
+                            type="submit"
+                            className="btn-primary mt-4"
+                            style={{
+                                width: '100%',
+                                justifyContent: 'center',
+                                padding: '1rem',
+                                fontSize: '1rem',
+                                letterSpacing: '2px'
+                            }}
+                            disabled={loading}
+                        >
+                            {loading ? 'VERIFYING...' : 'ENTER HUB'}
                         </button>
                     </form>
 
-                    <div className="text-center mt-6">
-                        <Link href="/" style={{ fontSize: '0.7rem', color: 'var(--silver)', textDecoration: 'none', borderBottom: '1px solid currentColor' }}>
-                            &larr; BACK TO RACECENTER
+                    <div className="text-center mt-8 pt-6 border-t border-white/10">
+                        <Link href="/" className="hover:text-f1-red transition-colors" style={{ fontSize: '0.75rem', color: 'var(--silver)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <span>&larr;</span> RETURN TO DASHBOARD
                         </Link>
                     </div>
                 </div>
@@ -258,8 +326,8 @@ export default function AdminHub() {
                 <div>
                     <h1 className="text-f1 text-gradient" style={{ fontSize: '3rem', letterSpacing: '-2px', marginBottom: '0.5rem' }}>ADMIN HUB</h1>
                     <div className="flex items-center gap-4 mt-1">
-                        <span className={`status-badge ${authType === 'global' ? 'badge-red' : 'badge-silver'}`} style={{ padding: '6px 16px', borderRadius: '4px', fontSize: '0.7rem', letterSpacing: '2px' }}>
-                            {authType === 'global' ? 'GLOBAL OVERSEER' : `${leagueName.toUpperCase()} ADMIN`}
+                        <span className="status-badge badge-silver" style={{ padding: '6px 16px', borderRadius: '4px', fontSize: '0.7rem', letterSpacing: '2px' }}>
+                            {`${leagueName.toUpperCase()} ADMIN`}
                         </span>
                         <button
                             onClick={handleLogout}
@@ -281,63 +349,193 @@ export default function AdminHub() {
                 </div>
 
                 <nav className="f1-tabs flex">
-                    {authType === 'league' && (
-                        <>
-                            <button className={activeTab === 'races' ? 'active' : ''} onClick={() => setActiveTab('races')}>RACE ENTRY</button>
-                            <button className={activeTab === 'drivers' ? 'active' : ''} onClick={() => setActiveTab('drivers')}>DRIVERS</button>
-                            <button className={activeTab === 'points' ? 'active' : ''} onClick={() => setActiveTab('points')}>POINTS</button>
-                        </>
-                    )}
-                    {authType === 'global' && (
-                        <button className={activeTab === 'global' ? 'active' : ''} onClick={() => setActiveTab('global')}>LEAGUE MANAGEMENT</button>
-                    )}
+                    <button className={activeTab === 'races' ? 'active' : ''} onClick={() => setActiveTab('races')}>RACE MANAGEMENT</button>
+                    <button className={activeTab === 'drivers' ? 'active' : ''} onClick={() => setActiveTab('drivers')}>DRIVERS</button>
+                    <button className={activeTab === 'points' ? 'active' : ''} onClick={() => setActiveTab('points')}>POINTS</button>
                 </nav>
             </header>
 
             <main>
                 {/* RACE ENTRY TAB */}
                 {activeTab === 'races' && (
-                    <div className="grid grid-2 gap-8 animate-fade-in">
-                        <div className="f1-card hover-f1">
-                            <h2 className="text-f1 mb-2" style={{ color: 'var(--f1-red)' }}>AI EXTRACTION</h2>
-                            <p className="mb-4" style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Upload a race recap screenshot and let Gemini do the work.</p>
-                            <Link href="/admin/upload" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>CONTINUE TO EXTRACTION</Link>
-                        </div>
-                        <div className="f1-card hover-f1">
-                            <h2 className="text-f1 mb-2">MANUAL ENTRY</h2>
-                            <p className="mb-4" style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Quickly enter results by hand for maximum control.</p>
-                            <Link href="/admin/results" className="btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>MANUAL INPUT</Link>
-                        </div>
+                    <div className="flex flex-col gap-6 animate-fade-in">
+                        {editingRaceId ? (
+                            <div className="flex flex-col gap-6">
+                                <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                                    <div>
+                                        <h2 className="text-f1 text-gradient" style={{ fontSize: '2.5rem', letterSpacing: '-2px' }}>EDIT RESULTS</h2>
+                                        <p style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Update positions and bonuses for this race.</p>
+                                    </div>
+                                    <div className="flex flex-col gap-2" style={{ minWidth: '300px' }}>
+                                        <label style={{ color: 'var(--f1-red)', fontSize: '0.7rem', fontWeight: 900 }}>RACE LOCATION (READ-ONLY)</label>
+                                        <input
+                                            value={editingRaceTrack}
+                                            disabled
+                                            style={{
+                                                padding: '0.8rem',
+                                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                background: 'rgba(255, 255, 255, 0.05)',
+                                                borderRadius: '4px',
+                                                color: 'var(--silver)',
+                                                width: '100%',
+                                                cursor: 'not-allowed',
+                                                fontWeight: 'bold'
+                                            }}
+                                        />
+                                    </div>
+                                </header>
 
-                        <div className="f1-card hover-f1" style={{ gridColumn: 'span 2' }}>
-                            <h2 className="text-f1 mb-4">RACE PLANNER</h2>
-                            <p className="mb-4" style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Schedule upcoming races for your league.</p>
-                            <form onSubmit={handleScheduleRace} className="grid grid-3 gap-4 items-end">
-                                <div className="input-group">
-                                    <label>SELECT TRACK</label>
-                                    <select
-                                        value={scheduleTrack}
-                                        onChange={e => setScheduleTrack(e.target.value)}
-                                        style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
+                                <div className="flex flex-col gap-3">
+                                    {editResults.sort((a, b) => a.position - b.position).map((res) => (
+                                        <div key={res.driver_id} className="f1-card flex flex-col md:flex-row justify-between items-start md:items-center gap-4" style={{ padding: '1.2rem 1.5rem', borderLeft: '4px solid var(--f1-red)' }}>
+                                            <div>
+                                                <span className="text-f1" style={{ fontSize: '1.1rem' }}>{res.driver_name}</span>
+                                                <div style={{ fontSize: '0.7rem', color: 'var(--silver)' }}>Position in standings updated automatically</div>
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-4 items-center w-full md:w-auto">
+                                                <div className="flex items-center gap-2">
+                                                    <span style={{ fontSize: '0.7rem', fontWeight: 900, color: 'var(--silver)' }}>P</span>
+                                                    <input
+                                                        type="number"
+                                                        min="1" max="25"
+                                                        value={res.position}
+                                                        onChange={e => handleUpdateEditResult(res.driver_id, 'position', parseInt(e.target.value))}
+                                                        style={{ width: '60px', padding: '0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white', textAlign: 'center', fontWeight: 'bold' }}
+                                                    />
+                                                </div>
+
+                                                <label className="checkbox-container">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!res.fastest_lap}
+                                                        onChange={e => handleUpdateEditResult(res.driver_id, 'fastest_lap', e.target.checked)}
+                                                    />
+                                                    <span className="checkmark fastest"></span>
+                                                    <span style={{ fontSize: '0.75rem', fontWeight: 900 }}>FL</span>
+                                                </label>
+
+                                                <label className="checkbox-container">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!res.clean_driver}
+                                                        onChange={e => handleUpdateEditResult(res.driver_id, 'clean_driver', e.target.checked)}
+                                                    />
+                                                    <span className="checkmark clean"></span>
+                                                    <span style={{ fontSize: '0.75rem', fontWeight: 900 }}>CD</span>
+                                                </label>
+
+                                                <label className="checkbox-container">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!res.is_dnf}
+                                                        onChange={e => handleUpdateEditResult(res.driver_id, 'is_dnf', e.target.checked)}
+                                                    />
+                                                    <span className="checkmark dnf"></span>
+                                                    <span style={{ fontSize: '0.75rem', fontWeight: 900 }}>DNF</span>
+                                                </label>
+
+                                                <div style={{ minWidth: '90px', textAlign: 'right', fontWeight: 900, fontSize: '1.2rem', color: 'var(--white)' }}>
+                                                    {formatPoints(calculatePoints({ position: res.position, fastestLap: res.fastest_lap, cleanDriver: res.clean_driver, isDnf: res.is_dnf }))} <span style={{ fontSize: '0.6rem', color: 'var(--silver)' }}>PTS</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="flex gap-4 mt-8">
+                                    <button
+                                        onClick={handleSaveEdit}
+                                        disabled={submitting}
+                                        className="btn-primary"
+                                        style={{ flex: 1, justifyContent: 'center', height: '4rem', fontSize: '1.2rem' }}
                                     >
-                                        {F1_TRACKS_2025.map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
+                                        {submitting ? 'UPDATING...' : 'SAVE CHANGES'}
+                                    </button>
+                                    <button
+                                        onClick={() => setEditingRaceId(null)}
+                                        className="btn-secondary"
+                                        style={{ padding: '0 2rem' }}
+                                    >
+                                        CANCEL
+                                    </button>
                                 </div>
-                                <div className="input-group">
-                                    <label>DATE & TIME</label>
-                                    <input
-                                        type="datetime-local"
-                                        value={scheduleDate}
-                                        onChange={e => setScheduleDate(e.target.value)}
-                                        required
-                                        style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
-                                    />
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-8">
+                                <div className="f1-card hover-f1 flex flex-col gap-4">
+                                    <h2 className="text-f1">MANUAL ENTRY</h2>
+                                    <p style={{ color: 'var(--silver)', fontSize: '0.9rem', marginBottom: '1rem' }}>Quickly enter results by hand for maximum control.</p>
+                                    <Link href="/admin/results" className="btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>MANUAL INPUT</Link>
                                 </div>
-                                <button type="submit" disabled={submitting} className="btn-primary" style={{ height: '46px', justifyContent: 'center' }}>
-                                    {submitting ? 'SCHEDULING...' : 'SCHEDULE EVENT'}
-                                </button>
-                            </form>
-                        </div>
+
+                                <div className="f1-card hover-f1" style={{ gridColumn: 'span 2' }}>
+                                    <h2 className="text-f1 mb-4">RACE PLANNER</h2>
+                                    <p className="mb-4" style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Schedule upcoming races for your league.</p>
+                                    <form onSubmit={handleScheduleRace} className="grid grid-3 gap-4 items-end mb-8">
+                                        <div className="input-group">
+                                            <label>SELECT TRACK</label>
+                                            <select
+                                                value={scheduleTrack}
+                                                onChange={e => setScheduleTrack(e.target.value)}
+                                                style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
+                                            >
+                                                {F1_TRACKS_2025.map(t => <option key={t} value={t}>{t}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="input-group">
+                                            <label>DATE & TIME</label>
+                                            <input
+                                                type="datetime-local"
+                                                value={scheduleDate}
+                                                onChange={e => setScheduleDate(e.target.value)}
+                                                required
+                                                style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
+                                            />
+                                        </div>
+                                        <button type="submit" disabled={submitting} className="btn-primary" style={{ height: '46px', justifyContent: 'center' }}>
+                                            {submitting ? 'SCHEDULING...' : 'SCHEDULE EVENT'}
+                                        </button>
+                                    </form>
+
+                                    <div className="grid grid-2 gap-8">
+                                        <div>
+                                            <h3 className="text-f1 mb-4" style={{ fontSize: '0.9rem', color: 'var(--f1-red)' }}>UPCOMING RACES</h3>
+                                            <div className="flex flex-col gap-2">
+                                                {upcomingRaces.map(r => (
+                                                    <div key={r.id} className="flex justify-between items-center p-3 bg-white/5 rounded border border-white/5">
+                                                        <div>
+                                                            <div className="text-f1" style={{ fontSize: '0.8rem' }}>{r.track}</div>
+                                                            <div style={{ fontSize: '0.7rem', color: 'var(--silver)' }}>{new Date(r.scheduled_date || '').toLocaleString()}</div>
+                                                        </div>
+                                                        <button onClick={() => handleDeleteScheduledRace(r.id, r.track)} className="btn-danger-text">CANCEL</button>
+                                                    </div>
+                                                ))}
+                                                {upcomingRaces.length === 0 && <p style={{ fontSize: '0.8rem', color: 'var(--silver)' }}>No races scheduled.</p>}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-f1 mb-4" style={{ fontSize: '0.9rem' }}>FINISHED RACES</h3>
+                                            <div className="flex flex-col gap-2">
+                                                {finishedRaces.map(r => (
+                                                    <div key={r.id} className="flex justify-between items-center p-3 bg-white/5 rounded border border-white/5">
+                                                        <div>
+                                                            <div className="text-f1" style={{ fontSize: '0.8rem' }}>{r.track}</div>
+                                                            <div style={{ fontSize: '0.7rem', color: 'var(--silver)' }}>{new Date(r.race_date || '').toLocaleDateString()}</div>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <button onClick={() => handleStartEdit(r.id, r.track)} className="btn-secondary" style={{ padding: '4px 12px', fontSize: '0.65rem' }}>EDIT</button>
+                                                            <button onClick={() => handleDeleteRace(r.id, r.track)} className="btn-danger-text">DELETE</button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {finishedRaces.length === 0 && <p style={{ fontSize: '0.8rem', color: 'var(--silver)' }}>No finished races yet.</p>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -427,43 +625,6 @@ export default function AdminHub() {
                     </div>
                 )}
 
-                {/* GLOBAL ADMIN TAB */}
-                {activeTab === 'global' && (
-                    <div className="flex flex-col gap-6 animate-fade-in">
-                        <div className="f1-card">
-                            <h2 className="text-f1 mb-4" style={{ color: 'var(--f1-red)' }}>LEAGUE OVERVIEW & DELETION</h2>
-                            <div className="flex flex-col gap-2">
-                                {leaguesList.map(l => (
-                                    <div key={l.id} className="flex justify-between items-center p-3 bg-white/5 border border-white/5 rounded">
-                                        <span className="text-f1">{l.name}</span>
-                                        <button onClick={() => handleGlobalDeleteLeague(l.id)} className="btn-danger-text">DELETE LEAGUE</button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="f1-card" style={{ border: '1px dashed var(--glass-border)' }}>
-                            <h2 className="text-f1 mb-2">DEVELOPER ACCESS</h2>
-                            <p className="mb-4" style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Populate the system with a fresh test environment.</p>
-                            <button
-                                onClick={async () => {
-                                    setLoading(true);
-                                    const res = await seedTestData();
-                                    if (res.success) {
-                                        alert('System Seeded!');
-                                        refreshLeagues();
-                                    }
-                                    setLoading(false);
-                                }}
-                                disabled={loading}
-                                className="btn-secondary"
-                                style={{ width: '100%', justifyContent: 'center' }}
-                            >
-                                {loading ? 'SEEDING...' : 'RUN SEED TEST DATA'}
-                            </button>
-                        </div>
-                    </div>
-                )}
             </main>
 
             <style jsx global>{`
