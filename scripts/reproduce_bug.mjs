@@ -1,9 +1,9 @@
-import { createLeague, joinLeague, saveRaceResults } from '../src/lib/actions';
-import { query } from '../src/lib/db';
+import { createLeague, joinLeague, saveRaceResults, getDashboardData } from '../src/lib/actions';
+import { query } from '../src/lib/db.ts';
 
-async function verifyFix() {
-    console.log('--- Verifying Standings Fix ---');
-    const leagueName = `FixVerify ${Date.now()}`;
+async function reproduceBug() {
+    console.log('--- Reproducing Standings Bug ---');
+    const leagueName = `BugRepro ${Date.now()}`;
 
     // 1. Create League
     console.log('1. Creating league...');
@@ -13,7 +13,7 @@ async function verifyFix() {
 
     // 2. Join Driver
     console.log('2. Driver joining...');
-    await joinLeague(leagueName, 'join', 'Verify Driver', 'Verify Team');
+    await joinLeague(leagueName, 'join', 'Test Driver', 'Test Team');
     const drivers = await query('SELECT id, total_points FROM drivers WHERE league_id = ?', [leagueId]);
     const driverId = drivers[0].id;
     console.log('Driver initial points:', drivers[0].total_points);
@@ -23,21 +23,17 @@ async function verifyFix() {
     const results = [
         { driver_id: driverId, position: 1, fastest_lap: true, clean_driver: true }
     ];
-    await saveRaceResults(leagueId, 'Verify Track', results);
+    await saveRaceResults(leagueId, 'Test Track', results);
 
     // 4. Verify Points
     const updatedDrivers = await query('SELECT id, total_points FROM drivers WHERE id = ?', [driverId]);
     console.log('Driver points after race:', updatedDrivers[0].total_points);
 
-    if (updatedDrivers[0].total_points > 0) {
-        console.log('FIX VERIFIED: Driver points are now correctly updated!');
+    if (updatedDrivers[0].total_points === 0) {
+        console.log('BUG REPRODUCED: Driver points are still 0!');
     } else {
-        console.log('FIX FAILED: Driver points are still 0!');
-        process.exit(1);
+        console.log('Bug NOT reproduced: Driver points are', updatedDrivers[0].total_points);
     }
 }
 
-verifyFix().catch(err => {
-    console.error(err);
-    process.exit(1);
-});
+reproduceBug().catch(console.error);

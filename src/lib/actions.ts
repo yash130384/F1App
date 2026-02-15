@@ -128,6 +128,9 @@ export async function saveRaceResults(leagueId: string, track: string, results: 
             );
         }
 
+        // 4. Recalculate Standings
+        await recalculateStandings(leagueId);
+
         return { success: true };
     } catch (error: any) {
         console.error('Save Results Error:', error);

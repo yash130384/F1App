@@ -1,9 +1,9 @@
-import { createLeague, joinLeague, saveRaceResults } from '../src/lib/actions';
-import { query } from '../src/lib/db';
+import { createLeague, joinLeague, saveRaceResults } from '../src/lib/actions.ts';
+import { query } from '../src/lib/db.ts';
 
 async function verifyFix() {
     console.log('--- Verifying Standings Fix ---');
-    const leagueName = `FixVerify ${Date.now()}`;
+    const leagueName = `FixVerifyFinal ${Date.now()}`;
 
     // 1. Create League
     console.log('1. Creating league...');
