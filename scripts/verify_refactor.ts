@@ -8,8 +8,8 @@ async function testRefactor() {
     const leagueName = `RefactorTest ${Date.now()}`;
     const adminPass = 'admin123';
     const lRes = await createLeague(leagueName, adminPass, 'join');
-    if (!lRes.success) throw new Error('League creation failed');
     const leagueId = lRes.leagueId;
+    if (!lRes.success || !leagueId) throw new Error('League creation failed');
     console.log(`Created league: ${leagueName} (${leagueId})`);
 
     // 2. Register a driver
@@ -17,7 +17,7 @@ async function testRefactor() {
 
     // 3. Schedule a race
     const track = 'Monaco';
-    const sRes = await scheduleRace(leagueId, track, new Date().toISOString(), adminPass);
+    const sRes = await scheduleRace(leagueId!, track, new Date().toISOString(), adminPass);
     if (!sRes.success) throw new Error('Race scheduling failed');
     console.log('Race scheduled at Monaco');
 
@@ -31,7 +31,7 @@ async function testRefactor() {
     }];
 
     console.log('Saving results for Monaco (should auto-link)...');
-    const saveRes = await saveRaceResults(leagueId, track, results);
+    const saveRes = await saveRaceResults(leagueId!, track, results);
     if (!saveRes.success) throw new Error('Saving results failed: ' + saveRes.error);
 
     // 5. Verify database state
@@ -53,11 +53,13 @@ async function testRefactor() {
 
     // 6. Test deleteScheduledRace (requires another scheduled race)
     const track2 = 'Spa';
-    await scheduleRace(leagueId, track2, new Date().toISOString(), adminPass);
-    const spaRace = (await query<any>('SELECT id FROM races WHERE track = ? AND is_finished = false', [track2]))[0];
+    await scheduleRace(leagueId!, track2, new Date().toISOString(), adminPass);
+    const spaRaces = await query<any>('SELECT id FROM races WHERE track = ? AND is_finished = false', [track2]);
+    if (spaRaces.length === 0) throw new Error('Spa race not found in DB');
+    const spaRace = spaRaces[0];
 
     console.log('Testing deleteScheduledRace for Spa...');
-    const delRes = await deleteScheduledRace(spaRace.id, leagueId, adminPass);
+    const delRes = await deleteScheduledRace(spaRace.id, leagueId!, adminPass);
     if (delRes.success) {
         console.log('SUCCESS: Scheduled race deleted.');
     } else {
