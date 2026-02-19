@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { adminLogin, saveRaceResults } from '@/lib/actions';
 import { calculatePoints, formatPoints } from '@/lib/scoring';
 import { F1_TRACKS_2025 } from '@/lib/constants';
@@ -13,7 +13,42 @@ export default function AdminResults() {
     const [track, setTrack] = useState('');
     const [results, setResults] = useState<Record<string, { position: number; fastestLap: boolean; cleanDriver: boolean; isDnf: boolean }>>({});
     const [loading, setLoading] = useState(false);
+    const [checkingSession, setCheckingSession] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        checkSession();
+    }, []);
+
+    const checkSession = async () => {
+        const session = localStorage.getItem('f1_admin_session');
+        if (session) {
+            try {
+                const parsed = JSON.parse(session);
+                if (parsed.type === 'league') {
+                    setLoading(true);
+                    const res = await adminLogin(parsed.name, parsed.pass);
+                    if (res.success) {
+                        setLeagueId(res.leagueId);
+                        setDrivers(res.drivers || []);
+                        setIsAuthed(true);
+                        setAuth({ name: parsed.name, pass: parsed.pass });
+
+                        // Initialize results state
+                        const initialResults: any = {};
+                        (res.drivers || []).forEach((d: any) => {
+                            initialResults[d.id] = { position: 20, fastestLap: false, cleanDriver: false, isDnf: false };
+                        });
+                        setResults(initialResults);
+                    }
+                    setLoading(false);
+                }
+            } catch (e) {
+                console.error('Session parse error', e);
+            }
+        }
+        setCheckingSession(false);
+    };
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -70,6 +105,16 @@ export default function AdminResults() {
             setLoading(false);
         }
     };
+
+    if (checkingSession) {
+        return (
+            <div className="flex items-center justify-center min-vh-100">
+                <div className="text-center">
+                    <div className="text-f1 animate-pulse" style={{ fontSize: '1.5rem' }}>VERIFYING ACCESS...</div>
+                </div>
+            </div>
+        );
+    }
 
     if (!isAuthed) {
         return (
