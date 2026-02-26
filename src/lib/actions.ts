@@ -215,7 +215,7 @@ export async function getDashboardData(leagueName: string) {
         `, [leagueId]);
 
         const finishedRaces = await query<any>(
-            `SELECT * FROM races WHERE league_id = ? AND is_finished = true ORDER BY race_date DESC LIMIT 10`,
+            `SELECT * FROM races WHERE league_id = ? AND is_finished = true ORDER BY race_date ASC`,
             [leagueId]
         );
 
@@ -224,14 +224,79 @@ export async function getDashboardData(leagueName: string) {
             [leagueId]
         );
 
+        // Build Chronological Data for the Graph and Form Indicator
+        // 1. Fetch all results for finished races in this league
+        const allResults = await query<any>(`
+            SELECT rr.race_id, rr.driver_id, rr.points_earned
+            FROM race_results rr
+            JOIN races r ON rr.race_id = r.id
+            WHERE r.league_id = ? AND r.is_finished = true
+            ORDER BY r.race_date ASC
+        `, [leagueId]);
+
+        // Map results by driver_id and race_id
+        const resultsByRace: Record<string, Record<string, number>> = {};
+        allResults.forEach((res: any) => {
+            if (!resultsByRace[res.race_id]) resultsByRace[res.race_id] = {};
+            resultsByRace[res.race_id][res.driver_id] = res.points_earned;
+        });
+
+        const graphData: any[] = [];
+        const runningTotals: Record<string, number> = {};
+        const previousPoints: Record<string, number> = {}; // Points from race N-1
+        const latestPoints: Record<string, number> = {};   // Points from race N
+
+        standings.forEach((d: any) => {
+            runningTotals[d.id] = 0;
+            d.formIndicator = 'SAME'; // Default
+        });
+
+        // Calculate running totals per race for the graph
+        finishedRaces.forEach((race: any, index: number) => {
+            const dataPoint: any = { name: race.track || `Race ${index + 1}` };
+
+            standings.forEach((d: any) => {
+                const earned = resultsByRace[race.id]?.[d.id] || 0;
+
+                if (index === finishedRaces.length - 2) {
+                    previousPoints[d.id] = earned;
+                }
+                if (index === finishedRaces.length - 1) {
+                    latestPoints[d.id] = earned;
+                }
+
+                runningTotals[d.id] += earned;
+                dataPoint[d.name] = runningTotals[d.id];
+            });
+            graphData.push(dataPoint);
+        });
+
+        // Determine Form Indicator
+        if (finishedRaces.length >= 2) {
+            standings.forEach((d: any) => {
+                const prev = previousPoints[d.id] || 0;
+                const curr = latestPoints[d.id] || 0;
+                if (curr > prev) d.formIndicator = 'UP';
+                else if (curr < prev) d.formIndicator = 'DOWN';
+                else d.formIndicator = 'SAME';
+            });
+        } else if (finishedRaces.length === 1) {
+            standings.forEach((d: any) => {
+                const curr = latestPoints[d.id] || 0;
+                if (curr > 0) d.formIndicator = 'UP';
+                else d.formIndicator = 'SAME';
+            });
+        }
+
         const totalRaces = await query<any>(`SELECT COUNT(*) as count FROM races WHERE league_id = ? AND is_finished = true`, [leagueId]);
 
         return {
             success: true,
             league: leagues[0],
             standings,
-            races: finishedRaces,
+            races: finishedRaces.slice().reverse().slice(0, 10), // Keep recent races descending
             upcoming: upcomingRaces,
+            graphData,
             stats: { totalRaces: totalRaces[0].count }
         };
     } catch (error: any) {

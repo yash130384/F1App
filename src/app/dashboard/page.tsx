@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getDashboardData, getAllLeagues, getRaceDetails, deleteRace } from '@/lib/actions';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 export default function Dashboard() {
     const [leaguesList, setLeaguesList] = useState<any[]>([]);
@@ -11,6 +12,7 @@ export default function Dashboard() {
     const [races, setRaces] = useState<any[]>([]);
     const [upcomingRaces, setUpcomingRaces] = useState<any[]>([]);
     const [leagueStats, setLeagueStats] = useState<any>(null);
+    const [graphData, setGraphData] = useState<any[]>([]);
 
     const [selectedRace, setSelectedRace] = useState<any | null>(null);
     const [raceResults, setRaceResults] = useState<any[]>([]);
@@ -48,11 +50,13 @@ export default function Dashboard() {
             setStandings(res.standings || []);
             setRaces(res.races || []);
             setUpcomingRaces(res.upcoming || []);
+            setGraphData(res.graphData || []);
             setLeagueStats(res.stats);
         } else {
             setError(res.error || 'League details not found.');
             setLeague(null);
             setLeagueStats(null);
+            setGraphData([]);
         }
         setLoading(false);
     };
@@ -69,6 +73,8 @@ export default function Dashboard() {
         setFetchingRace(false);
     };
 
+    // F1 aesthetic colors for graph lines
+    const colors = ['#e10600', '#00d2be', '#005aff', '#ff8700', '#ffffff', '#0090ff', '#2293d1', '#900000', '#00aa00', '#ff00ff'];
 
     return (
         <div className="container animate-fade-in" style={{ padding: '2rem 1.5rem' }}>
@@ -144,7 +150,12 @@ export default function Dashboard() {
                                                 <tr key={driver.id} style={{ borderTop: '1px solid var(--glass-border)' }}>
                                                     <td style={{ padding: '1rem', fontWeight: 900, fontSize: '1.4rem', fontStyle: 'italic', opacity: 0.3 }}>{idx + 1}</td>
                                                     <td style={{ padding: '1rem' }}>
-                                                        <div className="text-f1" style={{ fontSize: '1.1rem' }}>{driver.name}</div>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="text-f1" style={{ fontSize: '1.1rem' }}>{driver.name}</div>
+                                                            {driver.formIndicator === 'UP' && <span title="Improved Points Output" style={{ color: '#00ff00', fontSize: '1.2rem', lineHeight: 1 }}>&#8593;</span>}
+                                                            {driver.formIndicator === 'DOWN' && <span title="Decreased Points Output" style={{ color: '#ff0000', fontSize: '1.2rem', lineHeight: 1 }}>&#8595;</span>}
+                                                            {driver.formIndicator === 'SAME' && <span title="Constant Points Output" style={{ color: '#9c27b0', fontSize: '1.2rem', lineHeight: 1 }}>&#8722;</span>}
+                                                        </div>
                                                     </td>
                                                     <td className="hide-mobile" style={{ padding: '1rem', color: 'var(--silver)' }}>{driver.team || 'Independent'}</td>
                                                     <td style={{ padding: '1rem 0.5rem', textAlign: 'center', fontWeight: 700, color: driver.wins > 0 ? 'var(--white)' : 'rgba(255,255,255,0.1)' }}>{driver.wins}</td>
@@ -159,6 +170,39 @@ export default function Dashboard() {
                                     {standings.length === 0 && <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--silver)' }}>No drivers in this league yet.</div>}
                                 </div>
                             </section>
+
+                            {graphData && graphData.length > 0 && (
+                                <section className="dashboard-graph animate-fade-in" style={{ marginBottom: '3rem' }}>
+                                    <h2 className="text-f1" style={{ borderLeft: '4px solid var(--f1-red)', paddingLeft: '1rem', marginBottom: '1.5rem' }}>
+                                        Championship Progression
+                                    </h2>
+                                    <div className="f1-card" style={{ padding: '2rem 1rem', height: '400px' }}>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={graphData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
+                                                <XAxis dataKey="name" stroke="var(--silver)" tick={{ fill: 'var(--silver)', fontSize: 12 }} />
+                                                <YAxis stroke="var(--silver)" tick={{ fill: 'var(--silver)', fontSize: 12 }} />
+                                                <Tooltip
+                                                    contentStyle={{ backgroundColor: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--white)' }}
+                                                    itemStyle={{ color: 'var(--white)' }}
+                                                />
+                                                <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                                                {standings.map((driver, idx) => (
+                                                    <Line
+                                                        key={driver.id}
+                                                        type="monotone"
+                                                        dataKey={driver.name}
+                                                        stroke={colors[idx % colors.length]}
+                                                        strokeWidth={3}
+                                                        dot={{ r: 4, strokeWidth: 2 }}
+                                                        activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}
+                                                    />
+                                                ))}
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </section>
+                            )}
 
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
                                 <section>
