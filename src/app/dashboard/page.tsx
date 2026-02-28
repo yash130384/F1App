@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getDashboardData, getAllLeagues, getRaceDetails, deleteRace } from '@/lib/actions';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import RaceCountdown from './RaceCountdown';
 
 export default function Dashboard() {
     const [leaguesList, setLeaguesList] = useState<any[]>([]);
@@ -125,6 +126,9 @@ export default function Dashboard() {
                         </div>
                     ) : league && (
                         <div className="dashboard-content">
+                            {upcomingRaces.length > 0 && (
+                                <RaceCountdown race={upcomingRaces[0]} />
+                            )}
                             <section className="dashboard-standings" style={{ marginBottom: '3rem' }}>
                                 <h2 className="text-f1" style={{ borderLeft: '4px solid var(--f1-red)', paddingLeft: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                                     <span>Standings: <span style={{ color: 'var(--f1-red)' }}>{league.name}</span></span>
