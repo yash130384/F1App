@@ -9,6 +9,9 @@ export interface PointsConfig {
     points: Record<number, number>;
     fastestLapBonus: number;
     cleanDriverBonus: number;
+    totalRaces: number;
+    trackPool: string[];
+    dropResultsCount: number;
 }
 
 export const DEFAULT_POINTS: Record<number, number> = {
@@ -21,7 +24,10 @@ export const DEFAULT_POINTS: Record<number, number> = {
 export const DEFAULT_CONFIG: PointsConfig = {
     points: DEFAULT_POINTS,
     fastestLapBonus: 2,
-    cleanDriverBonus: 3
+    cleanDriverBonus: 3,
+    totalRaces: 0,
+    trackPool: [],
+    dropResultsCount: 0
 };
 
 /**

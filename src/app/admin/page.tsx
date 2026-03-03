@@ -470,6 +470,72 @@ export default function AdminHub() {
                                 </div>
 
                                 <div className="f1-card hover-f1" style={{ gridColumn: 'span 2' }}>
+                                    <h2 className="text-f1 mb-4" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        LEAGUE SETTINGS
+                                        <button onClick={handleUpdatePoints} disabled={submitting} className="btn-primary" style={{ fontSize: '0.7rem', height: 'auto', padding: '0.5rem 1rem' }}>
+                                            {submitting ? 'SAVING...' : 'SAVE CONFIG'}
+                                        </button>
+                                    </h2>
+                                    <div className="grid grid-2 gap-4 mb-6 pr-4">
+                                        <div className="input-group">
+                                            <label>TOTAL RACES IN LEAGUE</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={pointsConfig.totalRaces || 0}
+                                                onChange={e => setPointsConfig({ ...pointsConfig, totalRaces: parseInt(e.target.value) || 0 })}
+                                                style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white', width: '100%' }}
+                                            />
+                                        </div>
+                                        <div className="input-group">
+                                            <label>DROP WORST RESULTS (MAX 25%)</label>
+                                            <input
+                                                type="number"
+                                                title={`Max Allowed: ${Math.floor((pointsConfig.totalRaces || 0) * 0.25)}`}
+                                                max={Math.floor((pointsConfig.totalRaces || 0) * 0.25)}
+                                                min="0"
+                                                value={pointsConfig.dropResultsCount || 0}
+                                                onChange={e => {
+                                                    let v = parseInt(e.target.value) || 0;
+                                                    const max = Math.floor((pointsConfig.totalRaces || 0) * 0.25);
+                                                    if (v > max) v = max;
+                                                    setPointsConfig({ ...pointsConfig, dropResultsCount: v });
+                                                }}
+                                                style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white', width: '100%' }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="input-group mb-8">
+                                        <label>TRACK POOL (Select tracks for this league)</label>
+                                        <div style={{ padding: '1rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', maxHeight: '150px', overflowY: 'auto' }}>
+                                            <div className="grid grid-3 gap-2">
+                                                {F1_TRACKS_2025.map(track => {
+                                                    const isSelected = pointsConfig.trackPool?.includes(track);
+                                                    return (
+                                                        <label key={track} className="flex items-center gap-2" style={{ fontSize: '0.8rem', cursor: 'pointer', color: isSelected ? 'white' : 'var(--silver)' }}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isSelected}
+                                                                onChange={(e) => {
+                                                                    const current = pointsConfig.trackPool || [];
+                                                                    const trackPool = e.target.checked ? [...current, track] : current.filter(t => t !== track);
+                                                                    setPointsConfig({ ...pointsConfig, trackPool });
+                                                                }}
+                                                            />
+                                                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{track}</span>
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--silver)', marginTop: '0.5rem', textAlign: 'right' }}>
+                                            {pointsConfig.trackPool?.length || 0} / {pointsConfig.totalRaces || 0} Tracks Selected
+                                        </div>
+                                    </div>
+
+                                    <hr style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '2rem 0' }} />
+
                                     <h2 className="text-f1 mb-4">RACE PLANNER</h2>
                                     <p className="mb-4" style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Schedule upcoming races for your league.</p>
                                     <form onSubmit={handleScheduleRace} className="grid grid-3 gap-4 items-end mb-8">

@@ -17,9 +17,9 @@ export async function createLeague(name: string, adminPass: string, joinPass: st
 
         // Initialize default points config
         await run(
-            `INSERT INTO points_config (league_id, points_json, fastest_lap_bonus, clean_driver_bonus)
-             VALUES (?, ?, ?, ?)`,
-            [leagueId, JSON.stringify(DEFAULT_CONFIG.points), DEFAULT_CONFIG.fastestLapBonus, DEFAULT_CONFIG.cleanDriverBonus]
+            `INSERT INTO points_config (league_id, points_json, fastest_lap_bonus, clean_driver_bonus, total_races, track_pool, drop_results_count)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [leagueId, JSON.stringify(DEFAULT_CONFIG.points), DEFAULT_CONFIG.fastestLapBonus, DEFAULT_CONFIG.cleanDriverBonus, DEFAULT_CONFIG.totalRaces, JSON.stringify(DEFAULT_CONFIG.trackPool), DEFAULT_CONFIG.dropResultsCount]
         );
 
         console.log(`League created: ${name}`);
@@ -151,15 +151,65 @@ export async function saveRaceResults(leagueId: string, track: string, results: 
 }
 
 /**
- * Recalculates all driver totals for a league.
+ * Recalculates all driver totals for a league, accounting for drop results.
  */
 export async function recalculateStandings(leagueId: string) {
     const drivers = await query<any>(`SELECT id FROM drivers WHERE league_id = ?`, [leagueId]);
+    const configRes = await getPointsConfig(leagueId);
+    const config = configRes.success ? configRes.config : DEFAULT_CONFIG;
+
+    // Total finished races in this league
+    const racesCountRes = await query<any>(`SELECT COUNT(*) as c FROM races WHERE league_id = ? AND is_finished = true`, [leagueId]);
+    const finishedRaces = parseInt(racesCountRes[0].c || 0);
+
+    // Max drops allowed is 25% of the highest between configured total races or finished races
+    const referenceRaces = (config?.totalRaces && config.totalRaces > 0) ? config.totalRaces : finishedRaces;
+    const maxDropsAllowed = Math.floor(referenceRaces * 0.25);
+    const actualDrops = Math.min((config?.dropResultsCount || 0), maxDropsAllowed);
 
     for (const driver of drivers) {
-        const results = await query<any>(`SELECT SUM(points_earned) as total FROM race_results WHERE driver_id = ?`, [driver.id]);
-        const newTotal = results[0].total || 0;
-        await run(`UPDATE drivers SET total_points = ? WHERE id = ?`, [newTotal, driver.id]);
+        // Fetch all individual results for this driver
+        const results = await query<any>(`SELECT id, points_earned FROM race_results WHERE driver_id = ?`, [driver.id]);
+
+        let allPoints: { id: string | null; points: number }[] = results.map((r: any) => ({
+            id: r.id,
+            points: r.points_earned || 0
+        }));
+
+        // They missed races if they have fewer results than finished races, so we fill with 0s. 
+        // We use null ID for missed races.
+        while (allPoints.length < finishedRaces) {
+            allPoints.push({ id: null, points: 0 });
+        }
+
+        const rawPoints = allPoints.reduce((sum, p) => sum + p.points, 0);
+
+        // Sort ascending to find lowest
+        const sortedPoints = [...allPoints].sort((a, b) => a.points - b.points);
+        let totalPoints = rawPoints;
+        let droppedResultIds: string[] = [];
+
+        if (actualDrops > 0 && sortedPoints.length >= actualDrops) {
+            const dropped = sortedPoints.slice(0, actualDrops);
+            const droppedPointsSum = dropped.reduce((sum, p) => sum + p.points, 0);
+            totalPoints -= droppedPointsSum;
+            droppedResultIds = dropped.filter(d => d.id !== null).map(d => d.id as string);
+        }
+
+        // We store total and raw points in drivers table
+        await run(`UPDATE drivers SET total_points = ?, raw_points = ? WHERE id = ?`, [totalPoints, rawPoints, driver.id]);
+
+        // Update race_results flags
+        if (results.length > 0) {
+            // First clear old flags for this driver
+            await run(`UPDATE race_results SET is_dropped = false WHERE driver_id = ?`, [driver.id]);
+
+            // Set true for dropped results if any exist
+            if (droppedResultIds.length > 0) {
+                const placeholders = droppedResultIds.map(() => '?').join(',');
+                await run(`UPDATE race_results SET is_dropped = true WHERE id IN (${placeholders})`, droppedResultIds);
+            }
+        }
     }
 }
 
@@ -290,6 +340,21 @@ export async function getDashboardData(leagueName: string) {
 
         const totalRaces = await query<any>(`SELECT COUNT(*) as count FROM races WHERE league_id = ? AND is_finished = true`, [leagueId]);
 
+        const configRes = await getPointsConfig(leagueId);
+        const config = configRes.success ? configRes.config : DEFAULT_CONFIG;
+
+        // Calculate remaining tracks from the pool
+        let remainingTracks: string[] = [];
+        if (config?.trackPool && config.trackPool.length > 0) {
+            const usedTracks = new Set([...finishedRaces, ...upcomingRaces].map((r: any) => r.track));
+            remainingTracks = config.trackPool.filter(t => !usedTracks.has(t));
+        }
+
+        // Calculate max actual drops allowed
+        const referenceRaces = (config?.totalRaces && config.totalRaces > 0) ? config.totalRaces : finishedRaces.length;
+        const maxDropsAllowed = Math.floor(referenceRaces * 0.25);
+        const actualDrops = Math.min((config?.dropResultsCount || 0), maxDropsAllowed);
+
         return {
             success: true,
             league: leagues[0],
@@ -297,7 +362,14 @@ export async function getDashboardData(leagueName: string) {
             races: finishedRaces.slice().reverse().slice(0, 10), // Keep recent races descending
             upcoming: upcomingRaces,
             graphData,
-            stats: { totalRaces: totalRaces[0].count }
+            stats: {
+                totalRaces: totalRaces[0].count,
+                plannedTotalRaces: config?.totalRaces || 0,
+                remainingTracks,
+                actualDrops,
+                maxDropsAllowed
+            },
+            config
         };
     } catch (error: any) {
         return { success: false, error: error.message };
@@ -460,7 +532,10 @@ export async function getPointsConfig(leagueId: string) {
         const config: PointsConfig = {
             points: JSON.parse(rows[0].points_json),
             fastestLapBonus: rows[0].fastest_lap_bonus,
-            cleanDriverBonus: rows[0].clean_driver_bonus
+            cleanDriverBonus: rows[0].clean_driver_bonus,
+            totalRaces: rows[0].total_races || 0,
+            trackPool: rows[0].track_pool ? JSON.parse(rows[0].track_pool) : [],
+            dropResultsCount: rows[0].drop_results_count || 0
         };
 
         return { success: true, config };
@@ -481,11 +556,28 @@ export async function updatePointsConfig(leagueId: string, config: PointsConfig,
             throw new Error('Unauthorized or invalid admin password.');
         }
 
-        await run(
-            `INSERT OR REPLACE INTO points_config (league_id, points_json, fastest_lap_bonus, clean_driver_bonus)
-             VALUES (?, ?, ?, ?)`,
-            [leagueId, JSON.stringify(config.points), config.fastestLapBonus, config.cleanDriverBonus]
-        );
+        // Check if config exists
+        const existingConfig = await query<any>(`SELECT league_id FROM points_config WHERE league_id = ?`, [leagueId]);
+
+        if (existingConfig.length > 0) {
+            await run(
+                `UPDATE points_config SET 
+                    points_json = ?, 
+                    fastest_lap_bonus = ?, 
+                    clean_driver_bonus = ?,
+                    total_races = ?,
+                    track_pool = ?,
+                    drop_results_count = ?
+                 WHERE league_id = ?`,
+                [JSON.stringify(config.points), config.fastestLapBonus, config.cleanDriverBonus, config.totalRaces || 0, JSON.stringify(config.trackPool || []), config.dropResultsCount || 0, leagueId]
+            );
+        } else {
+            await run(
+                `INSERT INTO points_config (league_id, points_json, fastest_lap_bonus, clean_driver_bonus, total_races, track_pool, drop_results_count)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [leagueId, JSON.stringify(config.points), config.fastestLapBonus, config.cleanDriverBonus, config.totalRaces || 0, JSON.stringify(config.trackPool || []), config.dropResultsCount || 0]
+            );
+        }
 
         // Recalculate standings since point rules might have changed
         await recalculateStandings(leagueId);

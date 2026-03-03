@@ -132,7 +132,13 @@ export default function Dashboard() {
                             <section className="dashboard-standings" style={{ marginBottom: '3rem' }}>
                                 <h2 className="text-f1" style={{ borderLeft: '4px solid var(--f1-red)', paddingLeft: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                                     <span>Standings: <span style={{ color: 'var(--f1-red)' }}>{league.name}</span></span>
-                                    {leagueStats && <span style={{ fontSize: '0.8rem', color: 'var(--silver)', fontWeight: 400 }}>{leagueStats.totalRaces} Rounds</span>}
+                                    {leagueStats && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                                            <span style={{ fontSize: '0.8rem', color: 'var(--silver)', fontWeight: 400 }}>
+                                                {leagueStats.totalRaces} {leagueStats.plannedTotalRaces ? `/ ${leagueStats.plannedTotalRaces}` : ''} Rounds
+                                            </span>
+                                        </div>
+                                    )}
                                 </h2>
 
                                 <div className="f1-card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -166,7 +172,14 @@ export default function Dashboard() {
                                                     <td style={{ padding: '1rem 0.5rem', textAlign: 'center', fontWeight: 700, color: driver.podiums > 0 ? 'var(--white)' : 'rgba(255,255,255,0.1)' }}>{driver.podiums}</td>
                                                     <td className="hide-mobile" style={{ padding: '1rem 0.5rem', textAlign: 'center', fontWeight: 700, color: driver.fastest_laps > 0 ? 'var(--white)' : 'rgba(255,255,255,0.1)' }}>{driver.fastest_laps}</td>
                                                     <td className="hide-mobile" style={{ padding: '1rem 0.5rem', textAlign: 'center', fontWeight: 700, color: driver.clean_races > 0 ? 'var(--white)' : 'rgba(255,255,255,0.1)' }}>{driver.clean_races}</td>
-                                                    <td style={{ padding: '1rem', textAlign: 'right', fontWeight: 900, color: 'var(--f1-red)', fontSize: '1.3rem' }}>{driver.total_points}</td>
+                                                    <td style={{ padding: '1rem', textAlign: 'right', fontWeight: 900, color: 'var(--f1-red)', fontSize: '1.3rem', whiteSpace: 'nowrap' }}>
+                                                        {driver.total_points}
+                                                        {driver.raw_points !== driver.total_points && (
+                                                            <span style={{ fontSize: '0.8rem', color: 'var(--silver)', marginLeft: '6px', fontWeight: 400 }}>
+                                                                ({driver.raw_points})
+                                                            </span>
+                                                        )}
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -210,22 +223,34 @@ export default function Dashboard() {
 
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
                                 <section>
-                                    {upcomingRaces.length > 0 && (
+                                    {leagueStats && (leagueStats.remainingTracks?.length > 0 || leagueStats.maxDropsAllowed > 0) && (
                                         <div className="mb-6 animate-fade-in">
-                                            <h2 className="text-f1" style={{ marginBottom: '1rem', fontSize: '1.2rem', opacity: 0.8, color: 'var(--f1-red)' }}>UPCOMING EVENTS</h2>
-                                            <div className="flex flex-col gap-2">
-                                                {upcomingRaces.map(race => (
-                                                    <div key={race.id} className="f1-card" style={{ padding: '1rem', border: '1px solid rgba(255,255,255,0.1)' }}>
-                                                        <div style={{ fontSize: '0.6rem', color: 'var(--silver)', marginBottom: '0.3rem' }}>
-                                                            {new Date(race.scheduled_date).toLocaleString()}
+                                            <h2 className="text-f1" style={{ marginBottom: '1rem', fontSize: '1.2rem', color: 'var(--f1-red)', opacity: 0.8 }}>LEAGUE INFO</h2>
+                                            <div className="f1-card flex flex-col gap-3">
+                                                {leagueStats.remainingTracks?.length > 0 && (
+                                                    <div>
+                                                        <div style={{ fontSize: '0.7rem', color: 'var(--silver)', fontWeight: 900, marginBottom: '0.2rem' }}>REMAINING TRACKS</div>
+                                                        <div style={{ color: 'white', lineHeight: 1.5, fontSize: '0.9rem' }}>
+                                                            {leagueStats.remainingTracks.join(', ')}
                                                         </div>
-                                                        <div className="text-f1" style={{ fontSize: '1.1rem' }}>{race.track}</div>
-                                                        <div style={{ fontSize: '0.7rem', color: 'var(--f1-red)', fontWeight: 900, marginTop: '0.5rem' }}>SCHEDULED</div>
                                                     </div>
-                                                ))}
+                                                )}
+                                                {leagueStats.actualDrops > 0 && (
+                                                    <>
+                                                        {leagueStats.remainingTracks?.length > 0 && <hr style={{ borderColor: 'rgba(255,255,255,0.05)', margin: '0.5rem 0' }} />}
+                                                        <div className="flex justify-between items-center">
+                                                            <div style={{ fontSize: '0.7rem', color: 'var(--silver)', fontWeight: 900 }}>DROPPED RESULTS</div>
+                                                            <div style={{ color: 'var(--f1-red)', fontWeight: 'bold' }}>
+                                                                {leagueStats.actualDrops} {leagueStats.actualDrops === 1 ? 'Result' : 'Results'} Dropped
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     )}
+
+
 
                                     <h2 className="text-f1" style={{ marginBottom: '1rem', fontSize: '1.2rem', color: 'var(--f1-red)', opacity: 0.8 }}>RECENT RACES</h2>
                                     <div className="flex flex-col gap-2">
@@ -278,9 +303,20 @@ export default function Dashboard() {
                                                                                 {res.clean_driver && <span title="Clean Driver" style={{ background: 'var(--success)', color: 'white', fontSize: '0.6rem', padding: '2px 4px', borderRadius: '2px', fontWeight: 900 }}>CD</span>}
                                                                             </>
                                                                         )}
-                                                                        <span style={{ fontWeight: 900, color: 'var(--white)', marginLeft: '1rem' }}>
+                                                                        {res.is_dropped && (
+                                                                            <span title="Score Dropped from Standings" style={{ color: 'var(--white)', fontSize: '0.6rem', fontWeight: 900, background: 'var(--f1-red)', padding: '2px 6px', borderRadius: '2px', marginLeft: '0.2rem' }}>
+                                                                                DROPPED
+                                                                            </span>
+                                                                        )}
+                                                                        <span style={{
+                                                                            fontWeight: 900,
+                                                                            color: res.is_dropped ? 'var(--f1-red)' : 'var(--white)',
+                                                                            marginLeft: '1rem',
+                                                                            textDecoration: res.is_dropped ? 'line-through' : 'none',
+                                                                            opacity: res.is_dropped ? 0.6 : 1
+                                                                        }}>
                                                                             {res.points_earned} <span style={{ fontSize: '0.7rem', opacity: 0.3 }}>PTS</span>
-                                                                            <span style={{ marginLeft: '0.8rem', paddingLeft: '0.8rem', borderLeft: '1px solid rgba(255,255,255,0.1)', color: 'var(--silver)', fontSize: '0.8rem' }}>P{res.position}</span>
+                                                                            <span style={{ marginLeft: '0.8rem', paddingLeft: '0.8rem', borderLeft: `1px solid ${res.is_dropped ? 'rgba(255,24,1,0.2)' : 'rgba(255,255,255,0.1)'}`, color: 'var(--silver)', fontSize: '0.8rem', textDecoration: 'none' }}>P{res.position}</span>
                                                                         </span>
                                                                     </div>
                                                                 </div>
@@ -307,6 +343,9 @@ export default function Dashboard() {
             <style jsx global>{`
         @media (max-width: 600px) {
           .hide-mobile { display: none; }
+          .container { padding: 1rem 0.5rem !important; }
+          .dashboard-standings table th, .dashboard-standings table td { padding: 0.8rem 0.4rem !important; }
+          .dashboard-standings table td:last-child { padding-right: 0.8rem !important; }
         }
         .race-select-btn {
           cursor: pointer;

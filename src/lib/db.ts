@@ -21,7 +21,8 @@ const SCHEMA = [
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     name TEXT NOT NULL,
     team TEXT,
-    total_points INTEGER DEFAULT 0
+    total_points INTEGER DEFAULT 0,
+    raw_points INTEGER DEFAULT 0
   )`,
   `CREATE TABLE IF NOT EXISTS races (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -40,13 +41,17 @@ const SCHEMA = [
     fastest_lap BOOLEAN DEFAULT false,
     clean_driver BOOLEAN DEFAULT false,
     points_earned INTEGER DEFAULT 0,
-    is_dnf BOOLEAN DEFAULT false
+    is_dnf BOOLEAN DEFAULT false,
+    is_dropped BOOLEAN DEFAULT false
   )`,
   `CREATE TABLE IF NOT EXISTS points_config (
     league_id TEXT PRIMARY KEY,
     points_json TEXT NOT NULL,
     fastest_lap_bonus INTEGER DEFAULT 2,
-    clean_driver_bonus INTEGER DEFAULT 3
+    clean_driver_bonus INTEGER DEFAULT 3,
+    total_races INTEGER DEFAULT 0,
+    track_pool TEXT DEFAULT '[]',
+    drop_results_count INTEGER DEFAULT 0
   )`
 ];
 
@@ -99,7 +104,7 @@ export async function run(sqlStr: string, params: any[] = []): Promise<void> {
 
   // Special handling for points_config upsert
   if (sqlStr.toLowerCase().includes('into points_config')) {
-    pSql += ' ON CONFLICT (league_id) DO UPDATE SET points_json = EXCLUDED.points_json, fastest_lap_bonus = EXCLUDED.fastest_lap_bonus, clean_driver_bonus = EXCLUDED.clean_driver_bonus';
+    pSql += ' ON CONFLICT (league_id) DO UPDATE SET points_json = EXCLUDED.points_json, fastest_lap_bonus = EXCLUDED.fastest_lap_bonus, clean_driver_bonus = EXCLUDED.clean_driver_bonus, total_races = EXCLUDED.total_races, track_pool = EXCLUDED.track_pool, drop_results_count = EXCLUDED.drop_results_count';
   }
 
   await sql.query(pSql, pParams);
