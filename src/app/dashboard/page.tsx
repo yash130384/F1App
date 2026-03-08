@@ -380,7 +380,9 @@ export default function Dashboard() {
                                                                             opacity: res.is_dropped ? 0.6 : 1
                                                                         }}>
                                                                             {res.points_earned} <span style={{ fontSize: '0.7rem', opacity: 0.3 }}>PTS</span>
-                                                                            <span style={{ marginLeft: '0.8rem', paddingLeft: '0.8rem', borderLeft: `1px solid ${res.is_dropped ? 'rgba(255,24,1,0.2)' : 'rgba(255,255,255,0.1)'}`, color: 'var(--silver)', fontSize: '0.8rem', textDecoration: 'none' }}>P{res.position}</span>
+                                                                            <span style={{ marginLeft: '0.8rem', paddingLeft: '0.8rem', borderLeft: `1px solid ${res.is_dropped ? 'rgba(255,24,1,0.2)' : 'rgba(255,255,255,0.1)'}`, color: 'var(--silver)', fontSize: '0.8rem', textDecoration: 'none' }}>
+                                                                                P{res.position} {res.quali_position > 0 && <span style={{ opacity: 0.5, fontSize: '0.7rem' }}>(Q{res.quali_position})</span>}
+                                                                            </span>
                                                                         </span>
                                                                     </div>
                                                                 </div>

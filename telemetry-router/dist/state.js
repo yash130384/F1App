@@ -4,7 +4,9 @@ exports.SessionState = void 0;
 class SessionState {
     sessionType = 'Unknown';
     trackId = -1;
+    trackLength = 0;
     isActive = false;
+    sessionData;
     // Map car index (0-21) to PlayerState
     players = new Map();
     getPlayer(carIdx) {
@@ -12,6 +14,7 @@ class SessionState {
             this.players.set(carIdx, {
                 gameName: `Unknown_${carIdx}`,
                 position: 0,
+                lapDistance: 0,
                 fastestLapMs: null,
                 topSpeedKmh: 0,
                 isHuman: false,
@@ -31,6 +34,7 @@ class SessionState {
         }
         p.isHuman = data.isHuman;
         p.teamId = data.teamId;
+        p.participantData = data;
     }
     updateLapData(carIdx, data) {
         const p = this.getPlayer(carIdx);
@@ -52,12 +56,14 @@ class SessionState {
             }
         }
         p.currentLapNum = data.currentLapNum;
+        p.lapData = data;
     }
     updateTelemetry(carIdx, data) {
         const p = this.getPlayer(carIdx);
         if (data.speedKmh > p.topSpeedKmh) {
             p.topSpeedKmh = data.speedKmh;
         }
+        p.telemetryData = data;
     }
     // Prepare payload and clear laps so we don't send duplicates
     buildPayloadAndClear() {
@@ -69,18 +75,24 @@ class SessionState {
             return {
                 gameName: p.gameName,
                 position: p.position,
+                lapDistance: p.lapDistance,
                 fastestLapMs: p.fastestLapMs,
                 topSpeedKmh: p.topSpeedKmh,
                 isHuman: p.isHuman,
                 startPosition: p.startPosition,
                 teamId: p.teamId,
-                laps: lapsToSend
+                laps: lapsToSend,
+                participantData: p.participantData,
+                lapData: p.lapData,
+                telemetryData: p.telemetryData
             };
         });
         return {
             sessionType: this.sessionType,
             trackId: this.trackId,
+            trackLength: this.trackLength,
             isActive: this.isActive,
+            sessionData: this.sessionData,
             participants: participantsList
         };
     }

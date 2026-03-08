@@ -20,6 +20,10 @@ export interface PlayerState {
     laps: LapEntry[];
     // Internal tracking
     currentLapNum: number;
+    // Full raw parsed packets
+    participantData?: ParticipantData;
+    lapData?: LapData;
+    telemetryData?: CarTelemetryData;
 }
 
 export class SessionState {
@@ -27,6 +31,7 @@ export class SessionState {
     public trackId: number = -1;
     public trackLength: number = 0;
     public isActive: boolean = false;
+    public sessionData?: any;
 
     // Map car index (0-21) to PlayerState
     private players: Map<number, PlayerState> = new Map();
@@ -57,6 +62,7 @@ export class SessionState {
         }
         p.isHuman = data.isHuman;
         p.teamId = data.teamId;
+        p.participantData = data;
     }
 
     public updateLapData(carIdx: number, data: LapData) {
@@ -82,6 +88,7 @@ export class SessionState {
             }
         }
         p.currentLapNum = data.currentLapNum;
+        p.lapData = data;
     }
 
     public updateTelemetry(carIdx: number, data: CarTelemetryData) {
@@ -89,6 +96,7 @@ export class SessionState {
         if (data.speedKmh > p.topSpeedKmh) {
             p.topSpeedKmh = data.speedKmh;
         }
+        p.telemetryData = data;
     }
 
     // Prepare payload and clear laps so we don't send duplicates
@@ -107,7 +115,10 @@ export class SessionState {
                     isHuman: p.isHuman,
                     startPosition: p.startPosition,
                     teamId: p.teamId,
-                    laps: lapsToSend
+                    laps: lapsToSend,
+                    participantData: p.participantData,
+                    lapData: p.lapData,
+                    telemetryData: p.telemetryData
                 };
             });
 
@@ -116,6 +127,7 @@ export class SessionState {
             trackId: this.trackId,
             trackLength: this.trackLength,
             isActive: this.isActive,
+            sessionData: this.sessionData,
             participants: participantsList
         };
     }

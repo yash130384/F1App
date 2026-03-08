@@ -44,6 +44,8 @@ export function startUdpListener(config: AppConfig) {
                     const sessionData = parseSession(msg);
                     state.sessionType = sessionData.sessionTypeMapped;
                     state.trackId = sessionData.trackId;
+                    state.trackLength = sessionData.trackLength;
+                    state.sessionData = sessionData;
                     state.isActive = true;
                     break;
                 case 2: // Lap Data

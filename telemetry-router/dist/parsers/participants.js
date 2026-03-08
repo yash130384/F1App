@@ -16,11 +16,30 @@ function parseParticipants(buffer) {
             nameBuffer = nameBuffer.subarray(0, nullIdx);
         }
         const name = nameBuffer.toString('utf-8');
+        const liveryColours = [];
+        for (let j = 0; j < 4; j++) {
+            const colourOffset = offset + 45 + (j * 3);
+            liveryColours.push({
+                red: buffer.readUInt8(colourOffset),
+                green: buffer.readUInt8(colourOffset + 1),
+                blue: buffer.readUInt8(colourOffset + 2)
+            });
+        }
         participants.push({
             aiControlled,
+            driverId: buffer.readUInt8(offset + 1),
+            networkId: buffer.readUInt8(offset + 2),
             teamId,
+            myTeam: buffer.readUInt8(offset + 4),
+            raceNumber: buffer.readUInt8(offset + 5),
             nationality,
             name,
+            yourTelemetry: buffer.readUInt8(offset + 39),
+            showOnlineNames: buffer.readUInt8(offset + 40),
+            techLevel: buffer.readUInt16LE(offset + 41),
+            platform: buffer.readUInt8(offset + 43),
+            numColours: buffer.readUInt8(offset + 44),
+            liveryColours,
             isHuman: aiControlled === 0
         });
     }
