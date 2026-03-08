@@ -46,6 +46,7 @@ export default function AdminHub() {
     const [submitting, setSubmitting] = useState(false);
     const [newDriverName, setNewDriverName] = useState('');
     const [newDriverTeam, setNewDriverTeam] = useState('');
+    const [newDriverColor, setNewDriverColor] = useState('#ffffff');
     const [scheduleTrack, setScheduleTrack] = useState(F1_TRACKS_2025[0]);
     const [scheduleDate, setScheduleDate] = useState('');
     const [upcomingRaces, setUpcomingRaces] = useState<any[]>([]);
@@ -169,13 +170,14 @@ export default function AdminHub() {
         setSubmitting(true);
         // Using a join pass isn't strictly needed for admin add, but the action requires it
         // We fetching it or just pass "admin_add" if we modified the action, but safer to just use one that exists
-        const res = await joinLeague(leagueName, 'any', newDriverName, newDriverTeam, '#ffffff');
+        const res = await joinLeague(leagueName, 'any', newDriverName, newDriverTeam, newDriverColor);
         if (res.success) {
             // Refresh drivers list
             const authRes = await adminLogin(leagueName, adminPass);
             if (authRes.success) setDrivers(authRes.drivers || []);
             setNewDriverName('');
             setNewDriverTeam('');
+            setNewDriverColor('#ffffff');
         } else {
             alert('Failed to add driver: ' + res.error);
         }
@@ -723,6 +725,30 @@ export default function AdminHub() {
                                                     </button>
                                                 </div>
                                             </div>
+                                            <div className="flex items-center gap-2 mt-2 w-full md:w-auto">
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--silver)' }}>Color:</span>
+                                                <input
+                                                    type="color"
+                                                    value={d.color || '#ffffff'}
+                                                    onChange={(e) => setDrivers(prev => prev.map(drv => drv.id === d.id ? { ...drv, color: e.target.value } : drv))}
+                                                    style={{
+                                                        padding: '2px',
+                                                        background: 'var(--f1-carbon-dark)',
+                                                        border: '1px solid var(--glass-border)',
+                                                        borderRadius: '4px',
+                                                        cursor: 'pointer',
+                                                        width: '32px',
+                                                        height: '32px'
+                                                    }}
+                                                />
+                                                <button
+                                                    onClick={() => handleUpdateColor(d.id, d.color || '#ffffff')}
+                                                    className="btn-secondary"
+                                                    style={{ padding: '6px 12px', fontSize: '0.65rem', minHeight: 'unset', whiteSpace: 'nowrap' }}
+                                                >
+                                                    SAVE COLOR
+                                                </button>
+                                            </div>
                                         </div>
                                         <button
                                             onClick={() => handleDeleteDriver(d.id)}
@@ -747,6 +773,23 @@ export default function AdminHub() {
                                 <div className="input-group">
                                     <label>TEAM CONSTRUCTOR</label>
                                     <input value={newDriverTeam} onChange={e => setNewDriverTeam(e.target.value)} placeholder="Mercedes-AMG / Privateer" />
+                                </div>
+                                <div className="input-group">
+                                    <label>DRIVER COLOR</label>
+                                    <input
+                                        type="color"
+                                        value={newDriverColor}
+                                        onChange={e => setNewDriverColor(e.target.value)}
+                                        style={{
+                                            padding: '2px',
+                                            cursor: 'pointer',
+                                            width: '40px',
+                                            height: '40px',
+                                            border: '1px solid var(--glass-border)',
+                                            borderRadius: '4px',
+                                            background: 'var(--f1-carbon-dark)'
+                                        }}
+                                    />
                                 </div>
                                 <button onClick={handleAddDriver} disabled={submitting || !newDriverName} className="btn-primary mt-2">
                                     {submitting ? 'ADDING...' : 'ADD TO LEAGUE'}

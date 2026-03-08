@@ -117,9 +117,10 @@ export default function JoinLeague() {
                             value={color}
                             onChange={(e) => setColor(e.target.value)}
                             style={{
-                                padding: '0',
-                                background: 'transparent',
-                                border: 'none',
+                                padding: '2px',
+                                background: 'var(--f1-carbon-dark)',
+                                border: '1px solid var(--glass-border)',
+                                borderRadius: '4px',
                                 cursor: 'pointer',
                                 width: '40px',
                                 height: '40px'
