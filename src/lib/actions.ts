@@ -17,9 +17,9 @@ export async function createLeague(name: string, adminPass: string, joinPass: st
 
         // Initialize default points config
         await run(
-            `INSERT INTO points_config (league_id, points_json, fastest_lap_bonus, clean_driver_bonus, total_races, track_pool, drop_results_count)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [leagueId, JSON.stringify(DEFAULT_CONFIG.points), DEFAULT_CONFIG.fastestLapBonus, DEFAULT_CONFIG.cleanDriverBonus, DEFAULT_CONFIG.totalRaces, JSON.stringify(DEFAULT_CONFIG.trackPool), DEFAULT_CONFIG.dropResultsCount]
+            `INSERT INTO points_config (league_id, points_json, quali_points_json, fastest_lap_bonus, clean_driver_bonus, total_races, track_pool, drop_results_count)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [leagueId, JSON.stringify(DEFAULT_CONFIG.points), JSON.stringify(DEFAULT_CONFIG.qualiPoints), DEFAULT_CONFIG.fastestLapBonus, DEFAULT_CONFIG.cleanDriverBonus, DEFAULT_CONFIG.totalRaces, JSON.stringify(DEFAULT_CONFIG.trackPool), DEFAULT_CONFIG.dropResultsCount]
         );
 
         console.log(`League created: ${name}`);
@@ -127,6 +127,7 @@ export async function saveRaceResults(leagueId: string, track: string, results: 
         for (const res of results) {
             const points = calculatePoints({
                 position: res.position,
+                qualiPosition: res.quali_position ? parseInt(res.quali_position as any) : undefined,
                 fastestLap: res.fastest_lap,
                 cleanDriver: res.clean_driver,
                 isDnf: res.is_dnf
@@ -134,9 +135,9 @@ export async function saveRaceResults(leagueId: string, track: string, results: 
 
             const resultId = crypto.randomUUID();
             await run(
-                `INSERT INTO race_results (id, race_id, driver_id, position, fastest_lap, clean_driver, points_earned, is_dnf)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [resultId, raceId, res.driver_id, res.position, !!res.fastest_lap, !!res.clean_driver, points, !!res.is_dnf]
+                `INSERT INTO race_results (id, race_id, driver_id, position, quali_position, fastest_lap, clean_driver, points_earned, is_dnf)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [resultId, raceId, res.driver_id, res.position, res.quali_position || 0, !!res.fastest_lap, !!res.clean_driver, points, !!res.is_dnf]
             );
         }
 
@@ -531,6 +532,7 @@ export async function getPointsConfig(leagueId: string) {
 
         const config: PointsConfig = {
             points: JSON.parse(rows[0].points_json),
+            qualiPoints: rows[0].quali_points_json ? JSON.parse(rows[0].quali_points_json) : DEFAULT_CONFIG.qualiPoints,
             fastestLapBonus: rows[0].fastest_lap_bonus,
             cleanDriverBonus: rows[0].clean_driver_bonus,
             totalRaces: rows[0].total_races || 0,
@@ -563,19 +565,20 @@ export async function updatePointsConfig(leagueId: string, config: PointsConfig,
             await run(
                 `UPDATE points_config SET 
                     points_json = ?, 
+                    quali_points_json = ?,
                     fastest_lap_bonus = ?, 
                     clean_driver_bonus = ?,
                     total_races = ?,
                     track_pool = ?,
                     drop_results_count = ?
                  WHERE league_id = ?`,
-                [JSON.stringify(config.points), config.fastestLapBonus, config.cleanDriverBonus, config.totalRaces || 0, JSON.stringify(config.trackPool || []), config.dropResultsCount || 0, leagueId]
+                [JSON.stringify(config.points), JSON.stringify(config.qualiPoints || {}), config.fastestLapBonus, config.cleanDriverBonus, config.totalRaces || 0, JSON.stringify(config.trackPool || []), config.dropResultsCount || 0, leagueId]
             );
         } else {
             await run(
-                `INSERT INTO points_config (league_id, points_json, fastest_lap_bonus, clean_driver_bonus, total_races, track_pool, drop_results_count)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [leagueId, JSON.stringify(config.points), config.fastestLapBonus, config.cleanDriverBonus, config.totalRaces || 0, JSON.stringify(config.trackPool || []), config.dropResultsCount || 0]
+                `INSERT INTO points_config (league_id, points_json, quali_points_json, fastest_lap_bonus, clean_driver_bonus, total_races, track_pool, drop_results_count)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [leagueId, JSON.stringify(config.points), JSON.stringify(config.qualiPoints || {}), config.fastestLapBonus, config.cleanDriverBonus, config.totalRaces || 0, JSON.stringify(config.trackPool || []), config.dropResultsCount || 0]
             );
         }
 
@@ -611,6 +614,7 @@ export async function updateRaceResults(leagueId: string, raceId: string, result
         for (const res of results) {
             const points = calculatePoints({
                 position: parseInt(res.position as any),
+                qualiPosition: res.quali_position ? parseInt(res.quali_position as any) : undefined,
                 fastestLap: !!res.fastest_lap,
                 cleanDriver: !!res.clean_driver,
                 isDnf: !!res.is_dnf
@@ -618,9 +622,9 @@ export async function updateRaceResults(leagueId: string, raceId: string, result
 
             const resultId = crypto.randomUUID();
             await run(
-                `INSERT INTO race_results (id, race_id, driver_id, position, fastest_lap, clean_driver, points_earned, is_dnf)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [resultId, raceId, res.driver_id, res.position, !!res.fastest_lap, !!res.clean_driver, points, !!res.is_dnf]
+                `INSERT INTO race_results (id, race_id, driver_id, position, quali_position, fastest_lap, clean_driver, points_earned, is_dnf)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [resultId, raceId, res.driver_id, res.position, res.quali_position || 0, !!res.fastest_lap, !!res.clean_driver, points, !!res.is_dnf]
             );
         }
 
@@ -757,6 +761,7 @@ export async function promoteTelemetryToRace(leagueId: string, adminPass: string
         const resultsToSave = participants.map((p: any) => ({
             driver_id: p.driver_id,
             position: p.position || 0,
+            quali_position: p.start_position || 0,
             fastest_lap: p.driver_id === fastestDriverId,
             clean_driver: true, // simplified assumption, or could be pulled from telemetry penalties if added
             is_dnf: false // simplified assumption

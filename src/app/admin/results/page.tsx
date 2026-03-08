@@ -11,7 +11,7 @@ export default function AdminResults() {
     const [leagueId, setLeagueId] = useState<string | null>(null);
     const [drivers, setDrivers] = useState<any[]>([]);
     const [track, setTrack] = useState('');
-    const [results, setResults] = useState<Record<string, { position: number; fastestLap: boolean; cleanDriver: boolean; isDnf: boolean }>>({});
+    const [results, setResults] = useState<Record<string, { position: number; qualiPosition: number; fastestLap: boolean; cleanDriver: boolean; isDnf: boolean }>>({});
     const [loading, setLoading] = useState(false);
     const [checkingSession, setCheckingSession] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export default function AdminResults() {
                         // Initialize results state
                         const initialResults: any = {};
                         (res.drivers || []).forEach((d: any) => {
-                            initialResults[d.id] = { position: 20, fastestLap: false, cleanDriver: false, isDnf: false };
+                            initialResults[d.id] = { position: 20, qualiPosition: 0, fastestLap: false, cleanDriver: false, isDnf: false };
                         });
                         setResults(initialResults);
                     }
@@ -65,7 +65,7 @@ export default function AdminResults() {
             // Initialize results state
             const initialResults: any = {};
             (res.drivers || []).forEach((d: any) => {
-                initialResults[d.id] = { position: 20, fastestLap: false, cleanDriver: false, isDnf: false };
+                initialResults[d.id] = { position: 20, qualiPosition: 0, fastestLap: false, cleanDriver: false, isDnf: false };
             });
             setResults(initialResults);
             setLoading(false);
@@ -90,6 +90,7 @@ export default function AdminResults() {
         const formattedResults = drivers.map(d => ({
             driver_id: d.id,
             position: results[d.id].position,
+            quali_position: results[d.id].qualiPosition,
             fastest_lap: results[d.id].fastestLap,
             clean_driver: results[d.id].cleanDriver,
             is_dnf: results[d.id].isDnf
@@ -191,6 +192,17 @@ export default function AdminResults() {
                                     min="1" max="20"
                                     value={results[driver.id]?.position}
                                     onChange={e => updateResult(driver.id, 'position', parseInt(e.target.value))}
+                                    style={{ width: '60px', padding: '0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white', textAlign: 'center', fontWeight: 'bold' }}
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <span style={{ fontSize: '0.7rem', fontWeight: 900, color: 'var(--silver)' }}>Q P</span>
+                                <input
+                                    type="number"
+                                    min="0" max="20"
+                                    value={results[driver.id]?.qualiPosition}
+                                    onChange={e => updateResult(driver.id, 'qualiPosition', parseInt(e.target.value))}
                                     style={{ width: '60px', padding: '0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white', textAlign: 'center', fontWeight: 'bold' }}
                                 />
                             </div>

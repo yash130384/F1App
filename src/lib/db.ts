@@ -40,21 +40,25 @@ const SCHEMA = [
     race_id TEXT,
     driver_id TEXT,
     position INTEGER NOT NULL,
+    quali_position INTEGER DEFAULT 0,
     fastest_lap BOOLEAN DEFAULT false,
     clean_driver BOOLEAN DEFAULT false,
     points_earned INTEGER DEFAULT 0,
     is_dnf BOOLEAN DEFAULT false,
     is_dropped BOOLEAN DEFAULT false
   )`,
+  `ALTER TABLE race_results ADD COLUMN IF NOT EXISTS quali_position INTEGER DEFAULT 0`,
   `CREATE TABLE IF NOT EXISTS points_config (
     league_id TEXT PRIMARY KEY,
     points_json TEXT NOT NULL,
+    quali_points_json TEXT DEFAULT '{}',
     fastest_lap_bonus INTEGER DEFAULT 2,
     clean_driver_bonus INTEGER DEFAULT 3,
     total_races INTEGER DEFAULT 0,
     track_pool TEXT DEFAULT '[]',
     drop_results_count INTEGER DEFAULT 0
   )`,
+  `ALTER TABLE points_config ADD COLUMN IF NOT EXISTS quali_points_json TEXT DEFAULT '{}'`,
   `CREATE TABLE IF NOT EXISTS telemetry_sessions (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
     league_id TEXT NOT NULL,

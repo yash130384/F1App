@@ -502,6 +502,17 @@ export default function AdminHub() {
                                                     />
                                                 </div>
 
+                                                <div className="flex items-center gap-2">
+                                                    <span style={{ fontSize: '0.7rem', fontWeight: 900, color: 'var(--silver)' }}>Q P</span>
+                                                    <input
+                                                        type="number"
+                                                        min="0" max="25"
+                                                        value={res.quali_position || 0}
+                                                        onChange={e => handleUpdateEditResult(res.driver_id, 'quali_position', parseInt(e.target.value))}
+                                                        style={{ width: '60px', padding: '0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white', textAlign: 'center', fontWeight: 'bold' }}
+                                                    />
+                                                </div>
+
                                                 <label className="checkbox-container">
                                                     <input
                                                         type="checkbox"
@@ -533,7 +544,7 @@ export default function AdminHub() {
                                                 </label>
 
                                                 <div style={{ minWidth: '90px', textAlign: 'right', fontWeight: 900, fontSize: '1.2rem', color: 'var(--white)' }}>
-                                                    {formatPoints(calculatePoints({ position: res.position, fastestLap: res.fastest_lap, cleanDriver: res.clean_driver, isDnf: res.is_dnf }))} <span style={{ fontSize: '0.6rem', color: 'var(--silver)' }}>PTS</span>
+                                                    {formatPoints(calculatePoints({ position: res.position, qualiPosition: res.quali_position || 0, fastestLap: res.fastest_lap, cleanDriver: res.clean_driver, isDnf: res.is_dnf }, pointsConfig))} <span style={{ fontSize: '0.6rem', color: 'var(--silver)' }}>PTS</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -845,6 +856,24 @@ export default function AdminHub() {
                                         onChange={e => {
                                             const newPoints = { ...pointsConfig.points, [i + 1]: parseInt(e.target.value) || 0 };
                                             setPointsConfig({ ...pointsConfig, points: newPoints });
+                                        }}
+                                        style={{ width: '100%', padding: '0.5rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: 'white' }}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+
+                        <h3 className="text-f1 mb-4" style={{ fontSize: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>QUALIFYING POINTS</h3>
+                        <div className="grid grid-4 gap-x-8 gap-y-4 mb-8">
+                            {Array.from({ length: 20 }).map((_, i) => (
+                                <div key={i + 1} className="flex items-center gap-3">
+                                    <span style={{ width: '30px', fontWeight: '900', color: 'var(--silver)', opacity: 0.5 }}>{i + 1}.</span>
+                                    <input
+                                        type="number"
+                                        value={pointsConfig.qualiPoints ? (pointsConfig.qualiPoints[i + 1] || 0) : 0}
+                                        onChange={e => {
+                                            const newPoints = { ...(pointsConfig.qualiPoints || {}), [i + 1]: parseInt(e.target.value) || 0 };
+                                            setPointsConfig({ ...pointsConfig, qualiPoints: newPoints });
                                         }}
                                         style={{ width: '100%', padding: '0.5rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: 'white' }}
                                     />
