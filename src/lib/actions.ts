@@ -633,3 +633,131 @@ export async function updateRaceResults(leagueId: string, raceId: string, result
         return { success: false, error: error.message };
     }
 }
+
+/**
+ * Checks for an active telemetry session for a specific league.
+ */
+export async function getActiveTelemetrySession(leagueId: string) {
+    try {
+        const active = await query<any>(
+            `SELECT * FROM telemetry_sessions WHERE league_id = ? AND is_active = true ORDER BY created_at DESC LIMIT 1`,
+            [leagueId]
+        );
+        if (active.length > 0) {
+            // Also fetch participants
+            const participants = await query<any>(
+                `SELECT * FROM telemetry_participants WHERE session_id = ? ORDER BY position ASC`,
+                [active[0].id]
+            );
+            return { success: true, session: active[0], participants };
+        }
+        return { success: true, session: null, participants: [] };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Fetches all unassigned players from recent telemetry sessions.
+ * Requires admin.
+ */
+export async function getUnassignedTelemetryPlayers(leagueId: string, adminPass: string) {
+    try {
+        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
+        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
+            throw new Error('Unauthorized.');
+        }
+
+        const unassigned = await query<any>(`
+            SELECT tp.game_name, tp.session_id, ts.created_at
+            FROM telemetry_participants tp
+            JOIN telemetry_sessions ts ON tp.session_id = ts.id
+            WHERE ts.league_id = ? AND tp.driver_id IS NULL AND tp.is_human = true
+            GROUP BY tp.game_name, tp.session_id, ts.created_at
+            ORDER BY ts.created_at DESC
+        `, [leagueId]);
+
+        return { success: true, unassigned };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Assigns a driver ID to a game_name for a specific session.
+ * We could also broadly update ALL sessions. Doing all where it's null.
+ */
+export async function assignTelemetryPlayer(leagueId: string, adminPass: string, gameName: string, driverId: string) {
+    try {
+        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
+        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
+            throw new Error('Unauthorized.');
+        }
+
+        // Broad update: assign this driver ID to anywhere this gameName appears in this league's sessions where it's currently null
+        const sessions = await query<any>(`SELECT id FROM telemetry_sessions WHERE league_id = ?`, [leagueId]);
+        if (sessions.length > 0) {
+            const sessionIds = sessions.map((s: any) => s.id);
+            const placeholders = sessionIds.map(() => '?').join(',');
+
+            await run(
+                `UPDATE telemetry_participants SET driver_id = ? WHERE game_name = ? AND session_id IN (${placeholders})`,
+                [driverId, gameName, ...sessionIds]
+            );
+        }
+
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Promotes a closed telemetry session into an official race result.
+ */
+export async function promoteTelemetryToRace(leagueId: string, adminPass: string, sessionId: string, track: string, existingRaceId?: string) {
+    try {
+        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
+        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
+            throw new Error('Unauthorized.');
+        }
+
+        // 1. Get telemetry participants
+        const participants = await query<any>(
+            `SELECT tp.*, 
+            (SELECT MIN(lap_time_ms) FROM telemetry_laps tl WHERE tl.participant_id = tp.id AND tl.is_valid = true) as fastest_lap_ms
+            FROM telemetry_participants tp 
+            WHERE tp.session_id = ? AND tp.driver_id IS NOT NULL
+            ORDER BY tp.position ASC`,
+            [sessionId]
+        );
+
+        if (participants.length === 0) {
+            throw new Error('No assigned drivers found in this session to promote.');
+        }
+
+        // Find overall fastest lap to mark it
+        let minLap = Infinity;
+        let fastestDriverId: string | null = null;
+        for (const p of participants) {
+            if (p.fastest_lap_ms && p.fastest_lap_ms < minLap) {
+                minLap = p.fastest_lap_ms;
+                fastestDriverId = p.driver_id;
+            }
+        }
+
+        const resultsToSave = participants.map((p: any) => ({
+            driver_id: p.driver_id,
+            position: p.position || 0,
+            fastest_lap: p.driver_id === fastestDriverId,
+            clean_driver: true, // simplified assumption, or could be pulled from telemetry penalties if added
+            is_dnf: false // simplified assumption
+        }));
+
+        // 2. Reuse the saveRaceResults logic
+        return await saveRaceResults(leagueId, track, resultsToSave, existingRaceId);
+
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}

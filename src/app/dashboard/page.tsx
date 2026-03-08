@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getDashboardData, getAllLeagues, getRaceDetails, deleteRace } from '@/lib/actions';
+import { getDashboardData, getAllLeagues, getRaceDetails, deleteRace, getActiveTelemetrySession } from '@/lib/actions';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import RaceCountdown from './RaceCountdown';
 
@@ -17,6 +17,8 @@ export default function Dashboard() {
 
     const [selectedRace, setSelectedRace] = useState<any | null>(null);
     const [raceResults, setRaceResults] = useState<any[]>([]);
+
+    const [liveSession, setLiveSession] = useState<any | null>(null);
 
     const [loading, setLoading] = useState(false);
     const [fetchingLeagues, setFetchingLeagues] = useState(true);
@@ -53,11 +55,20 @@ export default function Dashboard() {
             setUpcomingRaces(res.upcoming || []);
             setGraphData(res.graphData || []);
             setLeagueStats(res.stats);
+
+            // Fetch live session
+            const liveRes = await getActiveTelemetrySession(res.league.id);
+            if (liveRes.success && liveRes.session) {
+                setLiveSession({ session: liveRes.session, participants: liveRes.participants });
+            } else {
+                setLiveSession(null);
+            }
         } else {
             setError(res.error || 'League details not found.');
             setLeague(null);
             setLeagueStats(null);
             setGraphData([]);
+            setLiveSession(null);
         }
         setLoading(false);
     };
@@ -126,6 +137,38 @@ export default function Dashboard() {
                         </div>
                     ) : league && (
                         <div className="dashboard-content">
+
+                            {liveSession && (
+                                <div className="f1-card animate-pulse" style={{ marginBottom: '2rem', border: '2px solid var(--f1-red)', background: 'rgba(225, 6, 0, 0.1)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div>
+                                            <div style={{ color: 'var(--f1-red)', fontWeight: 900, fontSize: '0.8rem', letterSpacing: '2px' }}>LIVE TELEMETRY</div>
+                                            <h3 style={{ fontSize: '1.5rem', color: 'white', margin: '0.5rem 0' }}>
+                                                {liveSession.session.session_type} Session {liveSession.session.track_id ? `(Track ID: ${liveSession.session.track_id})` : ''}
+                                            </h3>
+                                            <div style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>
+                                                {liveSession.participants.length} Drivers Connected
+                                            </div>
+                                        </div>
+                                        <div style={{ background: 'var(--f1-red)', color: 'white', padding: '0.5rem 1rem', borderRadius: '4px', fontWeight: 'bold' }}>
+                                            LIVE
+                                        </div>
+                                    </div>
+
+                                    {liveSession.participants.length > 0 && (
+                                        <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+                                            {liveSession.participants.map((p: any, idx: number) => (
+                                                <div key={idx} style={{ background: 'rgba(0,0,0,0.5)', padding: '0.5rem 1rem', borderRadius: '4px', minWidth: '150px' }}>
+                                                    <div style={{ color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900 }}>P{p.position || '-'}</div>
+                                                    <div style={{ fontWeight: 600 }}>{p.game_name}</div>
+                                                    <div style={{ fontSize: '0.8rem', color: 'var(--f1-red)' }}>{p.top_speed ? `${p.top_speed} km/h` : ''}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {upcomingRaces.length > 0 && (
                                 <RaceCountdown race={upcomingRaces[0]} />
                             )}

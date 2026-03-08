@@ -52,6 +52,35 @@ const SCHEMA = [
     total_races INTEGER DEFAULT 0,
     track_pool TEXT DEFAULT '[]',
     drop_results_count INTEGER DEFAULT 0
+  )`,
+  `CREATE TABLE IF NOT EXISTS telemetry_sessions (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+    league_id TEXT NOT NULL,
+    race_id TEXT,
+    track_id INTEGER,
+    session_type TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS telemetry_participants (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id TEXT NOT NULL,
+    driver_id TEXT,
+    game_name TEXT NOT NULL,
+    team_id INTEGER,
+    start_position INTEGER,
+    position INTEGER,
+    top_speed REAL,
+    is_human BOOLEAN DEFAULT false,
+    UNIQUE(session_id, game_name)
+  )`,
+  `CREATE TABLE IF NOT EXISTS telemetry_laps (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+    participant_id TEXT NOT NULL,
+    lap_number INTEGER NOT NULL,
+    lap_time_ms INTEGER NOT NULL,
+    is_valid BOOLEAN DEFAULT true
   )`
 ];
 

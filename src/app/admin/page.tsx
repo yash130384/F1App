@@ -352,6 +352,9 @@ export default function AdminHub() {
                     <button className={activeTab === 'races' ? 'active' : ''} onClick={() => setActiveTab('races')}>RACE MANAGEMENT</button>
                     <button className={activeTab === 'drivers' ? 'active' : ''} onClick={() => setActiveTab('drivers')}>DRIVERS</button>
                     <button className={activeTab === 'points' ? 'active' : ''} onClick={() => setActiveTab('points')}>POINTS</button>
+                    <Link href="/admin/telemetry" style={{ marginLeft: 'auto' }}>
+                        <button className="btn-secondary" style={{ padding: '0.6rem 1.2rem', fontSize: '0.6rem' }}>TELEMETRY ADMIN</button>
+                    </Link>
                 </nav>
             </header>
 
