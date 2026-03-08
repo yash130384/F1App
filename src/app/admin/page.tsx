@@ -696,24 +696,41 @@ export default function AdminHub() {
                             <h2 className="text-f1 mb-4">DRIVERS LIST</h2>
                             <div className="flex flex-col gap-2">
                                 {drivers.map(d => (
-                                    <div key={d.id} className="flex justify-between items-center p-3 bg-white/5 rounded border border-white/5">
-                                        <div>
+                                    <div key={d.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-white/5 rounded border border-white/5 gap-4">
+                                        <div className="w-full md:w-auto">
                                             <div className="text-f1" style={{ fontSize: '1rem' }}>{d.name}</div>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <span style={{ fontSize: '0.75rem', color: 'var(--silver)' }}>{d.team || 'Independent'}</span>
-                                                <span style={{ fontSize: '0.75rem', color: 'var(--f1-red)' }}>|</span>
-                                                <input
-                                                    type="text"
-                                                    value={d.game_name || ''}
-                                                    onChange={(e) => setDrivers(prev => prev.map(drv => drv.id === d.id ? { ...drv, game_name: e.target.value } : drv))}
-                                                    onBlur={(e) => handleUpdateGameName(d.id, e.target.value)}
-                                                    placeholder="In-Game Name..."
-                                                    style={{ fontSize: '0.75rem', padding: '2px 6px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: '4px', outline: 'none' }}
-                                                    title="Used for automatic telemetry mapping"
-                                                />
+                                            <div className="flex flex-col md:flex-row md:items-center gap-2 mt-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span style={{ fontSize: '0.75rem', color: 'var(--silver)' }}>{d.team || 'Independent'}</span>
+                                                    <span className="hidden md:inline" style={{ fontSize: '0.75rem', color: 'var(--f1-red)' }}>|</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 w-full mt-2 md:mt-0">
+                                                    <input
+                                                        type="text"
+                                                        value={d.game_name || ''}
+                                                        onChange={(e) => setDrivers(prev => prev.map(drv => drv.id === d.id ? { ...drv, game_name: e.target.value } : drv))}
+                                                        placeholder="In-Game Name..."
+                                                        className="flex-grow md:flex-grow-0"
+                                                        style={{ minWidth: '150px', fontSize: '0.75rem', padding: '6px 10px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: '4px', outline: 'none' }}
+                                                        title="Used for automatic telemetry mapping"
+                                                    />
+                                                    <button
+                                                        onClick={() => handleUpdateGameName(d.id, d.game_name || '')}
+                                                        className="btn-secondary"
+                                                        style={{ padding: '6px 12px', fontSize: '0.65rem', minHeight: 'unset', whiteSpace: 'nowrap' }}
+                                                    >
+                                                        SAVE
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
-                                        <button onClick={() => handleDeleteDriver(d.id)} className="btn-danger-text">REMOVE</button>
+                                        <button
+                                            onClick={() => handleDeleteDriver(d.id)}
+                                            className="btn-danger-text w-full md:w-auto text-left"
+                                            style={{ padding: '0.5rem 0', marginTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}
+                                        >
+                                            REMOVE DRIVER
+                                        </button>
                                     </div>
                                 ))}
                                 {drivers.length === 0 && <p className="text-center py-4" style={{ color: 'var(--silver)' }}>No drivers registered yet.</p>}
@@ -808,8 +825,8 @@ export default function AdminHub() {
 
                                     <div className="flex flex-col gap-3">
                                         {sessionParticipants.map((p, idx) => (
-                                            <div key={p.id} className="flex justify-between items-center p-3 bg-white/5 rounded border border-white/5">
-                                                <div className="flex items-center gap-4">
+                                            <div key={p.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-white/5 rounded border border-white/5 gap-4">
+                                                <div className="flex items-center gap-4 w-full md:w-auto">
                                                     <span style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--f1-red)', width: '30px' }}>{idx + 1}</span>
                                                     <div>
                                                         <div className="text-f1" style={{ fontSize: '1rem' }}>{p.game_name} {p.is_human && <span style={{ fontSize: '0.6rem', color: 'var(--silver)', marginLeft: '4px' }}>(HUMAN)</span>}</div>
@@ -817,20 +834,21 @@ export default function AdminHub() {
                                                     </div>
                                                 </div>
 
-                                                <div>
+                                                <div className="w-full md:w-auto mt-2 md:mt-0">
                                                     <select
                                                         value={p.driver_id || ''}
                                                         onChange={(e) => handleAssignTelemetryPlayer(p.game_name, e.target.value)}
                                                         disabled={submitting}
                                                         style={{
-                                                            padding: '0.5rem',
+                                                            padding: '0.8rem',
                                                             background: p.driver_id ? 'rgba(0, 255, 0, 0.1)' : 'var(--f1-carbon-dark)',
                                                             border: `1px solid ${p.driver_id ? 'rgba(0, 255, 0, 0.3)' : 'var(--f1-red)'}`,
                                                             borderRadius: '6px',
                                                             color: 'white',
                                                             outline: 'none',
                                                             cursor: 'pointer',
-                                                            width: '200px'
+                                                            width: '100%',
+                                                            minWidth: '220px'
                                                         }}
                                                     >
                                                         <option value="" disabled>--- SELECT LEAGUE DRIVER ---</option>
