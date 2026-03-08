@@ -17,6 +17,7 @@ import {
     getRaceDetails,
     updateRaceResults,
     updateDriverGameName,
+    updateDriverColor,
     getAllTelemetrySessions,
     deleteTelemetrySession,
     assignTelemetryPlayer,
@@ -200,6 +201,16 @@ export default function AdminHub() {
         const res = await updateDriverGameName(driverId, leagueId, adminPass, gameName);
         if (!res.success) {
             alert('Error updating In-Game Name: ' + res.error);
+        }
+        setSubmitting(false);
+    };
+
+    const handleUpdateColor = async (driverId: string, color: string) => {
+        if (!leagueId) return;
+        setSubmitting(true);
+        const res = await updateDriverColor(driverId, leagueId, adminPass, color);
+        if (!res.success) {
+            alert('Error updating Color: ' + res.error);
         }
         setSubmitting(false);
     };
