@@ -33,7 +33,7 @@ export async function createLeague(name: string, adminPass: string, joinPass: st
 /**
  * Validates a league for joining and creates a driver.
  */
-export async function joinLeague(leagueName: string, joinPass: string, driverName: string, team: string, gameName?: string) {
+export async function joinLeague(leagueName: string, joinPass: string, driverName: string, team: string, color: string, gameName?: string) {
     try {
         const leagues = await query<any>(
             `SELECT id, join_password FROM leagues WHERE name = ?`,
@@ -47,8 +47,8 @@ export async function joinLeague(leagueName: string, joinPass: string, driverNam
         const driverId = crypto.randomUUID();
 
         await run(
-            `INSERT INTO drivers (id, league_id, name, team, game_name) VALUES (?, ?, ?, ?, ?)`,
-            [driverId, leagueId, driverName, team, gameName || null]
+            `INSERT INTO drivers (id, league_id, name, team, color, game_name) VALUES (?, ?, ?, ?, ?, ?)`,
+            [driverId, leagueId, driverName, team, color || '#ffffff', gameName || null]
         );
 
         return { success: true };
@@ -73,7 +73,7 @@ export async function adminLogin(leagueName: string, adminPass: string) {
         }
 
         const drivers = await query<any>(
-            `SELECT id, name, team, game_name FROM drivers WHERE league_id = ?`,
+            `SELECT id, name, team, color, game_name FROM drivers WHERE league_id = ?`,
             [leagues[0].id]
         );
 
@@ -425,9 +425,9 @@ export async function seedTestData() {
         const leagueId = leagues[0].id;
 
         // Add drivers
-        await joinLeague(leagueName, 'join', 'Max Verstappen', 'Red Bull');
-        await joinLeague(leagueName, 'join', 'Lewis Hamilton', 'Mercedes');
-        await joinLeague(leagueName, 'join', 'Lando Norris', 'McLaren');
+        await joinLeague(leagueName, 'join', 'Max Verstappen', 'Red Bull', '#0600ef');
+        await joinLeague(leagueName, 'join', 'Lewis Hamilton', 'Mercedes', '#00d2be');
+        await joinLeague(leagueName, 'join', 'Lando Norris', 'McLaren', '#ff8700');
 
         const drivers = await query<any>(`SELECT id FROM drivers WHERE league_id = ?`, [leagueId]);
 
@@ -644,9 +644,13 @@ export async function getActiveTelemetrySession(leagueId: string) {
             [leagueId]
         );
         if (active.length > 0) {
-            // Also fetch participants
+            // Also fetch participants and join with drivers for color
             const participants = await query<any>(
-                `SELECT * FROM telemetry_participants WHERE session_id = ? ORDER BY position ASC`,
+                `SELECT tp.*, d.color 
+                 FROM telemetry_participants tp
+                 LEFT JOIN drivers d ON tp.driver_id = d.id
+                 WHERE tp.session_id = ? 
+                 ORDER BY tp.position ASC`,
                 [active[0].id]
             );
             return { success: true, session: active[0], participants };
@@ -775,6 +779,21 @@ export async function updateDriverGameName(driverId: string, leagueId: string, a
         if (leagues.length === 0 || leagues[0].admin_password !== adminPass) throw new Error('Unauthorized.');
 
         await run(`UPDATE drivers SET game_name = ? WHERE id = ? AND league_id = ?`, [gameName || null, driverId, leagueId]);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Updates a driver's Color.
+ */
+export async function updateDriverColor(driverId: string, leagueId: string, adminPass: string, color: string) {
+    try {
+        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
+        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) throw new Error('Unauthorized.');
+
+        await run(`UPDATE drivers SET color = ? WHERE id = ? AND league_id = ?`, [color || '#ffffff', driverId, leagueId]);
         return { success: true };
     } catch (error: any) {
         return { success: false, error: error.message };

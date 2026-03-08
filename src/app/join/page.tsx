@@ -8,6 +8,7 @@ export default function JoinLeague() {
     const [driverName, setDriverName] = useState('');
     const [team, setTeam] = useState('');
     const [gameName, setGameName] = useState('');
+    const [color, setColor] = useState('#ffffff');
     const [joinPassword, setJoinPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -18,7 +19,7 @@ export default function JoinLeague() {
         setLoading(true);
         setError(null);
 
-        const res = await joinLeague(leagueName, joinPassword, driverName, team, gameName);
+        const res = await joinLeague(leagueName, joinPassword, driverName, team, color, gameName);
 
         if (res.success) {
             setSuccess(true);
@@ -106,6 +107,26 @@ export default function JoinLeague() {
                         style={{ padding: '1rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
                     />
                     <span style={{ fontSize: '0.75rem', color: 'var(--silver)', opacity: 0.8 }}>Required for automatic telemetry mapping during races.</span>
+                </label>
+
+                <label className="flex flex-col gap-1">
+                    <span style={{ color: 'var(--silver)', fontSize: '0.9rem', textTransform: 'uppercase', fontWeight: 700 }}>Driver Color</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <input
+                            type="color"
+                            value={color}
+                            onChange={(e) => setColor(e.target.value)}
+                            style={{
+                                padding: '0',
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                width: '40px',
+                                height: '40px'
+                            }}
+                        />
+                        <span style={{ color: 'var(--silver)' }}>Choose a color for radar & standings</span>
+                    </div>
                 </label>
 
                 {error && <p style={{ color: 'var(--error)', fontSize: '0.9rem' }}>{error}</p>}

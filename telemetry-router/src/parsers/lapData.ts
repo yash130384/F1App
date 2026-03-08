@@ -1,5 +1,6 @@
 export interface LapData {
     lastLapTimeInMS: number;
+    lapDistance: number;
     carPosition: number;
     currentLapNum: number;
     currentLapInvalid: boolean;
@@ -18,6 +19,7 @@ export function parseLapData(buffer: Buffer): LapData[] {
 
         laps.push({
             lastLapTimeInMS: buffer.readUInt32LE(offset),
+            lapDistance: buffer.readFloatLE(offset + 20),
             carPosition: buffer.readUInt8(offset + 32),
             currentLapNum: buffer.readUInt8(offset + 33),
             currentLapInvalid: buffer.readUInt8(offset + 37) === 1,

@@ -169,7 +169,7 @@ export default function AdminHub() {
         setSubmitting(true);
         // Using a join pass isn't strictly needed for admin add, but the action requires it
         // We fetching it or just pass "admin_add" if we modified the action, but safer to just use one that exists
-        const res = await joinLeague(leagueName, 'any', newDriverName, newDriverTeam);
+        const res = await joinLeague(leagueName, 'any', newDriverName, newDriverTeam, '#ffffff');
         if (res.success) {
             // Refresh drivers list
             const authRes = await adminLogin(leagueName, adminPass);

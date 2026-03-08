@@ -11,6 +11,7 @@ export interface LapEntry {
 export interface PlayerState {
     gameName: string;
     position: number;
+    lapDistance: number;
     fastestLapMs: number | null;
     topSpeedKmh: number;
     isHuman: boolean;
@@ -24,6 +25,7 @@ export interface PlayerState {
 export class SessionState {
     public sessionType: string = 'Unknown';
     public trackId: number = -1;
+    public trackLength: number = 0;
     public isActive: boolean = false;
 
     // Map car index (0-21) to PlayerState
@@ -34,6 +36,7 @@ export class SessionState {
             this.players.set(carIdx, {
                 gameName: `Unknown_${carIdx}`,
                 position: 0,
+                lapDistance: 0,
                 fastestLapMs: null,
                 topSpeedKmh: 0,
                 isHuman: false,
@@ -98,6 +101,7 @@ export class SessionState {
                 return {
                     gameName: p.gameName,
                     position: p.position,
+                    lapDistance: p.lapDistance,
                     fastestLapMs: p.fastestLapMs,
                     topSpeedKmh: p.topSpeedKmh,
                     isHuman: p.isHuman,
@@ -110,6 +114,7 @@ export class SessionState {
         return {
             sessionType: this.sessionType,
             trackId: this.trackId,
+            trackLength: this.trackLength,
             isActive: this.isActive,
             participants: participantsList
         };

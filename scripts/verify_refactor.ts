@@ -13,7 +13,7 @@ async function testRefactor() {
     console.log(`Created league: ${leagueName} (${leagueId})`);
 
     // 2. Register a driver
-    await joinLeague(leagueName, 'join', 'Test Driver', 'Test Team');
+    await joinLeague(leagueName, 'join', 'Test Driver', 'Test Team', '#ffffff');
 
     // 3. Schedule a race
     const track = 'Monaco';

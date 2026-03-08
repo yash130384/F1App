@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { getDashboardData, getAllLeagues, getRaceDetails, deleteRace, getActiveTelemetrySession } from '@/lib/actions';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import RaceCountdown from './RaceCountdown';
+import LiveTrackMap from './LiveTrackMap';
 
 export default function Dashboard() {
     const [leaguesList, setLeaguesList] = useState<any[]>([]);
@@ -158,13 +159,26 @@ export default function Dashboard() {
                                     {liveSession.participants.length > 0 && (
                                         <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
                                             {liveSession.participants.map((p: any, idx: number) => (
-                                                <div key={idx} style={{ background: 'rgba(0,0,0,0.5)', padding: '0.5rem 1rem', borderRadius: '4px', minWidth: '150px' }}>
+                                                <div key={idx} style={{
+                                                    background: 'rgba(0,0,0,0.5)',
+                                                    padding: '0.5rem 1rem',
+                                                    borderRadius: '4px',
+                                                    minWidth: '150px',
+                                                    borderBottom: p.color ? `3px solid ${p.color}` : '3px solid transparent'
+                                                }}>
                                                     <div style={{ color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900 }}>P{p.position || '-'}</div>
                                                     <div style={{ fontWeight: 600 }}>{p.game_name}</div>
                                                     <div style={{ fontSize: '0.8rem', color: 'var(--f1-red)' }}>{p.top_speed ? `${p.top_speed} km/h` : ''}</div>
                                                 </div>
                                             ))}
                                         </div>
+                                    )}
+
+                                    {liveSession.session.track_length > 0 && liveSession.participants.length > 0 && (
+                                        <LiveTrackMap
+                                            trackLength={liveSession.session.track_length}
+                                            participants={liveSession.participants}
+                                        />
                                     )}
                                 </div>
                             )}
@@ -204,6 +218,13 @@ export default function Dashboard() {
                                                     <td style={{ padding: '1rem', fontWeight: 900, fontSize: '1.4rem', fontStyle: 'italic', opacity: 0.3 }}>{idx + 1}</td>
                                                     <td style={{ padding: '1rem' }}>
                                                         <div className="flex items-center gap-2">
+                                                            <div style={{
+                                                                width: '4px',
+                                                                height: '24px',
+                                                                background: driver.color || 'var(--silver)',
+                                                                borderRadius: '2px',
+                                                                marginRight: '8px'
+                                                            }} />
                                                             <div className="text-f1" style={{ fontSize: '1.1rem' }}>{driver.name}</div>
                                                             {driver.formIndicator === 'UP' && <span title="Improved Points Output" style={{ color: '#00ff00', fontSize: '1.2rem', lineHeight: 1 }}>&#8593;</span>}
                                                             {driver.formIndicator === 'DOWN' && <span title="Decreased Points Output" style={{ color: '#ff0000', fontSize: '1.2rem', lineHeight: 1 }}>&#8595;</span>}
@@ -252,7 +273,7 @@ export default function Dashboard() {
                                                         key={driver.id}
                                                         type="monotone"
                                                         dataKey={driver.name}
-                                                        stroke={colors[idx % colors.length]}
+                                                        stroke={driver.color || colors[idx % colors.length]}
                                                         strokeWidth={3}
                                                         dot={{ r: 4, strokeWidth: 2 }}
                                                         activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}

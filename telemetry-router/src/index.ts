@@ -41,8 +41,8 @@ async function main() {
             const urlRes = await prompt<any>({
                 type: 'input',
                 name: 'url',
-                message: 'Enter destination Web App URL (e.g. http://localhost:3000/api/telemetry):',
-                initial: process.env.TARGET_URL || 'http://localhost:3000/api/telemetry'
+                message: 'Enter destination Web App URL:',
+                initial: process.env.TARGET_URL || 'https://f1-app-lknx.vercel.app/api/telemetry'
             });
             appConfig.url = urlRes.url;
         }
@@ -52,7 +52,7 @@ async function main() {
                 type: 'numeral',
                 name: 'port',
                 message: 'Enter UDP Port to listen on:',
-                initial: parseInt(process.env.UDP_PORT || '20777')
+                initial: parseInt(process.env.UDP_PORT || '20888')
             });
             appConfig.port = portRes.port;
         }

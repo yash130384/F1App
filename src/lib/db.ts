@@ -22,6 +22,7 @@ const SCHEMA = [
     name TEXT NOT NULL,
     team TEXT,
     game_name TEXT,
+    color TEXT DEFAULT '#ffffff',
     total_points INTEGER DEFAULT 0,
     raw_points INTEGER DEFAULT 0
   )`,
@@ -59,6 +60,7 @@ const SCHEMA = [
     league_id TEXT NOT NULL,
     race_id TEXT,
     track_id INTEGER,
+    track_length INTEGER,
     session_type TEXT,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -72,6 +74,7 @@ const SCHEMA = [
     team_id INTEGER,
     start_position INTEGER,
     position INTEGER,
+    lap_distance REAL,
     top_speed REAL,
     is_human BOOLEAN DEFAULT false,
     UNIQUE(session_id, game_name)

@@ -2,6 +2,7 @@ export interface SessionData {
     sessionTypeRaw: number;
     sessionTypeMapped: string;
     trackId: number;
+    trackLength: number;
 }
 
 export function parseSession(buffer: Buffer): SessionData {
@@ -14,6 +15,7 @@ export function parseSession(buffer: Buffer): SessionData {
     // m_sessionType (uint8) = 35
     // m_trackId (int8) = 36
 
+    const trackLength = buffer.readUInt16LE(33);
     const sessionTypeRaw = buffer.readUInt8(35);
     const trackId = buffer.readInt8(36);
 
@@ -26,6 +28,7 @@ export function parseSession(buffer: Buffer): SessionData {
     return {
         sessionTypeRaw,
         sessionTypeMapped,
-        trackId
+        trackId,
+        trackLength
     };
 }

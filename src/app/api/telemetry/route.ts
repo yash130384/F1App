@@ -11,7 +11,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'Missing leagueId or packet' }, { status: 400 });
         }
 
-        const { sessionType, trackId, isSessionEnded, participants } = packet;
+        const { sessionType, trackId, trackLength, isSessionEnded, participants } = packet;
 
         // 1. Find or create active session
         let activeSession = await query<any>(
@@ -24,13 +24,13 @@ export async function POST(req: Request) {
         if (activeSession.length === 0) {
             sessionId = crypto.randomUUID();
             await run(
-                `INSERT INTO telemetry_sessions (id, league_id, track_id, session_type, is_active) VALUES (?, ?, ?, ?, true)`,
-                [sessionId, leagueId, trackId, sessionType]
+                `INSERT INTO telemetry_sessions (id, league_id, track_id, track_length, session_type, is_active) VALUES (?, ?, ?, ?, ?, true)`,
+                [sessionId, leagueId, trackId, trackLength, sessionType]
             );
         } else {
             sessionId = activeSession[0].id;
-            // Update last updated time so we know it's still alive
-            await run(`UPDATE telemetry_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [sessionId]);
+            // Update last updated time so we know it's still alive. Also update trackLength just in case.
+            await run(`UPDATE telemetry_sessions SET updated_at = CURRENT_TIMESTAMP, track_length = ? WHERE id = ?`, [trackLength, sessionId]);
         }
 
         // 2. Process participants
@@ -47,14 +47,15 @@ export async function POST(req: Request) {
                 // SQLite allows ON CONFLICT for UPSERT if there is a UNIQUE constraint
                 await run(
                     `INSERT INTO telemetry_participants 
-                    (session_id, game_name, driver_id, team_id, start_position, position, top_speed, is_human)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    (session_id, game_name, driver_id, team_id, start_position, position, lap_distance, top_speed, is_human)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(session_id, game_name) DO UPDATE SET
                         position = EXCLUDED.position,
+                        lap_distance = EXCLUDED.lap_distance,
                         driver_id = COALESCE(telemetry_participants.driver_id, EXCLUDED.driver_id),
                         top_speed = CASE WHEN EXCLUDED.top_speed > telemetry_participants.top_speed THEN EXCLUDED.top_speed ELSE telemetry_participants.top_speed END
                     `,
-                    [sessionId, p.gameName, assignedDriverId, p.teamId, p.startPosition, p.position, p.topSpeedKmh, p.isHuman]
+                    [sessionId, p.gameName, assignedDriverId, p.teamId, p.startPosition, p.position, p.lapDistance, p.topSpeedKmh, p.isHuman]
                 );
 
                 // We need the participant ID to insert laps
