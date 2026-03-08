@@ -1,0 +1,64 @@
+import fetch from 'node-fetch';
+import fs from 'fs';
+import path from 'path';
+import { AppConfig } from './index';
+import { SessionState } from './state';
+
+export function startSender(config: AppConfig, state: SessionState) {
+    if (config.mode === 'Local Recording') {
+        const logsDir = path.join(process.cwd(), 'logs');
+        if (!fs.existsSync(logsDir)) {
+            fs.mkdirSync(logsDir);
+        }
+
+        const filename = path.join(logsDir, `recording_${Date.now()}.json`);
+        console.log(`Recording local data to ${filename}`);
+
+        fs.writeFileSync(filename, '[\n');
+
+        let isFirst = true;
+
+        setInterval(() => {
+            const payload = state.buildPayloadAndClear();
+            if (payload.participants.length > 0 && payload.sessionType !== 'Unknown') {
+                const line = (isFirst ? '' : ',\n') + JSON.stringify(payload);
+                fs.appendFileSync(filename, line);
+                isFirst = false;
+            }
+        }, config.intervalMs);
+
+        process.on('SIGINT', () => {
+            console.log('Shutting down and saving recording...');
+            fs.appendFileSync(filename, '\n]');
+            process.exit();
+        });
+
+        return;
+    }
+
+    // Live Routing
+    console.log(`Starting Live Routing to ${config.url} every ${config.intervalMs}ms`);
+    setInterval(async () => {
+        const payload = state.buildPayloadAndClear();
+
+        if (payload.sessionType !== 'Unknown' && payload.participants.length > 0) {
+            const body = {
+                leagueId: config.leagueId,
+                packet: payload
+            };
+            try {
+                const res = await fetch(config.url!, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                if (!res.ok) {
+                    console.error(`Failed to send chunk, HTTP status: ${res.status}`);
+                }
+            } catch (e: any) {
+                console.error(`Error sending telemetry: ${e.message}`);
+            }
+        }
+    }, config.intervalMs);
+}
