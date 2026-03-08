@@ -21,6 +21,7 @@ const SCHEMA = [
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     name TEXT NOT NULL,
     team TEXT,
+    game_name TEXT,
     total_points INTEGER DEFAULT 0,
     raw_points INTEGER DEFAULT 0
   )`,

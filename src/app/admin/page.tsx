@@ -15,7 +15,13 @@ import {
     scheduleRace,
     getDashboardData,
     getRaceDetails,
-    updateRaceResults
+    updateRaceResults,
+    updateDriverGameName,
+    getAllTelemetrySessions,
+    deleteTelemetrySession,
+    assignTelemetryPlayer,
+    promoteTelemetryToRace,
+    getTelemetrySessionDetails
 } from '@/lib/actions';
 import { DEFAULT_CONFIG, PointsConfig, calculatePoints, formatPoints } from '@/lib/scoring';
 import { F1_TRACKS_2025 } from '@/lib/constants';
@@ -29,10 +35,11 @@ export default function AdminHub() {
     const [leagueId, setLeagueId] = useState<string | null>(null);
 
     // Dynamic Data State
-    const [activeTab, setActiveTab] = useState<'races' | 'drivers' | 'points'>('races');
+    const [activeTab, setActiveTab] = useState<'races' | 'drivers' | 'points' | 'telemetry'>('races');
     const [leaguesList, setLeaguesList] = useState<any[]>([]);
     const [drivers, setDrivers] = useState<any[]>([]);
     const [pointsConfig, setPointsConfig] = useState<PointsConfig>(DEFAULT_CONFIG);
+    const [telemetrySessions, setTelemetrySessions] = useState<any[]>([]);
 
     // UI State
     const [loading, setLoading] = useState(false);
@@ -48,6 +55,11 @@ export default function AdminHub() {
     const [editingRaceId, setEditingRaceId] = useState<string | null>(null);
     const [editingRaceTrack, setEditingRaceTrack] = useState('');
     const [editResults, setEditResults] = useState<any[]>([]);
+
+    // Telemetry State
+    const [managingSession, setManagingSession] = useState<any | null>(null);
+    const [sessionParticipants, setSessionParticipants] = useState<any[]>([]);
+    const [sessionPromoteTrack, setSessionPromoteTrack] = useState(F1_TRACKS_2025[0]);
 
     useEffect(() => {
         refreshLeagues();
@@ -75,6 +87,7 @@ export default function AdminHub() {
                         if (pRes.success && pRes.config) setPointsConfig(pRes.config);
 
                         refreshRaces(res.leagueId);
+                        refreshTelemetry(res.leagueId, parsed.pass);
                     } else {
                         localStorage.removeItem('f1_admin_session');
                     }
@@ -92,6 +105,11 @@ export default function AdminHub() {
             setUpcomingRaces(res.upcoming || []);
             setFinishedRaces(res.races || []);
         }
+    }
+
+    async function refreshTelemetry(lId: string, pass: string) {
+        const res = await getAllTelemetrySessions(lId, pass);
+        if (res.success) setTelemetrySessions(res.sessions || []);
     }
 
     async function refreshLeagues() {
@@ -118,6 +136,7 @@ export default function AdminHub() {
             if (pRes.success && pRes.config) setPointsConfig(pRes.config);
 
             refreshRaces(res.leagueId);
+            refreshTelemetry(res.leagueId, adminPass);
         } else {
             alert(res.error || 'Login failed.');
         }
@@ -171,6 +190,16 @@ export default function AdminHub() {
         } else {
             alert('Error: ' + res.error);
         }
+    };
+
+    const handleUpdateGameName = async (driverId: string, gameName: string) => {
+        if (!leagueId) return;
+        setSubmitting(true);
+        const res = await updateDriverGameName(driverId, leagueId, adminPass, gameName);
+        if (!res.success) {
+            alert('Error updating In-Game Name: ' + res.error);
+        }
+        setSubmitting(false);
     };
 
     const handleDeleteRace = async (id: string, track: string) => {
@@ -239,6 +268,60 @@ export default function AdminHub() {
             refreshRaces(leagueId);
         } else {
             alert('Error updating race: ' + res.error);
+        }
+        setSubmitting(false);
+    };
+
+    const handleDeleteTelemetry = async (sessionId: string) => {
+        if (!leagueId || !confirm('Are you sure you want to delete this session?')) return;
+        const res = await deleteTelemetrySession(sessionId, leagueId, adminPass);
+        if (res.success) refreshTelemetry(leagueId, adminPass);
+    };
+
+    const handleManageTelemetry = async (sessionId: string) => {
+        if (!leagueId) return;
+        setLoading(true);
+        const res = await getTelemetrySessionDetails(leagueId, adminPass, sessionId);
+        if (res.success) {
+            setManagingSession(res.session);
+            setSessionParticipants(res.participants || []);
+            setActiveTab('telemetry');
+        } else {
+            alert('Error fetching session details: ' + res.error);
+        }
+        setLoading(false);
+    };
+
+    const handleAssignTelemetryPlayer = async (gameName: string, selectedDriverId: string) => {
+        if (!leagueId || !managingSession) return;
+        setSubmitting(true);
+        const res = await assignTelemetryPlayer(leagueId, adminPass, gameName, selectedDriverId);
+        if (res.success) {
+            // refresh this session
+            handleManageTelemetry(managingSession.id);
+            // also refresh drivers because game name updated there
+            const authRes = await adminLogin(leagueName, adminPass);
+            if (authRes.success) setDrivers(authRes.drivers || []);
+        } else {
+            alert('Error mapping player: ' + res.error);
+        }
+        setSubmitting(false);
+    };
+
+    const handlePromoteTelemetry = async () => {
+        if (!leagueId || !managingSession) return;
+        if (!sessionPromoteTrack) {
+            alert('Please select a track.'); return;
+        }
+        setSubmitting(true);
+        const res = await promoteTelemetryToRace(leagueId, adminPass, managingSession.id, sessionPromoteTrack);
+        if (res.success) {
+            alert('Session promoted to an Official Race!');
+            setManagingSession(null);
+            refreshRaces(leagueId);
+            setActiveTab('races');
+        } else {
+            alert('Error promoting: ' + res.error);
         }
         setSubmitting(false);
     };
@@ -348,13 +431,11 @@ export default function AdminHub() {
                     </div>
                 </div>
 
-                <nav className="f1-tabs flex">
+                <nav className="f1-tabs flex flex-wrap gap-2">
                     <button className={activeTab === 'races' ? 'active' : ''} onClick={() => setActiveTab('races')}>RACE MANAGEMENT</button>
                     <button className={activeTab === 'drivers' ? 'active' : ''} onClick={() => setActiveTab('drivers')}>DRIVERS</button>
                     <button className={activeTab === 'points' ? 'active' : ''} onClick={() => setActiveTab('points')}>POINTS</button>
-                    <Link href="/admin/telemetry" style={{ marginLeft: 'auto' }}>
-                        <button className="btn-secondary" style={{ padding: '0.6rem 1.2rem', fontSize: '0.6rem' }}>TELEMETRY ADMIN</button>
-                    </Link>
+                    <button className={activeTab === 'telemetry' ? 'active' : ''} onClick={() => { setActiveTab('telemetry'); setManagingSession(null); }}>TELEMETRY</button>
                 </nav>
             </header>
 
@@ -618,7 +699,19 @@ export default function AdminHub() {
                                     <div key={d.id} className="flex justify-between items-center p-3 bg-white/5 rounded border border-white/5">
                                         <div>
                                             <div className="text-f1" style={{ fontSize: '1rem' }}>{d.name}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--silver)' }}>{d.team || 'Independent'}</div>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--silver)' }}>{d.team || 'Independent'}</span>
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--f1-red)' }}>|</span>
+                                                <input
+                                                    type="text"
+                                                    value={d.game_name || ''}
+                                                    onChange={(e) => setDrivers(prev => prev.map(drv => drv.id === d.id ? { ...drv, game_name: e.target.value } : drv))}
+                                                    onBlur={(e) => handleUpdateGameName(d.id, e.target.value)}
+                                                    placeholder="In-Game Name..."
+                                                    style={{ fontSize: '0.75rem', padding: '2px 6px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: '4px', outline: 'none' }}
+                                                    title="Used for automatic telemetry mapping"
+                                                />
+                                            </div>
                                         </div>
                                         <button onClick={() => handleDeleteDriver(d.id)} className="btn-danger-text">REMOVE</button>
                                     </div>
@@ -691,6 +784,128 @@ export default function AdminHub() {
                         <button onClick={handleUpdatePoints} disabled={submitting} className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
                             {submitting ? 'SAVING CONFIG...' : 'SAVE POINTS SETTINGS'}
                         </button>
+                    </div>
+                )}
+
+                {/* TELEMETRY TAB */}
+                {activeTab === 'telemetry' && (
+                    <div className="flex flex-col gap-6 animate-fade-in">
+                        {managingSession ? (
+                            <div className="flex flex-col gap-6">
+                                <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                                    <div>
+                                        <h2 className="text-f1 text-gradient" style={{ fontSize: '2.5rem', letterSpacing: '-2px' }}>MANAGE SESSION</h2>
+                                        <p style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Recorded: {new Date(managingSession.created_at).toLocaleString()}</p>
+                                    </div>
+                                    <div className="flex gap-4">
+                                        <button onClick={() => setManagingSession(null)} className="btn-secondary">BACK TO SESSIONS</button>
+                                    </div>
+                                </header>
+
+                                <div className="f1-card mb-6">
+                                    <h3 className="text-f1 mb-4" style={{ fontSize: '1.2rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>MAP PARTICIPANTS</h3>
+                                    <p className="mb-4" style={{ fontSize: '0.85rem', color: 'var(--silver)' }}>Assign returning drivers to their in-game names. Mappings are saved to their profile automatically.</p>
+
+                                    <div className="flex flex-col gap-3">
+                                        {sessionParticipants.map((p, idx) => (
+                                            <div key={p.id} className="flex justify-between items-center p-3 bg-white/5 rounded border border-white/5">
+                                                <div className="flex items-center gap-4">
+                                                    <span style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--f1-red)', width: '30px' }}>{idx + 1}</span>
+                                                    <div>
+                                                        <div className="text-f1" style={{ fontSize: '1rem' }}>{p.game_name} {p.is_human && <span style={{ fontSize: '0.6rem', color: 'var(--silver)', marginLeft: '4px' }}>(HUMAN)</span>}</div>
+                                                        <div style={{ fontSize: '0.7rem', color: 'var(--silver)' }}>Fastest Lap: {p.fastest_lap_ms ? `${(p.fastest_lap_ms / 1000).toFixed(3)}s` : 'N/A'} - Top Speed: {p.top_speed ? `${p.top_speed.toFixed(1)} km/h` : 'N/A'}</div>
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <select
+                                                        value={p.driver_id || ''}
+                                                        onChange={(e) => handleAssignTelemetryPlayer(p.game_name, e.target.value)}
+                                                        disabled={submitting}
+                                                        style={{
+                                                            padding: '0.5rem',
+                                                            background: p.driver_id ? 'rgba(0, 255, 0, 0.1)' : 'var(--f1-carbon-dark)',
+                                                            border: `1px solid ${p.driver_id ? 'rgba(0, 255, 0, 0.3)' : 'var(--f1-red)'}`,
+                                                            borderRadius: '6px',
+                                                            color: 'white',
+                                                            outline: 'none',
+                                                            cursor: 'pointer',
+                                                            width: '200px'
+                                                        }}
+                                                    >
+                                                        <option value="" disabled>--- SELECT LEAGUE DRIVER ---</option>
+                                                        {drivers.map(d => (
+                                                            <option key={d.id} value={d.id}>{d.name} {d.game_name ? `(${d.game_name})` : ''}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {sessionParticipants.length === 0 && <p style={{ fontSize: '0.8rem', color: 'var(--silver)' }}>No participants found in this session.</p>}
+                                    </div>
+                                </div>
+
+                                <div className="f1-card" style={{ border: '1px solid var(--f1-red)' }}>
+                                    <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+                                        <div style={{ flex: 1 }}>
+                                            <h3 className="text-f1" style={{ fontSize: '1.2rem', color: 'var(--f1-red)' }}>PROMOTE TO CHAMPIONSHIP RACE</h3>
+                                            <p style={{ fontSize: '0.85rem', color: 'var(--silver)', marginTop: '0.5rem' }}>
+                                                Select a track and save this session as an Official Race Result. Points will be automatically calculated out of the assigned drivers based on your League rules. Unassigned drivers will not receive points.
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <select
+                                                value={sessionPromoteTrack}
+                                                onChange={e => setSessionPromoteTrack(e.target.value)}
+                                                style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white', minWidth: '150px' }}
+                                            >
+                                                {F1_TRACKS_2025.map(t => <option key={t} value={t}>{t}</option>)}
+                                            </select>
+                                            <button
+                                                onClick={handlePromoteTelemetry}
+                                                disabled={submitting}
+                                                className="btn-primary"
+                                                style={{ whiteSpace: 'nowrap' }}
+                                            >
+                                                {submitting ? 'PROMOTING...' : 'PROMOTE NOW'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="f1-card">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-f1">RECORDED TELEMETRY SESSIONS</h2>
+                                    <button onClick={() => refreshTelemetry(leagueId || '', adminPass)} className="btn-secondary" style={{ fontSize: '0.7rem', padding: '0.5rem 1rem' }}>REFRESH</button>
+                                </div>
+                                <div className="flex flex-col gap-3">
+                                    {telemetrySessions.map(s => (
+                                        <div key={s.id} className="flex justify-between items-center p-4 bg-white/5 rounded border border-white/5 hover-f1 transition-all">
+                                            <div>
+                                                <div className="text-f1" style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                    {s.session_type}
+                                                    {s.is_active && <span className="status-badge badge-red animate-pulse">LIVE</span>}
+                                                </div>
+                                                <div style={{ fontSize: '0.8rem', color: 'var(--silver)', marginTop: '4px' }}>
+                                                    Date: {new Date(s.created_at).toLocaleString()} | Participants: <strong style={{ color: 'white' }}>{s.participants_count}</strong> | Status: {s.race_id ? <span style={{ color: 'var(--f1-red)' }}>Promoted</span> : <span style={{ color: 'yellow' }}>Unassigned</span>}
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-3">
+                                                <button onClick={() => handleManageTelemetry(s.id)} className="btn-primary" style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem' }}>MANAGE</button>
+                                                <button onClick={() => handleDeleteTelemetry(s.id)} className="btn-danger-text" style={{ padding: '0 0.5rem' }}>DELETE</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {telemetrySessions.length === 0 && (
+                                        <div className="text-center py-8">
+                                            <p style={{ color: 'var(--silver)', marginBottom: '1rem' }}>No telemetry sessions recorded yet.</p>
+                                            <p style={{ fontSize: '0.8rem', color: 'var(--silver)', opacity: 0.7 }}>Run your local F1 Router App to begin transmitting telemetry data to your league dashboard.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 

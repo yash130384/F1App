@@ -36,17 +36,25 @@ export async function POST(req: Request) {
         // 2. Process participants
         if (participants && Array.isArray(participants)) {
             for (const p of participants) {
+                // Look for an existing mapping in the drivers table
+                const foundDriverRow = await query<any>(
+                    `SELECT id FROM drivers WHERE league_id = ? AND game_name = ?`,
+                    [leagueId, p.gameName]
+                );
+                const assignedDriverId = foundDriverRow.length > 0 ? foundDriverRow[0].id : null;
+
                 // Upsert participant
                 // SQLite allows ON CONFLICT for UPSERT if there is a UNIQUE constraint
                 await run(
                     `INSERT INTO telemetry_participants 
-                    (session_id, game_name, team_id, start_position, position, top_speed, is_human)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (session_id, game_name, driver_id, team_id, start_position, position, top_speed, is_human)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(session_id, game_name) DO UPDATE SET
                         position = EXCLUDED.position,
+                        driver_id = COALESCE(telemetry_participants.driver_id, EXCLUDED.driver_id),
                         top_speed = CASE WHEN EXCLUDED.top_speed > telemetry_participants.top_speed THEN EXCLUDED.top_speed ELSE telemetry_participants.top_speed END
                     `,
-                    [sessionId, p.gameName, p.teamId, p.startPosition, p.position, p.topSpeedKmh, p.isHuman]
+                    [sessionId, p.gameName, assignedDriverId, p.teamId, p.startPosition, p.position, p.topSpeedKmh, p.isHuman]
                 );
 
                 // We need the participant ID to insert laps

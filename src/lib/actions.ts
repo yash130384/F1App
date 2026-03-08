@@ -33,7 +33,7 @@ export async function createLeague(name: string, adminPass: string, joinPass: st
 /**
  * Validates a league for joining and creates a driver.
  */
-export async function joinLeague(leagueName: string, joinPass: string, driverName: string, team: string) {
+export async function joinLeague(leagueName: string, joinPass: string, driverName: string, team: string, gameName?: string) {
     try {
         const leagues = await query<any>(
             `SELECT id, join_password FROM leagues WHERE name = ?`,
@@ -47,8 +47,8 @@ export async function joinLeague(leagueName: string, joinPass: string, driverNam
         const driverId = crypto.randomUUID();
 
         await run(
-            `INSERT INTO drivers (id, league_id, name, team) VALUES (?, ?, ?, ?)`,
-            [driverId, leagueId, driverName, team]
+            `INSERT INTO drivers (id, league_id, name, team, game_name) VALUES (?, ?, ?, ?, ?)`,
+            [driverId, leagueId, driverName, team, gameName || null]
         );
 
         return { success: true };
@@ -73,7 +73,7 @@ export async function adminLogin(leagueName: string, adminPass: string) {
         }
 
         const drivers = await query<any>(
-            `SELECT id, name FROM drivers WHERE league_id = ?`,
+            `SELECT id, name, team, game_name FROM drivers WHERE league_id = ?`,
             [leagues[0].id]
         );
 
@@ -686,6 +686,7 @@ export async function getUnassignedTelemetryPlayers(leagueId: string, adminPass:
 /**
  * Assigns a driver ID to a game_name for a specific session.
  * We could also broadly update ALL sessions. Doing all where it's null.
+ * ALso saves it to the drivers table so future sessions map automatically.
  */
 export async function assignTelemetryPlayer(leagueId: string, adminPass: string, gameName: string, driverId: string) {
     try {
@@ -705,6 +706,9 @@ export async function assignTelemetryPlayer(leagueId: string, adminPass: string,
                 [driverId, gameName, ...sessionIds]
             );
         }
+
+        // Also save to driver so it's auto-mapped in future
+        await run(`UPDATE drivers SET game_name = ? WHERE id = ? AND league_id = ?`, [gameName, driverId, leagueId]);
 
         return { success: true };
     } catch (error: any) {
@@ -757,6 +761,95 @@ export async function promoteTelemetryToRace(leagueId: string, adminPass: string
         // 2. Reuse the saveRaceResults logic
         return await saveRaceResults(leagueId, track, resultsToSave, existingRaceId);
 
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Updates a driver's In-Game Name.
+ */
+export async function updateDriverGameName(driverId: string, leagueId: string, adminPass: string, gameName: string) {
+    try {
+        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
+        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) throw new Error('Unauthorized.');
+
+        await run(`UPDATE drivers SET game_name = ? WHERE id = ? AND league_id = ?`, [gameName || null, driverId, leagueId]);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Fetches all telemetry sessions for a league.
+ */
+export async function getAllTelemetrySessions(leagueId: string, adminPass: string) {
+    try {
+        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
+        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) throw new Error('Unauthorized.');
+
+        const sessions = await query<any>(`SELECT * FROM telemetry_sessions WHERE league_id = ? ORDER BY created_at DESC`, [leagueId]);
+
+        // Count participants
+        const participantsCount = await query<any>(`
+            SELECT session_id, COUNT(*) as count 
+            FROM telemetry_participants 
+            WHERE session_id IN (SELECT id FROM telemetry_sessions WHERE league_id = ?)
+            GROUP BY session_id
+        `, [leagueId]);
+
+        const countMap = new Map();
+        participantsCount.forEach((p: any) => countMap.set(p.session_id, p.count));
+
+        return {
+            success: true,
+            sessions: sessions.map((s: any) => ({ ...s, participants_count: countMap.get(s.id) || 0 }))
+        };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Deletes a telemetry session.
+ */
+export async function deleteTelemetrySession(sessionId: string, leagueId: string, adminPass: string) {
+    try {
+        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
+        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) throw new Error('Unauthorized.');
+
+        await run(`DELETE FROM telemetry_laps WHERE participant_id IN (SELECT id FROM telemetry_participants WHERE session_id = ?)`, [sessionId]);
+        await run(`DELETE FROM telemetry_participants WHERE session_id = ?`, [sessionId]);
+        await run(`DELETE FROM telemetry_sessions WHERE id = ? AND league_id = ?`, [sessionId, leagueId]);
+
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Fetches details and participants for a specific telemetry session.
+ */
+export async function getTelemetrySessionDetails(leagueId: string, adminPass: string, sessionId: string) {
+    try {
+        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
+        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) throw new Error('Unauthorized.');
+
+        const sessions = await query<any>(`SELECT * FROM telemetry_sessions WHERE id = ?`, [sessionId]);
+        if (sessions.length === 0) throw new Error('Session not found.');
+
+        const participants = await query<any>(
+            `SELECT tp.*, 
+            (SELECT MIN(lap_time_ms) FROM telemetry_laps tl WHERE tl.participant_id = tp.id AND tl.is_valid = true) as fastest_lap_ms
+            FROM telemetry_participants tp 
+            WHERE tp.session_id = ? 
+            ORDER BY tp.position ASC`,
+            [sessionId]
+        );
+
+        return { success: true, session: sessions[0], participants };
     } catch (error: any) {
         return { success: false, error: error.message };
     }

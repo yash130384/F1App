@@ -7,6 +7,7 @@ export default function JoinLeague() {
     const [leagueName, setLeagueName] = useState('');
     const [driverName, setDriverName] = useState('');
     const [team, setTeam] = useState('');
+    const [gameName, setGameName] = useState('');
     const [joinPassword, setJoinPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -17,7 +18,7 @@ export default function JoinLeague() {
         setLoading(true);
         setError(null);
 
-        const res = await joinLeague(leagueName, joinPassword, driverName, team);
+        const res = await joinLeague(leagueName, joinPassword, driverName, team, gameName);
 
         if (res.success) {
             setSuccess(true);
@@ -93,6 +94,18 @@ export default function JoinLeague() {
                         placeholder="e.g. Red Bull Racing"
                         style={{ padding: '1rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
                     />
+                </label>
+
+                <label className="flex flex-col gap-1">
+                    <span style={{ color: 'var(--silver)', fontSize: '0.9rem', textTransform: 'uppercase', fontWeight: 700 }}>In-Game Name (Optional)</span>
+                    <input
+                        type="text"
+                        value={gameName}
+                        onChange={(e) => setGameName(e.target.value)}
+                        placeholder="e.g. your Steam or PSN name"
+                        style={{ padding: '1rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
+                    />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--silver)', opacity: 0.8 }}>Required for automatic telemetry mapping during races.</span>
                 </label>
 
                 {error && <p style={{ color: 'var(--error)', fontSize: '0.9rem' }}>{error}</p>}
