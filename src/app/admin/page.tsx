@@ -22,7 +22,8 @@ import {
     deleteTelemetrySession,
     assignTelemetryPlayer,
     promoteTelemetryToRace,
-    getTelemetrySessionDetails
+    getTelemetrySessionDetails,
+    adminAddDriver
 } from '@/lib/actions';
 import { DEFAULT_CONFIG, PointsConfig, calculatePoints, formatPoints } from '@/lib/scoring';
 import { F1_TRACKS_2025 } from '@/lib/constants';
@@ -48,6 +49,7 @@ export default function AdminHub() {
     const [newDriverName, setNewDriverName] = useState('');
     const [newDriverTeam, setNewDriverTeam] = useState('');
     const [newDriverColor, setNewDriverColor] = useState('#ffffff');
+    const [newDriverGameName, setNewDriverGameName] = useState('');
     const [scheduleTrack, setScheduleTrack] = useState(F1_TRACKS_2025[0]);
     const [scheduleDate, setScheduleDate] = useState('');
     const [upcomingRaces, setUpcomingRaces] = useState<any[]>([]);
@@ -167,11 +169,9 @@ export default function AdminHub() {
     };
 
     const handleAddDriver = async () => {
-        if (!leagueName || !newDriverName) return;
+        if (!leagueId || !newDriverName) return;
         setSubmitting(true);
-        // Using a join pass isn't strictly needed for admin add, but the action requires it
-        // We fetching it or just pass "admin_add" if we modified the action, but safer to just use one that exists
-        const res = await joinLeague(leagueName, 'any', newDriverName, newDriverTeam, newDriverColor);
+        const res = await adminAddDriver(leagueId, adminPass, newDriverName, newDriverTeam, newDriverColor, newDriverGameName);
         if (res.success) {
             // Refresh drivers list
             const authRes = await adminLogin(leagueName, adminPass);
@@ -179,6 +179,7 @@ export default function AdminHub() {
             setNewDriverName('');
             setNewDriverTeam('');
             setNewDriverColor('#ffffff');
+            setNewDriverGameName('');
         } else {
             alert('Failed to add driver: ' + res.error);
         }
@@ -795,6 +796,10 @@ export default function AdminHub() {
                                 <div className="input-group">
                                     <label>TEAM CONSTRUCTOR</label>
                                     <input value={newDriverTeam} onChange={e => setNewDriverTeam(e.target.value)} placeholder="Mercedes-AMG / Privateer" />
+                                </div>
+                                <div className="input-group">
+                                    <label>IN-GAME NAME (TELEMETRY)</label>
+                                    <input value={newDriverGameName} onChange={e => setNewDriverGameName(e.target.value)} placeholder="Steam/Xbox/PSN Name" />
                                 </div>
                                 <div className="input-group">
                                     <label>DRIVER COLOR</label>

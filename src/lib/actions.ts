@@ -84,6 +84,32 @@ export async function adminLogin(leagueName: string, adminPass: string) {
 }
 
 /**
+ * Adds a driver to a league as an admin (bypasses join password).
+ */
+export async function adminAddDriver(leagueId: string, adminPass: string, driverName: string, team: string, color: string, gameName?: string) {
+    try {
+        const leagues = await query<any>(
+            `SELECT id FROM leagues WHERE id = ? AND admin_password = ?`,
+            [leagueId, adminPass]
+        );
+
+        if (leagues.length === 0) throw new Error('Invalid Admin Credentials.');
+
+        const driverId = crypto.randomUUID();
+
+        await run(
+            `INSERT INTO drivers (id, league_id, name, team, color, game_name) VALUES (?, ?, ?, ?, ?, ?)`,
+            [driverId, leagueId, driverName, team, color || '#ffffff', gameName || null]
+        );
+
+        return { success: true };
+    } catch (error: any) {
+        console.error('Admin Add Driver Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
  * Saves race results. If raceId is provided, it updates a scheduled race.
  */
 export async function saveRaceResults(leagueId: string, track: string, results: any[], existingRaceId?: string) {
