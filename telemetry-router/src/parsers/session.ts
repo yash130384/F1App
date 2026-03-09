@@ -84,8 +84,9 @@ export function parseSession(buffer: Buffer): SessionData {
     let sessionTypeMapped = "Unknown";
     if (sessionTypeRaw >= 1 && sessionTypeRaw <= 4) sessionTypeMapped = "Practice";
     else if (sessionTypeRaw >= 5 && sessionTypeRaw <= 9) sessionTypeMapped = "Qualifying";
-    else if (sessionTypeRaw >= 10 && sessionTypeRaw <= 12) sessionTypeMapped = "Race";
+    else if (sessionTypeRaw >= 10 && sessionTypeRaw <= 15) sessionTypeMapped = "Race";
     else if (sessionTypeRaw === 13) sessionTypeMapped = "Time Trial";
+    else sessionTypeMapped = `Unknown_${sessionTypeRaw}`;
 
     const marshalZones = [];
     for (let i = 0; i < 21; i++) {

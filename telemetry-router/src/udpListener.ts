@@ -61,8 +61,8 @@ export function startUdpListener(config: AppConfig) {
                     telemetryData.forEach((t, i) => state.updateTelemetry(i, t));
                     break;
             }
-        } catch (e) {
-            // console.error('Error parsing packet: ', e);
+        } catch (e: any) {
+            console.error('Error parsing packet: ', e.message);
         }
     });
 

@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
         // 2. Process participants
         if (participants && Array.isArray(participants)) {
-            for (const p of participants) {
+            await Promise.all(participants.map(async (p: any) => {
                 // Look for an existing mapping in the drivers table
                 const foundDriverRow = await query<any>(
                     `SELECT id FROM drivers WHERE league_id = ? AND game_name = ?`,
@@ -45,8 +45,8 @@ export async function POST(req: Request) {
 
                 // Upsert participant
                 // SQLite allows ON CONFLICT for UPSERT if there is a UNIQUE constraint
-                await run(
-                    `INSERT INTO telemetry_participants 
+                const upsertQuery = `
+                    INSERT INTO telemetry_participants 
                     (session_id, game_name, driver_id, team_id, start_position, position, lap_distance, top_speed, is_human)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(session_id, game_name) DO UPDATE SET
@@ -54,35 +54,37 @@ export async function POST(req: Request) {
                         lap_distance = EXCLUDED.lap_distance,
                         driver_id = COALESCE(telemetry_participants.driver_id, EXCLUDED.driver_id),
                         top_speed = CASE WHEN EXCLUDED.top_speed > telemetry_participants.top_speed THEN EXCLUDED.top_speed ELSE telemetry_participants.top_speed END
-                    `,
-                    [sessionId, p.gameName, assignedDriverId, p.teamId, p.startPosition, p.position, p.lapDistance, p.topSpeedKmh, p.isHuman]
-                );
+                    RETURNING id
+                `;
 
-                // We need the participant ID to insert laps
-                const partRow = await query<any>(
-                    `SELECT id FROM telemetry_participants WHERE session_id = ? AND game_name = ?`,
-                    [sessionId, p.gameName]
-                );
+                try {
+                    const partRow = await query<any>(upsertQuery,
+                        [sessionId, p.gameName, assignedDriverId, p.teamId, p.startPosition, p.position, p.lapDistance, p.topSpeedKmh, p.isHuman]
+                    );
 
-                if (partRow.length > 0 && p.laps && Array.isArray(p.laps)) {
-                    const participantId = partRow[0].id;
+                    if (partRow.length > 0 && p.laps && Array.isArray(p.laps)) {
+                        const participantId = partRow[0].id;
 
-                    for (const lap of p.laps) {
-                        // Insert the lap if it doesn't exist for this driver and lap number
-                        const existingLap = await query<any>(
-                            `SELECT id FROM telemetry_laps WHERE participant_id = ? AND lap_number = ?`,
-                            [participantId, lap.lapNumber]
-                        );
-
-                        if (existingLap.length === 0) {
-                            await run(
-                                `INSERT INTO telemetry_laps (participant_id, lap_number, lap_time_ms, is_valid) VALUES (?, ?, ?, ?)`,
-                                [participantId, lap.lapNumber, lap.lapTimeMs, lap.isValid]
+                        // Avoid individual awaits in inner loop
+                        const lapPromises = p.laps.map(async (lap: any) => {
+                            const existingLap = await query<any>(
+                                `SELECT id FROM telemetry_laps WHERE participant_id = ? AND lap_number = ?`,
+                                [participantId, lap.lapNumber]
                             );
-                        }
+
+                            if (existingLap.length === 0) {
+                                await run(
+                                    `INSERT INTO telemetry_laps (participant_id, lap_number, lap_time_ms, is_valid) VALUES (?, ?, ?, ?)`,
+                                    [participantId, lap.lapNumber, lap.lapTimeMs, lap.isValid]
+                                );
+                            }
+                        });
+                        await Promise.all(lapPromises);
                     }
+                } catch (dbErr) {
+                    console.error("DB UPSERT ERROR for participant:", dbErr);
                 }
-            }
+            }));
         }
 
         // 3. Handle session end
