@@ -643,35 +643,38 @@ export default function Dashboard() {
                                         </button>
                                     </div>
 
-                                    <div className="fullscreen-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', flex: 1, minHeight: 0 }}>
-                                        {/* Results Sidebar in Fullscreen */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1, minHeight: 0, width: '100%', maxWidth: '100vw' }}>
+                                        {/* Results at the Top in Fullscreen */}
                                         <div className="f1-card" style={{
                                             padding: 0,
                                             display: 'flex',
                                             flexDirection: 'column',
                                             background: 'rgba(0,0,0,0.2)',
-                                            maxHeight: '100%',
+                                            maxHeight: '30vh',
+                                            minHeight: '150px',
                                             overflow: 'hidden',
-                                            border: '1px solid var(--glass-border)'
+                                            border: '1px solid var(--glass-border)',
+                                            width: '100%'
                                         }}>
-                                            <div style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,24,1,0.05)' }}>
-                                                <h3 className="text-f1" style={{ fontSize: '0.8rem', margin: 0, color: 'var(--f1-red)' }}>RACE RESULTS</h3>
+                                            <div style={{ padding: '0.5rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,24,1,0.05)' }}>
+                                                <h3 className="text-f1" style={{ fontSize: '0.7rem', margin: 0, color: 'var(--f1-red)' }}>RACE RESULTS (CLICK DRIVER FOR DETAILS)</h3>
                                             </div>
                                             <div style={{ flex: 1, overflowY: 'auto' }}>
                                                 <RaceResultsTable raceResults={raceResults} handleDriverClick={handleDriverClick} compact={true} />
                                             </div>
                                         </div>
 
-                                        {/* Main Graph Area */}
-                                        <div className="f1-card fullscreen-graph-area" style={{
-                                            gridColumn: 'span 3',
+                                        {/* Main Graph Area Below */}
+                                        <div className="f1-card" style={{
+                                            flex: 1,
                                             display: 'flex',
                                             flexDirection: 'column',
-                                            height: '100%',
-                                            padding: '1rem',
+                                            padding: '0.5rem',
                                             background: 'rgba(0,0,0,0.1)',
                                             border: '1px solid var(--glass-border)',
-                                            minHeight: '400px'
+                                            width: '100%',
+                                            minHeight: '250px',
+                                            overflow: 'hidden'
                                         }}>
                                             <RaceGraphContent
                                                 raceGraphData={raceGraphData}
@@ -818,19 +821,8 @@ export default function Dashboard() {
 
             {/* Styles */}
             <style jsx global>{`
-        @media (max-width: 600px) {
-          .hide-mobile { display: none; }
-          .container { padding: 1rem 0.5rem !important; }
-          .dashboard-standings table th, .dashboard-standings table td { padding: 0.8rem 0.4rem !important; }
-          .dashboard-standings table td:last-child { padding-right: 0.8rem !important; }
-        }
         @media (max-width: 1024px) {
-          .fullscreen-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .fullscreen-graph-area {
-            grid-column: span 1 !important;
-          }
+          .hide-mobile { display: none; }
         }
         .hover-row:hover {
             background: rgba(255,255,255,0.1) !important;
