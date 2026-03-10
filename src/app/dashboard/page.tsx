@@ -466,6 +466,41 @@ export default function Dashboard() {
                                                                                 domain={['auto', 'auto']}
                                                                                 tickFormatter={(tick) => formatLapTime(tick)}
                                                                             />
+                                                                            <defs>
+                                                                                {raceGraphDrivers.map(driver => {
+                                                                                    // Build gradient stops based on tyre stints
+                                                                                    const driverLaps = raceGraphData.filter(d => d[driver.id] !== undefined);
+                                                                                    if (driverLaps.length === 0) return null;
+
+                                                                                    const maxLap = Math.max(...driverLaps.map(d => d.lap_number));
+                                                                                    const minLap = Math.min(...driverLaps.map(d => d.lap_number));
+                                                                                    const range = maxLap - minLap;
+
+                                                                                    if (range === 0) return null;
+
+                                                                                    let stops = [];
+                                                                                    let currentTyre = driverLaps[0][`${driver.id}_current_tyre`];
+                                                                                    stops.push(<stop key="start" offset="0%" stopColor={getTyreInfo(currentTyre).color} />);
+
+                                                                                    driverLaps.forEach(lap => {
+                                                                                        const tyre = lap[`${driver.id}_current_tyre`];
+                                                                                        if (tyre !== currentTyre && tyre !== undefined) {
+                                                                                            const offset = `${((lap.lap_number - minLap) / range) * 100}%`;
+                                                                                            // Hard stop for accurate color transition
+                                                                                            stops.push(<stop key={`stop1-${lap.lap_number}`} offset={offset} stopColor={getTyreInfo(currentTyre).color} />);
+                                                                                            stops.push(<stop key={`stop2-${lap.lap_number}`} offset={offset} stopColor={getTyreInfo(tyre).color} />);
+                                                                                            currentTyre = tyre;
+                                                                                        }
+                                                                                    });
+                                                                                    stops.push(<stop key="end" offset="100%" stopColor={getTyreInfo(currentTyre).color} />);
+
+                                                                                    return (
+                                                                                        <linearGradient key={`grad-${driver.id}`} id={`colorTyre-${driver.id}`} x1="0" y1="0" x2="1" y2="0">
+                                                                                            {stops}
+                                                                                        </linearGradient>
+                                                                                    );
+                                                                                })}
+                                                                            </defs>
                                                                             <Tooltip
                                                                                 contentStyle={{ backgroundColor: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--white)' }}
                                                                                 labelFormatter={(label) => `Lap ${label}`}
@@ -476,26 +511,28 @@ export default function Dashboard() {
                                                                             />
                                                                             {raceGraphDrivers.map((driver) => (
                                                                                 <Line
+                                                                                    key={`tyre-${driver.id}`}
+                                                                                    type="monotone"
+                                                                                    dataKey={driver.id}
+                                                                                    name={driver.id}
+                                                                                    stroke={`url(#colorTyre-${driver.id})`}
+                                                                                    strokeWidth={8}
+                                                                                    dot={false}
+                                                                                    activeDot={false}
+                                                                                    isAnimationActive={false}
+                                                                                    connectNulls={true}
+                                                                                    opacity={0.5}
+                                                                                />
+                                                                            ))}
+                                                                            {raceGraphDrivers.map((driver) => (
+                                                                                <Line
                                                                                     key={driver.id}
                                                                                     type="monotone"
                                                                                     dataKey={driver.id}
                                                                                     name={driver.id}
                                                                                     stroke={driver.color || 'var(--silver)'}
                                                                                     strokeWidth={1.5}
-                                                                                    dot={(props: any) => {
-                                                                                        const { cx, cy, payload, dataKey } = props;
-                                                                                        if (payload[`${dataKey}_pit`] && payload[`${dataKey}_tyre`]) {
-                                                                                            const tyre = getTyreInfo(payload[`${dataKey}_tyre`]);
-                                                                                            return (
-                                                                                                <g key={`dot-${payload.lap_number}-${dataKey}`} transform={`translate(${cx}, ${cy})`} style={{ zIndex: 10, cursor: 'pointer' }}>
-                                                                                                    <title>{`Pit Stop Tyres: ${tyre.letter}`}</title>
-                                                                                                    <circle cx={0} cy={0} r={8} fill={tyre.color} stroke="rgba(255,255,255,0.4)" strokeWidth={1} />
-                                                                                                    <text x={0} y={3} textAnchor="middle" fill={tyre.textColor} fontSize={8} fontWeight={900}>{tyre.letter}</text>
-                                                                                                </g>
-                                                                                            );
-                                                                                        }
-                                                                                        return null;
-                                                                                    }}
+                                                                                    dot={false}
                                                                                     connectNulls={true}
                                                                                 />
                                                                             ))}

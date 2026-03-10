@@ -1039,7 +1039,10 @@ export async function getAllDriversRaceTelemetry(raceId: string) {
                 lapObj[pInfo.driver_id] = lap.lap_time_ms;
             }
 
-            // For Lap 0, we want to show the starting tyre.
+            // Always track the current tyre for the background line color
+            lapObj[`${pInfo.driver_id}_current_tyre`] = lap.tyre_compound;
+
+            // For Lap 0, we want to show the starting tyre dot.
             // For other laps, we only show it if they pitted.
             if (lap.is_pit_lap || lap.lap_number === 0) {
                 lapObj[`${pInfo.driver_id}_pit`] = true;
