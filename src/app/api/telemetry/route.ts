@@ -47,25 +47,27 @@ export async function POST(req: Request) {
                 // SQLite allows ON CONFLICT for UPSERT if there is a UNIQUE constraint
                 const upsertQuery = `
                     INSERT INTO telemetry_participants 
-                    (session_id, game_name, driver_id, team_id, start_position, position, lap_distance, top_speed, is_human)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (session_id, game_name, driver_id, team_id, start_position, position, lap_distance, top_speed, is_human, pit_stops, warnings, penalties_time)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(session_id, game_name) DO UPDATE SET
                         position = EXCLUDED.position,
                         lap_distance = EXCLUDED.lap_distance,
                         driver_id = COALESCE(telemetry_participants.driver_id, EXCLUDED.driver_id),
-                        top_speed = CASE WHEN EXCLUDED.top_speed > telemetry_participants.top_speed THEN EXCLUDED.top_speed ELSE telemetry_participants.top_speed END
+                        top_speed = CASE WHEN EXCLUDED.top_speed > telemetry_participants.top_speed THEN EXCLUDED.top_speed ELSE telemetry_participants.top_speed END,
+                        pit_stops = EXCLUDED.pit_stops,
+                        warnings = EXCLUDED.warnings,
+                        penalties_time = EXCLUDED.penalties_time
                     RETURNING id
                 `;
 
                 try {
                     const partRow = await query<any>(upsertQuery,
-                        [sessionId, p.gameName, assignedDriverId, p.teamId, p.startPosition, p.position, p.lapDistance, p.topSpeedKmh, p.isHuman]
+                        [sessionId, p.gameName, assignedDriverId, p.teamId, p.startPosition, p.position, p.lapDistance, p.topSpeedKmh, p.isHuman, p.pitStops || 0, p.warnings || 0, p.penaltiesTime || 0]
                     );
 
                     if (partRow.length > 0 && p.laps && Array.isArray(p.laps)) {
                         const participantId = partRow[0].id;
 
-                        // Avoid individual awaits in inner loop
                         const lapPromises = p.laps.map(async (lap: any) => {
                             const existingLap = await query<any>(
                                 `SELECT id FROM telemetry_laps WHERE participant_id = ? AND lap_number = ?`,
@@ -74,8 +76,8 @@ export async function POST(req: Request) {
 
                             if (existingLap.length === 0) {
                                 await run(
-                                    `INSERT INTO telemetry_laps (participant_id, lap_number, lap_time_ms, is_valid) VALUES (?, ?, ?, ?)`,
-                                    [participantId, lap.lapNumber, lap.lapTimeMs, lap.isValid]
+                                    `INSERT INTO telemetry_laps (participant_id, lap_number, lap_time_ms, is_valid, tyre_compound, is_pit_lap) VALUES (?, ?, ?, ?, ?, ?)`,
+                                    [participantId, lap.lapNumber, lap.lapTimeMs, lap.isValid, lap.tyreCompound || null, lap.isPitLap ? true : false]
                                 );
                             }
                         });
@@ -91,8 +93,12 @@ export async function POST(req: Request) {
         if (isSessionEnded) {
             await run(`UPDATE telemetry_sessions SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [sessionId]);
 
-            // Optional: Automatically promote to an official race if it's a Race session type.
-            // (Implemented as manual for now, see actions.ts)
+            if (sessionType === 'Race') {
+                const { internalPromoteTelemetryToRace } = await import('@/lib/actions');
+                const { getTrackNameById } = await import('@/lib/constants');
+                const trackName = getTrackNameById(trackId);
+                await internalPromoteTelemetryToRace(leagueId, sessionId, trackName);
+            }
         }
 
         return NextResponse.json({ success: true, sessionId });

@@ -6,6 +6,8 @@ export interface LapEntry {
     lapNumber: number;
     lapTimeMs: number;
     isValid: boolean;
+    tyreCompound?: number;
+    isPitLap?: boolean;
 }
 
 export interface PlayerState {
@@ -17,6 +19,9 @@ export interface PlayerState {
     isHuman: boolean;
     startPosition: number;
     teamId: number;
+    pitStops: number;
+    warnings: number;
+    penaltiesTime: number;
     laps: LapEntry[];
     // Internal tracking
     currentLapNum: number;
@@ -24,6 +29,7 @@ export interface PlayerState {
     participantData?: ParticipantData;
     lapData?: LapData;
     telemetryData?: CarTelemetryData;
+    carStatusData?: any;
 }
 
 export class SessionState {
@@ -31,7 +37,12 @@ export class SessionState {
     public trackId: number = -1;
     public trackLength: number = 0;
     public isActive: boolean = false;
+    public isSessionEnded: boolean = false;
     public sessionData?: any;
+
+    public handleSessionEnd() {
+        this.isSessionEnded = true;
+    }
 
     // Map car index (0-21) to PlayerState
     private players: Map<number, PlayerState> = new Map();
@@ -47,6 +58,9 @@ export class SessionState {
                 isHuman: false,
                 startPosition: 0,
                 teamId: 0,
+                pitStops: 0,
+                warnings: 0,
+                penaltiesTime: 0,
                 laps: [],
                 currentLapNum: 0
             });
@@ -73,13 +87,19 @@ export class SessionState {
             p.startPosition = data.gridPosition;
         }
 
+        p.pitStops = data.numPitStops;
+        p.warnings = data.totalWarnings + data.cornerCuttingWarnings;
+        p.penaltiesTime = data.penalties;
+
         // Check if lap finished
         if (data.currentLapNum > p.currentLapNum && p.currentLapNum > 0) {
             if (data.lastLapTimeInMS > 0) {
                 p.laps.push({
                     lapNumber: p.currentLapNum,
                     lapTimeMs: data.lastLapTimeInMS,
-                    isValid: !data.currentLapInvalid
+                    isValid: !data.currentLapInvalid,
+                    tyreCompound: p.carStatusData?.visualTyreCompound,
+                    isPitLap: data.pitStatus > 0
                 });
 
                 if (!data.currentLapInvalid && (p.fastestLapMs === null || data.lastLapTimeInMS < p.fastestLapMs)) {
@@ -89,6 +109,11 @@ export class SessionState {
         }
         p.currentLapNum = data.currentLapNum;
         p.lapData = data;
+    }
+
+    public updateCarStatus(carIdx: number, data: any) {
+        const p = this.getPlayer(carIdx);
+        p.carStatusData = data;
     }
 
     public updateTelemetry(carIdx: number, data: CarTelemetryData) {
@@ -115,10 +140,14 @@ export class SessionState {
                     isHuman: p.isHuman,
                     startPosition: p.startPosition,
                     teamId: p.teamId,
+                    pitStops: p.pitStops,
+                    warnings: p.warnings,
+                    penaltiesTime: p.penaltiesTime,
                     laps: lapsToSend,
                     participantData: p.participantData,
                     lapData: p.lapData,
-                    telemetryData: p.telemetryData
+                    telemetryData: p.telemetryData,
+                    carStatusData: p.carStatusData
                 };
             });
 

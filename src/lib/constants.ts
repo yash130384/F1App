@@ -1,3 +1,10 @@
+export function getTrackNameById(id: number): string {
+    if (id >= 0 && id < F1_TRACKS_2025.length) {
+        return F1_TRACKS_2025[id];
+    }
+    return `Track ID ${id}`;
+}
+
 export const F1_TRACKS_2025 = [
     "Albert Park Circuit (Australia)",
     "Shanghai International Circuit (China)",

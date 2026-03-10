@@ -89,7 +89,15 @@ const SCHEMA = [
     lap_number INTEGER NOT NULL,
     lap_time_ms INTEGER NOT NULL,
     is_valid BOOLEAN DEFAULT true
-  )`
+  )`,
+  `ALTER TABLE race_results ADD COLUMN IF NOT EXISTS pit_stops INTEGER DEFAULT 0`,
+  `ALTER TABLE race_results ADD COLUMN IF NOT EXISTS warnings INTEGER DEFAULT 0`,
+  `ALTER TABLE race_results ADD COLUMN IF NOT EXISTS penalties_time INTEGER DEFAULT 0`,
+  `ALTER TABLE telemetry_participants ADD COLUMN IF NOT EXISTS pit_stops INTEGER DEFAULT 0`,
+  `ALTER TABLE telemetry_participants ADD COLUMN IF NOT EXISTS warnings INTEGER DEFAULT 0`,
+  `ALTER TABLE telemetry_participants ADD COLUMN IF NOT EXISTS penalties_time INTEGER DEFAULT 0`,
+  `ALTER TABLE telemetry_laps ADD COLUMN IF NOT EXISTS tyre_compound INTEGER`,
+  `ALTER TABLE telemetry_laps ADD COLUMN IF NOT EXISTS is_pit_lap BOOLEAN DEFAULT false`
 ];
 
 const initSchema = async () => {

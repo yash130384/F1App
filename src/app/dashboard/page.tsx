@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getDashboardData, getAllLeagues, getRaceDetails, deleteRace, getActiveTelemetrySession } from '@/lib/actions';
+import { getDashboardData, getAllLeagues, getRaceDetails, deleteRace, getActiveTelemetrySession, getDriverRaceTelemetry } from '@/lib/actions';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import RaceCountdown from './RaceCountdown';
 import LiveTrackMap from './LiveTrackMap';
@@ -20,6 +20,9 @@ export default function Dashboard() {
     const [raceResults, setRaceResults] = useState<any[]>([]);
 
     const [liveSession, setLiveSession] = useState<any | null>(null);
+
+    const [selectedDriverDetails, setSelectedDriverDetails] = useState<any | null>(null);
+    const [fetchingDriver, setFetchingDriver] = useState(false);
 
     const [loading, setLoading] = useState(false);
     const [fetchingLeagues, setFetchingLeagues] = useState(true);
@@ -84,6 +87,48 @@ export default function Dashboard() {
             alert(res.error || 'Failed to load race details.');
         }
         setFetchingRace(false);
+    };
+
+    const handleDriverClick = async (driverRes: any) => {
+        if (!selectedRace) return;
+        setFetchingDriver(true);
+        setSelectedDriverDetails({ summary: driverRes, laps: [] }); // Opening modal early with loading state
+
+        const res = await getDriverRaceTelemetry(selectedRace.id, driverRes.driver_id);
+        if (res.success) {
+            setSelectedDriverDetails({ summary: driverRes, laps: res.laps || [] });
+        } else {
+            alert('Failed to load lap telemetry for this driver.');
+            setSelectedDriverDetails(null);
+        }
+        setFetchingDriver(false);
+    };
+
+    const getTyreColor = (compoundId: number) => {
+        switch (compoundId) {
+            case 16: // C5 (Softest)
+            case 17: // C4
+            case 18: // C3
+                return '#ff0000'; // Red
+            case 19: // C2
+                return '#ffff00'; // Yellow
+            case 20: // C1 (Hardest)
+                return '#ffffff'; // White
+            case 7: // Inter
+                return '#00ff00'; // Green
+            case 8: // Wet
+                return '#0000ff'; // Blue
+            default:
+                return 'var(--silver)';
+        }
+    };
+
+    const formatLapTime = (ms: number) => {
+        if (!ms) return '-';
+        const mins = Math.floor(ms / 60000);
+        const secs = Math.floor((ms % 60000) / 1000);
+        const millis = ms % 1000;
+        return `${mins}:${secs.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
     };
 
     // F1 aesthetic colors for graph lines
@@ -353,17 +398,20 @@ export default function Dashboard() {
                                                     <>
                                                         <div className="flex flex-col">
                                                             {raceResults.map((res, idx) => (
-                                                                <div key={idx} className="flex justify-between items-center" style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                                <div key={idx} className="flex justify-between items-center hover-row" style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', transition: 'background 0.2s' }} onClick={() => handleDriverClick(res)}>
                                                                     <div className="flex items-center gap-3">
                                                                         <span style={{ fontWeight: 900, width: '20px', color: 'var(--silver)', fontSize: '0.8rem' }}>{res.position}</span>
                                                                         <span className="text-f1">{res.driver_name}</span>
                                                                     </div>
                                                                     <div className="flex gap-2 items-center">
+                                                                        {res.pit_stops > 0 && <span title="Pit Stops" style={{ color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 600, marginRight: '0.5rem' }}>{res.pit_stops} Pits</span>}
+                                                                        {res.penalties_time > 0 && <span title="Time Penalties" style={{ color: 'var(--f1-red)', fontSize: '0.7rem', fontWeight: 600, marginRight: '0.5rem' }}>+{res.penalties_time}s</span>}
+
                                                                         {res.is_dnf ? (
                                                                             <span style={{ color: 'var(--f1-red)', fontSize: '0.7rem', fontWeight: 900, background: 'rgba(255,24,1,0.1)', padding: '2px 8px', borderRadius: '4px' }}>DNF</span>
                                                                         ) : (
                                                                             <>
-                                                                                {res.fastest_lap && <span title="Fastest Lap" style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.6rem', padding: '2px 4px', borderRadius: '2px', fontWeight: 900 }}>FL</span>}
+                                                                                {res.fastest_lap && <span title="Fastest Lap" style={{ background: '#9c27b0', color: 'white', fontSize: '0.6rem', padding: '2px 4px', borderRadius: '2px', fontWeight: 900 }}>FL</span>}
                                                                                 {res.clean_driver && <span title="Clean Driver" style={{ background: 'var(--success)', color: 'white', fontSize: '0.6rem', padding: '2px 4px', borderRadius: '2px', fontWeight: 900 }}>CD</span>}
                                                                             </>
                                                                         )}
@@ -400,6 +448,114 @@ export default function Dashboard() {
                                     )}
                                 </section>
                             </div>
+
+                            {/* DRIVER MODAL */}
+                            {selectedDriverDetails && (
+                                <div style={{
+                                    position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+                                    background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex',
+                                    justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(4px)', padding: '2rem'
+                                }}>
+                                    <div className="f1-card animate-fade-in" style={{ width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
+                                        <button className="btn-secondary" style={{ position: 'absolute', top: '1rem', right: '1rem' }} onClick={() => setSelectedDriverDetails(null)}>
+                                            Close X
+                                        </button>
+
+                                        <h2 className="text-f1" style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>
+                                            {selectedDriverDetails.summary.driver_name}
+                                        </h2>
+                                        <div style={{ display: 'flex', gap: '1rem', color: 'var(--silver)', fontSize: '0.9rem', marginBottom: '2rem' }}>
+                                            <span>Position: P{selectedDriverDetails.summary.position}</span>
+                                            <span>Grid: P{selectedDriverDetails.summary.quali_position}</span>
+                                            {selectedDriverDetails.summary.pit_stops > 0 && <span>Pits: {selectedDriverDetails.summary.pit_stops}</span>}
+                                            {selectedDriverDetails.summary.penalties_time > 0 && <span style={{ color: 'var(--f1-red)' }}>Penalties: +{selectedDriverDetails.summary.penalties_time}s</span>}
+                                            {selectedDriverDetails.summary.warnings > 0 && <span style={{ color: '#ff8700' }}>Warnings: {selectedDriverDetails.summary.warnings}</span>}
+                                        </div>
+
+                                        {fetchingDriver ? (
+                                            <p className="animate-pulse text-center" style={{ padding: '2rem' }}>Loading lap telemetry...</p>
+                                        ) : selectedDriverDetails.laps.length > 0 ? (
+                                            <>
+                                                <div style={{ width: '100%', height: '300px', marginBottom: '2rem' }}>
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <LineChart data={selectedDriverDetails.laps} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
+                                                            <XAxis dataKey="lap_number" stroke="var(--silver)" tick={{ fill: 'var(--silver)', fontSize: 12 }} />
+                                                            <YAxis
+                                                                stroke="var(--silver)"
+                                                                tick={{ fill: 'var(--silver)', fontSize: 12 }}
+                                                                domain={['auto', 'auto']}
+                                                                tickFormatter={(tick) => formatLapTime(tick)}
+                                                            />
+                                                            <Tooltip
+                                                                contentStyle={{ backgroundColor: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--white)' }}
+                                                                labelFormatter={(label) => `Lap ${label}`}
+                                                                formatter={(value: any) => [formatLapTime(value), 'Lap Time']}
+                                                            />
+                                                            <Line
+                                                                type="monotone"
+                                                                dataKey="lap_time_ms"
+                                                                stroke="var(--f1-red)"
+                                                                strokeWidth={2}
+                                                                dot={{ r: 3, strokeWidth: 1 }}
+                                                            />
+                                                        </LineChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+
+                                                <h3 className="text-f1" style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>Timetable</h3>
+                                                <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+                                                    <thead>
+                                                        <tr style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--silver)', fontSize: '0.8rem', textTransform: 'uppercase' }}>
+                                                            <th style={{ padding: '0.8rem' }}>Lap</th>
+                                                            <th style={{ padding: '0.8rem' }}>Time</th>
+                                                            <th style={{ padding: '0.8rem' }}>Tyre</th>
+                                                            <th style={{ padding: '0.8rem' }}>Status</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {selectedDriverDetails.laps.map((lap: any) => {
+                                                            const isOverallFastest = selectedDriverDetails.summary.fastest_lap &&
+                                                                lap.lap_time_ms === Math.min(...selectedDriverDetails.laps.filter((l: any) => l.is_valid).map((l: any) => l.lap_time_ms));
+
+                                                            return (
+                                                                <tr key={lap.lap_number} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                                    <td style={{ padding: '0.8rem' }}>{lap.lap_number}</td>
+                                                                    <td style={{
+                                                                        padding: '0.8rem',
+                                                                        color: isOverallFastest ? '#9c27b0' : (lap.is_valid ? 'var(--white)' : 'var(--f1-red)'),
+                                                                        fontWeight: isOverallFastest ? 900 : (lap.is_valid ? 400 : 700)
+                                                                    }}>
+                                                                        {formatLapTime(lap.lap_time_ms)}
+                                                                        {!lap.is_valid && <span style={{ fontSize: '0.6rem', marginLeft: '6px' }}>(Invalid)</span>}
+                                                                        {isOverallFastest && <span style={{ fontSize: '0.6rem', marginLeft: '6px', background: '#9c27b0', color: 'white', padding: '2px 4px', borderRadius: '2px' }}>FL</span>}
+                                                                    </td>
+                                                                    <td style={{ padding: '0.8rem' }}>
+                                                                        {lap.tyre_compound ? (
+                                                                            <span style={{
+                                                                                display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%',
+                                                                                background: getTyreColor(lap.tyre_compound),
+                                                                                border: '1px solid rgba(255,255,255,0.3)',
+                                                                                marginRight: '6px'
+                                                                            }} title={`Tyre Compound ID: ${lap.tyre_compound}`} />
+                                                                        ) : '-'}
+                                                                    </td>
+                                                                    <td style={{ padding: '0.8rem' }}>
+                                                                        {lap.is_pit_lap && <span style={{ background: '#ff8700', color: 'white', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 900 }}>PIT</span>}
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </>
+                                        ) : (
+                                            <p style={{ color: 'var(--silver)', textAlign: 'center', padding: '2rem' }}>Keine detaillierte Telemetrie für dieses Rennen vorhanden.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                         </div>
                     )}
                 </div>
@@ -412,6 +568,9 @@ export default function Dashboard() {
           .container { padding: 1rem 0.5rem !important; }
           .dashboard-standings table th, .dashboard-standings table td { padding: 0.8rem 0.4rem !important; }
           .dashboard-standings table td:last-child { padding-right: 0.8rem !important; }
+        }
+        .hover-row:hover {
+            background: rgba(255,255,255,0.1) !important;
         }
         .race-select-btn {
           cursor: pointer;

@@ -161,16 +161,16 @@ export async function saveRaceResults(leagueId: string, track: string, results: 
 
             const resultId = crypto.randomUUID();
             await run(
-                `INSERT INTO race_results (id, race_id, driver_id, position, quali_position, fastest_lap, clean_driver, points_earned, is_dnf)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [resultId, raceId, res.driver_id, res.position, res.quali_position || 0, !!res.fastest_lap, !!res.clean_driver, points, !!res.is_dnf]
+                `INSERT INTO race_results (id, race_id, driver_id, position, quali_position, fastest_lap, clean_driver, points_earned, is_dnf, pit_stops, warnings, penalties_time)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [resultId, raceId, res.driver_id, res.position, res.quali_position || 0, !!res.fastest_lap, !!res.clean_driver, points, !!res.is_dnf, res.pit_stops || 0, res.warnings || 0, res.penalties_time || 0]
             );
         }
 
         // 4. Recalculate Standings
         await recalculateStandings(leagueId);
 
-        return { success: true };
+        return { success: true, raceId };
     } catch (error: any) {
         console.error('Save Results Error:', error);
         return { success: false, error: error.message };
@@ -648,9 +648,9 @@ export async function updateRaceResults(leagueId: string, raceId: string, result
 
             const resultId = crypto.randomUUID();
             await run(
-                `INSERT INTO race_results (id, race_id, driver_id, position, quali_position, fastest_lap, clean_driver, points_earned, is_dnf)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [resultId, raceId, res.driver_id, res.position, res.quali_position || 0, !!res.fastest_lap, !!res.clean_driver, points, !!res.is_dnf]
+                `INSERT INTO race_results (id, race_id, driver_id, position, quali_position, fastest_lap, clean_driver, points_earned, is_dnf, pit_stops, warnings, penalties_time)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [resultId, raceId, res.driver_id, res.position, res.quali_position || 0, !!res.fastest_lap, !!res.clean_driver, points, !!res.is_dnf, res.pit_stops || 0, res.warnings || 0, res.penalties_time || 0]
             );
         }
 
@@ -753,6 +753,54 @@ export async function assignTelemetryPlayer(leagueId: string, adminPass: string,
 /**
  * Promotes a closed telemetry session into an official race result.
  */
+export async function internalPromoteTelemetryToRace(leagueId: string, sessionId: string, track: string, existingRaceId?: string) {
+    try {
+        const participants = await query<any>(
+            `SELECT tp.*, 
+            (SELECT MIN(lap_time_ms) FROM telemetry_laps tl WHERE tl.participant_id = tp.id AND tl.is_valid = true) as fastest_lap_ms
+            FROM telemetry_participants tp 
+            WHERE tp.session_id = ? AND tp.driver_id IS NOT NULL
+            ORDER BY tp.position ASC`,
+            [sessionId]
+        );
+
+        if (participants.length === 0) {
+            throw new Error('No assigned drivers found in this session to promote.');
+        }
+
+        let minLap = Infinity;
+        let fastestDriverId: string | null = null;
+        for (const p of participants) {
+            if (p.fastest_lap_ms && p.fastest_lap_ms < minLap) {
+                minLap = p.fastest_lap_ms;
+                fastestDriverId = p.driver_id;
+            }
+        }
+
+        const resultsToSave = participants.map((p: any) => ({
+            driver_id: p.driver_id,
+            position: p.position || 0,
+            quali_position: p.start_position || 0,
+            fastest_lap: p.driver_id === fastestDriverId,
+            clean_driver: (p.warnings || 0) === 0 && (p.penalties_time || 0) === 0,
+            is_dnf: false,
+            pit_stops: p.pit_stops || 0,
+            warnings: p.warnings || 0,
+            penalties_time: p.penalties_time || 0
+        }));
+
+        const saveRes = await saveRaceResults(leagueId, track, resultsToSave, existingRaceId);
+
+        if (saveRes.success && saveRes.raceId) {
+            await run(`UPDATE telemetry_sessions SET race_id = ? WHERE id = ?`, [saveRes.raceId, sessionId]);
+        }
+
+        return saveRes;
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
 export async function promoteTelemetryToRace(leagueId: string, adminPass: string, sessionId: string, track: string, existingRaceId?: string) {
     try {
         const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
@@ -789,8 +837,11 @@ export async function promoteTelemetryToRace(leagueId: string, adminPass: string
             position: p.position || 0,
             quali_position: p.start_position || 0,
             fastest_lap: p.driver_id === fastestDriverId,
-            clean_driver: true, // simplified assumption, or could be pulled from telemetry penalties if added
-            is_dnf: false // simplified assumption
+            clean_driver: (p.warnings || 0) === 0 && (p.penalties_time || 0) === 0,
+            is_dnf: false,
+            pit_stops: p.pit_stops || 0,
+            warnings: p.warnings || 0,
+            penalties_time: p.penalties_time || 0
         }));
 
         // 2. Reuse the saveRaceResults logic
@@ -901,6 +952,35 @@ export async function getTelemetrySessionDetails(leagueId: string, adminPass: st
 
         return { success: true, session: sessions[0], participants };
     } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Fetches detailed telemetry logic (laps, tyres, pits, etc) for a specific driver in a race.
+ */
+export async function getDriverRaceTelemetry(raceId: string, driverId: string) {
+    try {
+        const session = await query<any>(`SELECT id FROM telemetry_sessions WHERE race_id = ? LIMIT 1`, [raceId]);
+        if (session.length === 0) return { success: true, laps: [] };
+
+        const sessionId = session[0].id;
+
+        const participant = await query<any>(`SELECT id FROM telemetry_participants WHERE session_id = ? AND driver_id = ? LIMIT 1`, [sessionId, driverId]);
+        if (participant.length === 0) return { success: true, laps: [] };
+
+        const participantId = participant[0].id;
+
+        const laps = await query<any>(`
+            SELECT lap_number, lap_time_ms, is_valid, tyre_compound, is_pit_lap
+            FROM telemetry_laps
+            WHERE participant_id = ?
+            ORDER BY lap_number ASC
+        `, [participantId]);
+
+        return { success: true, laps };
+    } catch (error: any) {
+        console.error('Fetch Telemetry Laps Error:', error);
         return { success: false, error: error.message };
     }
 }

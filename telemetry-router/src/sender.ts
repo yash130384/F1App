@@ -42,7 +42,11 @@ export function startSender(config: AppConfig, state: SessionState) {
     setInterval(async () => {
         const payload = state.buildPayloadAndClear();
 
-        if (!payload.sessionType.startsWith('Unknown') && payload.participants.length > 0) {
+        // Only send if it's a Race session (Type 15) and there are human participants
+        const hasHumans = payload.participants.some(p => p.isHuman);
+        const isSession15 = payload.sessionData?.sessionTypeRaw === 15;
+
+        if (isSession15 && hasHumans) {
             skipCount = 0; // reset
             const body = {
                 leagueId: config.leagueId,

@@ -5,6 +5,8 @@ import { parseSession } from './parsers/session';
 import { parseParticipants } from './parsers/participants';
 import { parseLapData } from './parsers/lapData';
 import { parseTelemetry } from './parsers/telemetry';
+import { parseCarStatus } from './parsers/carStatus';
+import { parseEventData } from './parsers/eventData';
 import { SessionState } from './state';
 import { startSender } from './sender';
 
@@ -52,6 +54,13 @@ export function startUdpListener(config: AppConfig) {
                     const lapDataArray = parseLapData(msg);
                     lapDataArray.forEach((lap, i) => state.updateLapData(i, lap));
                     break;
+                case 3: // Event Data
+                    const eventData = parseEventData(msg);
+                    if (eventData.eventStringCode === 'SEND') {
+                        console.log('🏁 SESSION ENDED (SEND event). Triggering flush and promotion...');
+                        state.handleSessionEnd();
+                    }
+                    break;
                 case 4: // Participants Data
                     const participantsData = parseParticipants(msg);
                     participantsData.forEach((p, i) => state.updateParticipant(i, p));
@@ -59,6 +68,10 @@ export function startUdpListener(config: AppConfig) {
                 case 6: // Car Telemetry
                     const telemetryData = parseTelemetry(msg);
                     telemetryData.forEach((t, i) => state.updateTelemetry(i, t));
+                    break;
+                case 7: // Car Status
+                    const carStatusArray = parseCarStatus(msg);
+                    carStatusArray.forEach((cs, i) => state.updateCarStatus(i, cs));
                     break;
             }
         } catch (e: any) {
