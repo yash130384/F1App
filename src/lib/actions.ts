@@ -1018,7 +1018,7 @@ export async function getAllDriversRaceTelemetry(raceId: string) {
             SELECT tl.lap_number, tl.lap_time_ms, tl.participant_id, tl.is_pit_lap, tl.tyre_compound
             FROM telemetry_laps tl
             JOIN telemetry_participants tp ON tp.id = tl.participant_id
-            WHERE tp.session_id = ? AND tl.is_valid = true AND tl.lap_time_ms > 0
+            WHERE tp.session_id = ? AND tl.is_valid = true AND (tl.lap_time_ms > 0 OR tl.lap_number = 0)
             ORDER BY tl.lap_number ASC
         `, [sessionId]);
 
@@ -1033,9 +1033,15 @@ export async function getAllDriversRaceTelemetry(raceId: string) {
             }
 
             const lapObj = chartDataMap.get(lap.lap_number);
-            lapObj[pInfo.driver_id] = lap.lap_time_ms;
 
-            if (lap.is_pit_lap) {
+            // Only set lap time for actual laps > 0
+            if (lap.lap_number > 0) {
+                lapObj[pInfo.driver_id] = lap.lap_time_ms;
+            }
+
+            // For Lap 0, we want to show the starting tyre.
+            // For other laps, we only show it if they pitted.
+            if (lap.is_pit_lap || lap.lap_number === 0) {
                 lapObj[`${pInfo.driver_id}_pit`] = true;
                 lapObj[`${pInfo.driver_id}_tyre`] = lap.tyre_compound;
             }
