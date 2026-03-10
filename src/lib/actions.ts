@@ -845,7 +845,13 @@ export async function promoteTelemetryToRace(leagueId: string, adminPass: string
         }));
 
         // 2. Reuse the saveRaceResults logic
-        return await saveRaceResults(leagueId, track, resultsToSave, existingRaceId);
+        const saveRes = await saveRaceResults(leagueId, track, resultsToSave, existingRaceId);
+
+        if (saveRes.success && saveRes.raceId) {
+            await run(`UPDATE telemetry_sessions SET race_id = ? WHERE id = ?`, [saveRes.raceId, sessionId]);
+        }
+
+        return saveRes;
 
     } catch (error: any) {
         return { success: false, error: error.message };
