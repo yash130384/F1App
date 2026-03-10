@@ -480,7 +480,8 @@ export default function Dashboard() {
                                                                                         if (payload[`${dataKey}_pit`] && payload[`${dataKey}_tyre`]) {
                                                                                             const tyre = getTyreInfo(payload[`${dataKey}_tyre`]);
                                                                                             return (
-                                                                                                <g key={`dot-${payload.lap_number}-${dataKey}`} transform={`translate(${cx}, ${cy})`} style={{ zIndex: 10, cursor: 'pointer' }} title={`Pit Stop Tyres: ${tyre.letter}`}>
+                                                                                                <g key={`dot-${payload.lap_number}-${dataKey}`} transform={`translate(${cx}, ${cy})`} style={{ zIndex: 10, cursor: 'pointer' }}>
+                                                                                                    <title>{`Pit Stop Tyres: ${tyre.letter}`}</title>
                                                                                                     <circle cx={0} cy={0} r={8} fill={tyre.color} stroke="rgba(255,255,255,0.4)" strokeWidth={1} />
                                                                                                     <text x={0} y={3} textAnchor="middle" fill={tyre.textColor} fontSize={8} fontWeight={900}>{tyre.letter}</text>
                                                                                                 </g>
