@@ -100,6 +100,7 @@ function RaceGraphContent({ raceGraphData, raceGraphDrivers, showTyreLines, setS
                                 name={driver.id}
                                 stroke={`url(#colorTyre-${driver.id})`}
                                 strokeWidth={6}
+                                strokeDasharray="5 5"
                                 dot={false}
                                 activeDot={false}
                                 isAnimationActive={false}
