@@ -1,10 +1,130 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Dispatch, SetStateAction } from 'react';
 import { getDashboardData, getAllLeagues, getRaceDetails, deleteRace, getActiveTelemetrySession, getDriverRaceTelemetry, getAllDriversRaceTelemetry } from '@/lib/actions';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import RaceCountdown from './RaceCountdown';
 import LiveTrackMap from './LiveTrackMap';
+
+// Props for our refactored Graph Component
+interface RaceGraphContentProps {
+    raceGraphData: any[];
+    raceGraphDrivers: any[];
+    showTyreLines: boolean;
+    setShowTyreLines: Dispatch<SetStateAction<boolean>>;
+    formatLapTime: (ms: number) => string;
+    getTyreInfo: (id: number) => any;
+    isFullscreen: boolean;
+}
+
+function RaceGraphContent({ raceGraphData, raceGraphDrivers, showTyreLines, setShowTyreLines, formatLapTime, getTyreInfo, isFullscreen }: RaceGraphContentProps) {
+    return (
+        <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {isFullscreen && (
+                <div style={{ marginBottom: '1rem' }}>
+                    <button
+                        className="btn-secondary"
+                        onClick={() => setShowTyreLines(!showTyreLines)}
+                        style={{ background: showTyreLines ? 'var(--f1-red)' : 'transparent', color: showTyreLines ? 'white' : 'var(--silver)' }}
+                    >
+                        {showTyreLines ? 'Hide Tyre Histories' : 'Show Tyre Histories'}
+                    </button>
+                </div>
+            )}
+            <div style={{ flex: 1, minHeight: 0 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={raceGraphData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                        <XAxis
+                            dataKey="lap_number"
+                            stroke="var(--silver)"
+                            tick={{ fill: 'var(--silver)', fontSize: 12 }}
+                            domain={['dataMin', 'dataMax']}
+                            type="number"
+                            allowDecimals={false}
+                        />
+                        <YAxis
+                            stroke="var(--silver)"
+                            tick={{ fill: 'var(--silver)', fontSize: 12 }}
+                            domain={['auto', 'auto']}
+                            tickFormatter={(tick) => formatLapTime(tick)}
+                        />
+                        {showTyreLines && (
+                            <defs>
+                                {raceGraphDrivers.map(driver => {
+                                    const driverLaps = raceGraphData.filter(d => d[driver.id] !== undefined);
+                                    if (driverLaps.length === 0) return null;
+
+                                    const maxLap = Math.max(...driverLaps.map(d => d.lap_number));
+                                    const minLap = Math.min(...driverLaps.map(d => d.lap_number));
+                                    const range = maxLap - minLap;
+
+                                    if (range === 0) return null;
+
+                                    let stops = [];
+                                    let currentTyre = driverLaps[0][`${driver.id}_current_tyre`];
+                                    stops.push(<stop key="start" offset="0%" stopColor={getTyreInfo(currentTyre).color} />);
+
+                                    driverLaps.forEach(lap => {
+                                        const tyre = lap[`${driver.id}_current_tyre`];
+                                        if (tyre !== currentTyre && tyre !== undefined) {
+                                            const offset = `${((lap.lap_number - minLap) / range) * 100}%`;
+                                            stops.push(<stop key={`stop1-${lap.lap_number}`} offset={offset} stopColor={getTyreInfo(currentTyre).color} />);
+                                            stops.push(<stop key={`stop2-${lap.lap_number}`} offset={offset} stopColor={getTyreInfo(tyre).color} />);
+                                            currentTyre = tyre;
+                                        }
+                                    });
+                                    stops.push(<stop key="end" offset="100%" stopColor={getTyreInfo(currentTyre).color} />);
+
+                                    return (
+                                        <linearGradient key={`grad-${driver.id}`} id={`colorTyre-${driver.id}`} x1="0" y1="0" x2="1" y2="0">
+                                            {stops}
+                                        </linearGradient>
+                                    );
+                                })}
+                            </defs>
+                        )}
+                        <Tooltip
+                            contentStyle={{ backgroundColor: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--white)' }}
+                            labelFormatter={(label) => `Lap ${label}`}
+                            formatter={(value: any, name: any) => {
+                                const driver = raceGraphDrivers.find(d => d.id === name);
+                                return [formatLapTime(value), driver ? driver.name : name];
+                            }}
+                        />
+                        {showTyreLines && raceGraphDrivers.map((driver) => (
+                            <Line
+                                key={`tyre-${driver.id}`}
+                                type="monotone"
+                                dataKey={driver.id}
+                                name={driver.id}
+                                stroke={`url(#colorTyre-${driver.id})`}
+                                strokeWidth={10}
+                                dot={false}
+                                activeDot={false}
+                                isAnimationActive={false}
+                                connectNulls={true}
+                                opacity={0.6}
+                            />
+                        ))}
+                        {raceGraphDrivers.map((driver) => (
+                            <Line
+                                key={driver.id}
+                                type="monotone"
+                                dataKey={driver.id}
+                                name={driver.id}
+                                stroke={driver.color || 'var(--silver)'}
+                                strokeWidth={3}
+                                dot={false}
+                                connectNulls={true}
+                            />
+                        ))}
+                    </LineChart>
+                </ResponsiveContainer>
+            </div>
+        </div>
+    );
+}
 
 export default function Dashboard() {
     const [leaguesList, setLeaguesList] = useState<any[]>([]);
@@ -20,6 +140,9 @@ export default function Dashboard() {
     const [raceResults, setRaceResults] = useState<any[]>([]);
     const [raceGraphData, setRaceGraphData] = useState<any[]>([]);
     const [raceGraphDrivers, setRaceGraphDrivers] = useState<any[]>([]);
+
+    const [showFullScreenGraph, setShowFullScreenGraph] = useState(false);
+    const [showTyreLines, setShowTyreLines] = useState(true);
 
     const [liveSession, setLiveSession] = useState<any | null>(null);
 
@@ -447,97 +570,22 @@ export default function Dashboard() {
 
                                                         {raceGraphData.length > 0 && (
                                                             <div style={{ marginTop: '2rem', padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                                                                <h3 className="text-f1" style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--silver)' }}>RACE LAP TIMING (ALL DRIVERS)</h3>
+                                                                <div className="flex justify-between items-center mb-4">
+                                                                    <h3 className="text-f1" style={{ fontSize: '1rem', color: 'var(--silver)', margin: 0 }}>RACE LAP TIMING (ALL DRIVERS)</h3>
+                                                                    <button className="btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }} onClick={() => setShowFullScreenGraph(true)}>
+                                                                        Fullscreen Graph
+                                                                    </button>
+                                                                </div>
                                                                 <div style={{ width: '100%', height: '350px' }}>
-                                                                    <ResponsiveContainer width="100%" height="100%">
-                                                                        <LineChart data={raceGraphData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                                                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                                                            <XAxis
-                                                                                dataKey="lap_number"
-                                                                                stroke="var(--silver)"
-                                                                                tick={{ fill: 'var(--silver)', fontSize: 12 }}
-                                                                                domain={['dataMin', 'dataMax']}
-                                                                                type="number"
-                                                                                allowDecimals={false}
-                                                                            />
-                                                                            <YAxis
-                                                                                stroke="var(--silver)"
-                                                                                tick={{ fill: 'var(--silver)', fontSize: 12 }}
-                                                                                domain={['auto', 'auto']}
-                                                                                tickFormatter={(tick) => formatLapTime(tick)}
-                                                                            />
-                                                                            <defs>
-                                                                                {raceGraphDrivers.map(driver => {
-                                                                                    // Build gradient stops based on tyre stints
-                                                                                    const driverLaps = raceGraphData.filter(d => d[driver.id] !== undefined);
-                                                                                    if (driverLaps.length === 0) return null;
-
-                                                                                    const maxLap = Math.max(...driverLaps.map(d => d.lap_number));
-                                                                                    const minLap = Math.min(...driverLaps.map(d => d.lap_number));
-                                                                                    const range = maxLap - minLap;
-
-                                                                                    if (range === 0) return null;
-
-                                                                                    let stops = [];
-                                                                                    let currentTyre = driverLaps[0][`${driver.id}_current_tyre`];
-                                                                                    stops.push(<stop key="start" offset="0%" stopColor={getTyreInfo(currentTyre).color} />);
-
-                                                                                    driverLaps.forEach(lap => {
-                                                                                        const tyre = lap[`${driver.id}_current_tyre`];
-                                                                                        if (tyre !== currentTyre && tyre !== undefined) {
-                                                                                            const offset = `${((lap.lap_number - minLap) / range) * 100}%`;
-                                                                                            // Hard stop for accurate color transition
-                                                                                            stops.push(<stop key={`stop1-${lap.lap_number}`} offset={offset} stopColor={getTyreInfo(currentTyre).color} />);
-                                                                                            stops.push(<stop key={`stop2-${lap.lap_number}`} offset={offset} stopColor={getTyreInfo(tyre).color} />);
-                                                                                            currentTyre = tyre;
-                                                                                        }
-                                                                                    });
-                                                                                    stops.push(<stop key="end" offset="100%" stopColor={getTyreInfo(currentTyre).color} />);
-
-                                                                                    return (
-                                                                                        <linearGradient key={`grad-${driver.id}`} id={`colorTyre-${driver.id}`} x1="0" y1="0" x2="1" y2="0">
-                                                                                            {stops}
-                                                                                        </linearGradient>
-                                                                                    );
-                                                                                })}
-                                                                            </defs>
-                                                                            <Tooltip
-                                                                                contentStyle={{ backgroundColor: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--white)' }}
-                                                                                labelFormatter={(label) => `Lap ${label}`}
-                                                                                formatter={(value: any, name: any) => {
-                                                                                    const driver = raceGraphDrivers.find(d => d.id === name);
-                                                                                    return [formatLapTime(value), driver ? driver.name : name];
-                                                                                }}
-                                                                            />
-                                                                            {raceGraphDrivers.map((driver) => (
-                                                                                <Line
-                                                                                    key={`tyre-${driver.id}`}
-                                                                                    type="monotone"
-                                                                                    dataKey={driver.id}
-                                                                                    name={driver.id}
-                                                                                    stroke={`url(#colorTyre-${driver.id})`}
-                                                                                    strokeWidth={8}
-                                                                                    dot={false}
-                                                                                    activeDot={false}
-                                                                                    isAnimationActive={false}
-                                                                                    connectNulls={true}
-                                                                                    opacity={0.5}
-                                                                                />
-                                                                            ))}
-                                                                            {raceGraphDrivers.map((driver) => (
-                                                                                <Line
-                                                                                    key={driver.id}
-                                                                                    type="monotone"
-                                                                                    dataKey={driver.id}
-                                                                                    name={driver.id}
-                                                                                    stroke={driver.color || 'var(--silver)'}
-                                                                                    strokeWidth={1.5}
-                                                                                    dot={false}
-                                                                                    connectNulls={true}
-                                                                                />
-                                                                            ))}
-                                                                        </LineChart>
-                                                                    </ResponsiveContainer>
+                                                                    <RaceGraphContent
+                                                                        raceGraphData={raceGraphData}
+                                                                        raceGraphDrivers={raceGraphDrivers}
+                                                                        showTyreLines={showTyreLines}
+                                                                        setShowTyreLines={setShowTyreLines}
+                                                                        formatLapTime={formatLapTime}
+                                                                        getTyreInfo={getTyreInfo}
+                                                                        isFullscreen={false}
+                                                                    />
                                                                 </div>
                                                             </div>
                                                         )}
@@ -553,6 +601,33 @@ export default function Dashboard() {
                                     )}
                                 </section>
                             </div>
+
+                            {/* FULL SCREEN GRAPH MODAL */}
+                            {showFullScreenGraph && (
+                                <div style={{
+                                    position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+                                    background: 'var(--f1-carbon-dark)', zIndex: 2000, display: 'flex',
+                                    flexDirection: 'column', padding: '1rem'
+                                }}>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h2 className="text-f1" style={{ fontSize: '1.5rem', margin: 0 }}>{selectedRace?.track} - Full Race Pace</h2>
+                                        <button className="btn-secondary" onClick={() => setShowFullScreenGraph(false)}>
+                                            Close X
+                                        </button>
+                                    </div>
+                                    <div style={{ flex: 1, position: 'relative' }}>
+                                        <RaceGraphContent
+                                            raceGraphData={raceGraphData}
+                                            raceGraphDrivers={raceGraphDrivers}
+                                            showTyreLines={showTyreLines}
+                                            setShowTyreLines={setShowTyreLines}
+                                            formatLapTime={formatLapTime}
+                                            getTyreInfo={getTyreInfo}
+                                            isFullscreen={true}
+                                        />
+                                    </div>
+                                </div>
+                            )}
 
                             {/* DRIVER MODAL */}
                             {selectedDriverDetails && (
