@@ -99,7 +99,7 @@ function RaceGraphContent({ raceGraphData, raceGraphDrivers, showTyreLines, setS
                                 dataKey={driver.id}
                                 name={driver.id}
                                 stroke={`url(#colorTyre-${driver.id})`}
-                                strokeWidth={10}
+                                strokeWidth={6}
                                 dot={false}
                                 activeDot={false}
                                 isAnimationActive={false}
@@ -114,7 +114,7 @@ function RaceGraphContent({ raceGraphData, raceGraphDrivers, showTyreLines, setS
                                 dataKey={driver.id}
                                 name={driver.id}
                                 stroke={driver.color || 'var(--silver)'}
-                                strokeWidth={3}
+                                strokeWidth={4}
                                 dot={false}
                                 connectNulls={true}
                             />
@@ -632,18 +632,26 @@ export default function Dashboard() {
                                 <div style={{
                                     position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
                                     background: 'var(--f1-carbon-dark)', zIndex: 2000, display: 'flex',
-                                    flexDirection: 'column', padding: '1.5rem', overflow: 'hidden'
+                                    flexDirection: 'column', padding: '1rem', overflow: 'hidden',
+                                    boxSizing: 'border-box'
                                 }}>
-                                    <div className="flex justify-between items-center mb-6" style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <div className="flex justify-between items-center mb-4" style={{
+                                        background: 'rgba(255,255,255,0.02)',
+                                        padding: '0.8rem 1rem',
+                                        borderRadius: '8px',
+                                        border: '1px solid rgba(255,255,255,0.05)',
+                                        width: '100%',
+                                        boxSizing: 'border-box'
+                                    }}>
                                         <div className="flex items-center gap-4">
-                                            <h2 className="text-f1" style={{ fontSize: '1.5rem', margin: 0, color: 'var(--white)' }}>{selectedRace?.track} - Full Race Pace</h2>
+                                            <h2 className="text-f1" style={{ fontSize: '1.2rem', margin: 0, color: 'var(--white)' }}>{selectedRace?.track} - Full Race Pace</h2>
                                         </div>
                                         <button className="btn-secondary" onClick={() => setShowFullScreenGraph(false)}>
                                             Close X
                                         </button>
                                     </div>
 
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1, minHeight: 0, width: '100%', maxWidth: '100vw' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1, minHeight: 0, width: '100%', boxSizing: 'border-box' }}>
                                         {/* Results at the Top in Fullscreen */}
                                         <div className="f1-card" style={{
                                             padding: 0,
@@ -654,7 +662,8 @@ export default function Dashboard() {
                                             minHeight: '150px',
                                             overflow: 'hidden',
                                             border: '1px solid var(--glass-border)',
-                                            width: '100%'
+                                            width: '100%',
+                                            boxSizing: 'border-box'
                                         }}>
                                             <div style={{ padding: '0.5rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,24,1,0.05)' }}>
                                                 <h3 className="text-f1" style={{ fontSize: '0.7rem', margin: 0, color: 'var(--f1-red)' }}>RACE RESULTS (CLICK DRIVER FOR DETAILS)</h3>
@@ -674,7 +683,8 @@ export default function Dashboard() {
                                             border: '1px solid var(--glass-border)',
                                             width: '100%',
                                             minHeight: '250px',
-                                            overflow: 'hidden'
+                                            overflow: 'hidden',
+                                            boxSizing: 'border-box'
                                         }}>
                                             <RaceGraphContent
                                                 raceGraphData={raceGraphData}
