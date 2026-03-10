@@ -5,10 +5,19 @@ import crypto from 'crypto';
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { leagueId, packet } = body;
+        const { leagueId: incomingLeagueId, packet } = body;
 
-        if (!leagueId || !packet) {
+        if (!incomingLeagueId || !packet) {
             return NextResponse.json({ success: false, error: 'Missing leagueId or packet' }, { status: 400 });
+        }
+
+        let leagueId = incomingLeagueId;
+        // Translate league name to UUID if it's not a UUID (quick heuristic length != 36)
+        if (incomingLeagueId.length !== 36) {
+            const leagueRes = await query<any>('SELECT id FROM leagues WHERE name ILIKE ? LIMIT 1', [incomingLeagueId]);
+            if (leagueRes.length > 0) {
+                leagueId = leagueRes[0].id;
+            }
         }
 
         const { sessionType, trackId, trackLength, isSessionEnded, participants } = packet;
@@ -94,10 +103,14 @@ export async function POST(req: Request) {
             await run(`UPDATE telemetry_sessions SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [sessionId]);
 
             if (sessionType === 'Race') {
-                const { internalPromoteTelemetryToRace } = await import('@/lib/actions');
-                const { getTrackNameById } = await import('@/lib/constants');
-                const trackName = getTrackNameById(trackId);
-                await internalPromoteTelemetryToRace(leagueId, sessionId, trackName);
+                try {
+                    const { internalPromoteTelemetryToRace } = await import('@/lib/actions');
+                    const { getTrackNameById } = await import('@/lib/constants');
+                    const trackName = getTrackNameById(trackId);
+                    await internalPromoteTelemetryToRace(leagueId, sessionId, trackName);
+                } catch (promoErr) {
+                    console.error("Failed to promote telemetry to race:", promoErr);
+                }
             }
         }
 
