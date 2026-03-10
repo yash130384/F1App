@@ -630,7 +630,7 @@ export default function Dashboard() {
                             {/* FULL SCREEN GRAPH MODAL */}
                             {showFullScreenGraph && (
                                 <div style={{
-                                    position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+                                    position: 'fixed', top: 0, left: 0, right: 0, height: '100vh',
                                     background: 'var(--f1-carbon-dark)', zIndex: 2000, display: 'flex',
                                     flexDirection: 'column', padding: '1rem', overflow: 'hidden',
                                     boxSizing: 'border-box'
