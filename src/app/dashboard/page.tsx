@@ -408,6 +408,7 @@ export default function Dashboard() {
                                                                 <div key={idx} className="flex justify-between items-center hover-row" style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', transition: 'background 0.2s' }} onClick={() => handleDriverClick(res)}>
                                                                     <div className="flex items-center gap-3">
                                                                         <span style={{ fontWeight: 900, width: '20px', color: 'var(--silver)', fontSize: '0.8rem' }}>{res.position}</span>
+                                                                        <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: res.driver_color || 'var(--silver)', border: '1px solid rgba(255,255,255,0.2)' }} title="Driver Color" />
                                                                         <span className="text-f1">{res.driver_name}</span>
                                                                     </div>
                                                                     <div className="flex gap-2 items-center">
@@ -474,7 +475,19 @@ export default function Dashboard() {
                                                                                     name={driver.id}
                                                                                     stroke={driver.color || 'var(--silver)'}
                                                                                     strokeWidth={1.5}
-                                                                                    dot={false}
+                                                                                    dot={(props: any) => {
+                                                                                        const { cx, cy, payload, dataKey } = props;
+                                                                                        if (payload[`${dataKey}_pit`] && payload[`${dataKey}_tyre`]) {
+                                                                                            const tyre = getTyreInfo(payload[`${dataKey}_tyre`]);
+                                                                                            return (
+                                                                                                <g key={`dot-${payload.lap_number}-${dataKey}`} transform={`translate(${cx}, ${cy})`} style={{ zIndex: 10, cursor: 'pointer' }} title={`Pit Stop Tyres: ${tyre.letter}`}>
+                                                                                                    <circle cx={0} cy={0} r={8} fill={tyre.color} stroke="rgba(255,255,255,0.4)" strokeWidth={1} />
+                                                                                                    <text x={0} y={3} textAnchor="middle" fill={tyre.textColor} fontSize={8} fontWeight={900}>{tyre.letter}</text>
+                                                                                                </g>
+                                                                                            );
+                                                                                        }
+                                                                                        return null;
+                                                                                    }}
                                                                                     connectNulls={true}
                                                                                 />
                                                                             ))}

@@ -425,7 +425,7 @@ export async function getRaceDetails(raceId: string) {
         if (race.length === 0) throw new Error('Race not found.');
 
         const results = await query<any>(`
-            SELECT rr.*, d.name as driver_name 
+            SELECT rr.*, d.name as driver_name, d.color as driver_color
             FROM race_results rr
             JOIN drivers d ON rr.driver_id = d.id
             WHERE rr.race_id = ?
@@ -1015,7 +1015,7 @@ export async function getAllDriversRaceTelemetry(raceId: string) {
         if (participants.length === 0) return { success: true, laps: [], drivers: [] };
 
         const laps = await query<any>(`
-            SELECT tl.lap_number, tl.lap_time_ms, tl.participant_id
+            SELECT tl.lap_number, tl.lap_time_ms, tl.participant_id, tl.is_pit_lap, tl.tyre_compound
             FROM telemetry_laps tl
             JOIN telemetry_participants tp ON tp.id = tl.participant_id
             WHERE tp.session_id = ? AND tl.is_valid = true AND tl.lap_time_ms > 0
@@ -1034,6 +1034,11 @@ export async function getAllDriversRaceTelemetry(raceId: string) {
 
             const lapObj = chartDataMap.get(lap.lap_number);
             lapObj[pInfo.driver_id] = lap.lap_time_ms;
+
+            if (lap.is_pit_lap) {
+                lapObj[`${pInfo.driver_id}_pit`] = true;
+                lapObj[`${pInfo.driver_id}_tyre`] = lap.tyre_compound;
+            }
         });
 
         const formattedLaps = Array.from(chartDataMap.values()).sort((a, b) => a.lap_number - b.lap_number);
