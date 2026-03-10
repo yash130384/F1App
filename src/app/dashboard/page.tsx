@@ -452,7 +452,14 @@ export default function Dashboard() {
                                                                     <ResponsiveContainer width="100%" height="100%">
                                                                         <LineChart data={raceGraphData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                                                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                                                            <XAxis dataKey="lap_number" stroke="var(--silver)" tick={{ fill: 'var(--silver)', fontSize: 12 }} />
+                                                                            <XAxis
+                                                                                dataKey="lap_number"
+                                                                                stroke="var(--silver)"
+                                                                                tick={{ fill: 'var(--silver)', fontSize: 12 }}
+                                                                                domain={['dataMin', 'dataMax']}
+                                                                                type="number"
+                                                                                allowDecimals={false}
+                                                                            />
                                                                             <YAxis
                                                                                 stroke="var(--silver)"
                                                                                 tick={{ fill: 'var(--silver)', fontSize: 12 }}
