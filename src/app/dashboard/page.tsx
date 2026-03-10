@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getDashboardData, getAllLeagues, getRaceDetails, deleteRace, getActiveTelemetrySession, getDriverRaceTelemetry } from '@/lib/actions';
+import { getDashboardData, getAllLeagues, getRaceDetails, deleteRace, getActiveTelemetrySession, getDriverRaceTelemetry, getAllDriversRaceTelemetry } from '@/lib/actions';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import RaceCountdown from './RaceCountdown';
 import LiveTrackMap from './LiveTrackMap';
@@ -18,6 +18,8 @@ export default function Dashboard() {
 
     const [selectedRace, setSelectedRace] = useState<any | null>(null);
     const [raceResults, setRaceResults] = useState<any[]>([]);
+    const [raceGraphData, setRaceGraphData] = useState<any[]>([]);
+    const [raceGraphDrivers, setRaceGraphDrivers] = useState<any[]>([]);
 
     const [liveSession, setLiveSession] = useState<any | null>(null);
 
@@ -83,6 +85,15 @@ export default function Dashboard() {
         if (res.success) {
             setSelectedRace(res.race);
             setRaceResults(res.results || []);
+
+            const graphRes = await getAllDriversRaceTelemetry(raceId);
+            if (graphRes.success) {
+                setRaceGraphData(graphRes.laps || []);
+                setRaceGraphDrivers(graphRes.drivers || []);
+            } else {
+                setRaceGraphData([]);
+                setRaceGraphDrivers([]);
+            }
         } else {
             alert(res.error || 'Failed to load race details.');
         }
@@ -91,6 +102,10 @@ export default function Dashboard() {
 
     const handleDriverClick = async (driverRes: any) => {
         if (!selectedRace) return;
+
+        // Scroll to top of window
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
         setFetchingDriver(true);
         setSelectedDriverDetails({ summary: driverRes, laps: [] }); // Opening modal early with loading state
 
@@ -104,22 +119,14 @@ export default function Dashboard() {
         setFetchingDriver(false);
     };
 
-    const getTyreColor = (compoundId: number) => {
+    const getTyreInfo = (compoundId: number) => {
         switch (compoundId) {
-            case 16: // C5 (Softest)
-            case 17: // C4
-            case 18: // C3
-                return '#ff0000'; // Red
-            case 19: // C2
-                return '#ffff00'; // Yellow
-            case 20: // C1 (Hardest)
-                return '#ffffff'; // White
-            case 7: // Inter
-                return '#00ff00'; // Green
-            case 8: // Wet
-                return '#0000ff'; // Blue
-            default:
-                return 'var(--silver)';
+            case 16: return { color: '#ff0000', letter: 'S', textColor: 'white' };
+            case 17: return { color: '#ffff00', letter: 'M', textColor: 'black' };
+            case 18: return { color: '#ffffff', letter: 'H', textColor: 'black' };
+            case 7: return { color: '#00ff00', letter: 'I', textColor: 'black' };
+            case 8: return { color: '#0000ff', letter: 'W', textColor: 'white' };
+            default: return { color: 'var(--silver)', letter: '?', textColor: 'black' };
         }
     };
 
@@ -437,6 +444,46 @@ export default function Dashboard() {
                                                             ))}
                                                         </div>
 
+                                                        {raceGraphData.length > 0 && (
+                                                            <div style={{ marginTop: '2rem', padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                                                <h3 className="text-f1" style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--silver)' }}>RACE LAP TIMING (ALL DRIVERS)</h3>
+                                                                <div style={{ width: '100%', height: '350px' }}>
+                                                                    <ResponsiveContainer width="100%" height="100%">
+                                                                        <LineChart data={raceGraphData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                                                            <XAxis dataKey="lap_number" stroke="var(--silver)" tick={{ fill: 'var(--silver)', fontSize: 12 }} />
+                                                                            <YAxis
+                                                                                stroke="var(--silver)"
+                                                                                tick={{ fill: 'var(--silver)', fontSize: 12 }}
+                                                                                domain={['auto', 'auto']}
+                                                                                tickFormatter={(tick) => formatLapTime(tick)}
+                                                                            />
+                                                                            <Tooltip
+                                                                                contentStyle={{ backgroundColor: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--white)' }}
+                                                                                labelFormatter={(label) => `Lap ${label}`}
+                                                                                formatter={(value: any, name: any) => {
+                                                                                    const driver = raceGraphDrivers.find(d => d.id === name);
+                                                                                    return [formatLapTime(value), driver ? driver.name : name];
+                                                                                }}
+                                                                            />
+                                                                            {raceGraphDrivers.map((driver) => (
+                                                                                <Line
+                                                                                    key={driver.id}
+                                                                                    type="monotone"
+                                                                                    dataKey={driver.id}
+                                                                                    name={driver.id}
+                                                                                    stroke={driver.color || 'var(--silver)'}
+                                                                                    strokeWidth={1.5}
+                                                                                    dot={false}
+                                                                                    connectNulls={true}
+                                                                                />
+                                                                            ))}
+                                                                        </LineChart>
+                                                                    </ResponsiveContainer>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
                                                     </>
                                                 )}
                                             </div>
@@ -456,20 +503,32 @@ export default function Dashboard() {
                                     background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex',
                                     justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(4px)', padding: '2rem'
                                 }}>
-                                    <div className="f1-card animate-fade-in" style={{ width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
-                                        <button className="btn-secondary" style={{ position: 'absolute', top: '1rem', right: '1rem' }} onClick={() => setSelectedDriverDetails(null)}>
+                                    <div className="f1-card animate-fade-in" style={{ width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', position: 'relative', borderTop: '4px solid var(--f1-red)', background: 'linear-gradient(to bottom, #15151e 0%, #101014 100%)' }}>
+                                        <button className="btn-secondary" style={{ position: 'absolute', top: '1.5rem', right: '1.5rem' }} onClick={() => setSelectedDriverDetails(null)}>
                                             Close X
                                         </button>
 
-                                        <h2 className="text-f1" style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>
+                                        <h2 className="text-f1" style={{ fontSize: '2.5rem', marginBottom: '1.5rem', color: 'var(--white)' }}>
                                             {selectedDriverDetails.summary.driver_name}
                                         </h2>
-                                        <div style={{ display: 'flex', gap: '1rem', color: 'var(--silver)', fontSize: '0.9rem', marginBottom: '2rem' }}>
-                                            <span>Position: P{selectedDriverDetails.summary.position}</span>
-                                            <span>Grid: P{selectedDriverDetails.summary.quali_position}</span>
-                                            {selectedDriverDetails.summary.pit_stops > 0 && <span>Pits: {selectedDriverDetails.summary.pit_stops}</span>}
-                                            {selectedDriverDetails.summary.penalties_time > 0 && <span style={{ color: 'var(--f1-red)' }}>Penalties: +{selectedDriverDetails.summary.penalties_time}s</span>}
-                                            {selectedDriverDetails.summary.warnings > 0 && <span style={{ color: '#ff8700' }}>Warnings: {selectedDriverDetails.summary.warnings}</span>}
+
+                                        <div className="grid grid-4 gap-4" style={{ marginBottom: '2.5rem' }}>
+                                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                                                <div style={{ color: 'var(--silver)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Race Pos</div>
+                                                <div className="text-f1" style={{ fontSize: '1.5rem' }}>P{selectedDriverDetails.summary.position}</div>
+                                            </div>
+                                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                                                <div style={{ color: 'var(--silver)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Grid Pos</div>
+                                                <div className="text-f1" style={{ fontSize: '1.5rem' }}>P{selectedDriverDetails.summary.quali_position}</div>
+                                            </div>
+                                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                                                <div style={{ color: 'var(--silver)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Pit Stops</div>
+                                                <div className="text-f1" style={{ fontSize: '1.5rem', color: selectedDriverDetails.summary.pit_stops > 0 ? '#ff8700' : 'var(--silver)' }}>{selectedDriverDetails.summary.pit_stops}</div>
+                                            </div>
+                                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                                                <div style={{ color: 'var(--silver)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Penalties</div>
+                                                <div className="text-f1" style={{ fontSize: '1.5rem', color: selectedDriverDetails.summary.penalties_time > 0 ? 'var(--f1-red)' : 'var(--success)' }}>+{selectedDriverDetails.summary.penalties_time}s</div>
+                                            </div>
                                         </div>
 
                                         {fetchingDriver ? (
@@ -533,11 +592,16 @@ export default function Dashboard() {
                                                                     <td style={{ padding: '0.8rem' }}>
                                                                         {lap.tyre_compound ? (
                                                                             <span style={{
-                                                                                display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%',
-                                                                                background: getTyreColor(lap.tyre_compound),
+                                                                                display: 'inline-flex', justifyContent: 'center', alignItems: 'center',
+                                                                                width: '20px', height: '20px', borderRadius: '50%',
+                                                                                background: getTyreInfo(lap.tyre_compound).color,
+                                                                                color: getTyreInfo(lap.tyre_compound).textColor,
+                                                                                fontWeight: 900, fontSize: '0.65rem',
                                                                                 border: '1px solid rgba(255,255,255,0.3)',
                                                                                 marginRight: '6px'
-                                                                            }} title={`Tyre Compound ID: ${lap.tyre_compound}`} />
+                                                                            }} title={`Tyre Compound ID: ${lap.tyre_compound}`}>
+                                                                                {getTyreInfo(lap.tyre_compound).letter}
+                                                                            </span>
                                                                         ) : '-'}
                                                                     </td>
                                                                     <td style={{ padding: '0.8rem' }}>

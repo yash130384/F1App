@@ -24,7 +24,11 @@ export async function POST(req: Request) {
 
         // 1. Find or create active session
         let activeSession = await query<any>(
-            `SELECT id, is_active FROM telemetry_sessions WHERE league_id = ? AND is_active = true ORDER BY created_at DESC LIMIT 1`,
+            `SELECT id, is_active FROM telemetry_sessions 
+             WHERE league_id = ? 
+             AND is_active = true 
+             AND updated_at > NOW() - INTERVAL '2 minutes'
+             ORDER BY created_at DESC LIMIT 1`,
             [leagueId]
         );
 

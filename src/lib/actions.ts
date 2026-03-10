@@ -670,7 +670,11 @@ export async function updateRaceResults(leagueId: string, raceId: string, result
 export async function getActiveTelemetrySession(leagueId: string) {
     try {
         const active = await query<any>(
-            `SELECT * FROM telemetry_sessions WHERE league_id = ? AND is_active = true ORDER BY created_at DESC LIMIT 1`,
+            `SELECT * FROM telemetry_sessions 
+             WHERE league_id = ? 
+             AND is_active = true 
+             AND updated_at > NOW() - INTERVAL '2 minutes'
+             ORDER BY created_at DESC LIMIT 1`,
             [leagueId]
         );
         if (active.length > 0) {
@@ -987,6 +991,60 @@ export async function getDriverRaceTelemetry(raceId: string, driverId: string) {
         return { success: true, laps };
     } catch (error: any) {
         console.error('Fetch Telemetry Laps Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Fetches organized telemetry laps for all drivers in a race (for the race overview chart).
+ */
+export async function getAllDriversRaceTelemetry(raceId: string) {
+    try {
+        const session = await query<any>(`SELECT id FROM telemetry_sessions WHERE race_id = ? LIMIT 1`, [raceId]);
+        if (session.length === 0) return { success: true, laps: [], drivers: [] };
+
+        const sessionId = session[0].id;
+
+        const participants = await query<any>(`
+            SELECT tp.id, tp.driver_id, d.name as driver_name, d.color as driver_color
+            FROM telemetry_participants tp
+            JOIN drivers d ON d.id = tp.driver_id
+            WHERE tp.session_id = ? AND tp.driver_id IS NOT NULL
+        `, [sessionId]);
+
+        if (participants.length === 0) return { success: true, laps: [], drivers: [] };
+
+        const laps = await query<any>(`
+            SELECT tl.lap_number, tl.lap_time_ms, tl.participant_id
+            FROM telemetry_laps tl
+            JOIN telemetry_participants tp ON tp.id = tl.participant_id
+            WHERE tp.session_id = ? AND tl.is_valid = true AND tl.lap_time_ms > 0
+            ORDER BY tl.lap_number ASC
+        `, [sessionId]);
+
+        // Group by lap_number
+        const chartDataMap = new Map<number, any>();
+        laps.forEach((lap: any) => {
+            const pInfo = participants.find((p: any) => p.id === lap.participant_id);
+            if (!pInfo) return;
+
+            if (!chartDataMap.has(lap.lap_number)) {
+                chartDataMap.set(lap.lap_number, { lap_number: lap.lap_number });
+            }
+
+            const lapObj = chartDataMap.get(lap.lap_number);
+            lapObj[pInfo.driver_id] = lap.lap_time_ms;
+        });
+
+        const formattedLaps = Array.from(chartDataMap.values()).sort((a, b) => a.lap_number - b.lap_number);
+
+        return {
+            success: true,
+            laps: formattedLaps,
+            drivers: participants.map((p: any) => ({ id: p.driver_id, name: p.driver_name, color: p.driver_color }))
+        };
+    } catch (error: any) {
+        console.error('Fetch All Telemetry Laps Error:', error);
         return { success: false, error: error.message };
     }
 }
