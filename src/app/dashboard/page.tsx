@@ -126,6 +126,71 @@ function RaceGraphContent({ raceGraphData, raceGraphDrivers, showTyreLines, setS
     );
 }
 
+// Race Results Table Component
+interface RaceResultsTableProps {
+    raceResults: any[];
+    handleDriverClick: (driver: any) => void;
+    compact?: boolean;
+}
+
+function RaceResultsTable({ raceResults, handleDriverClick, compact = false }: RaceResultsTableProps) {
+    return (
+        <div className="flex flex-col" style={{ width: '100%' }}>
+            {raceResults.map((res, idx) => (
+                <div
+                    key={idx}
+                    className="flex justify-between items-center hover-row"
+                    style={{
+                        padding: compact ? '0.5rem 1rem' : '1rem',
+                        borderBottom: '1px solid rgba(255,255,255,0.05)',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s',
+                        fontSize: compact ? '0.8rem' : '1rem'
+                    }}
+                    onClick={() => handleDriverClick(res)}
+                >
+                    <div className="flex items-center gap-3">
+                        <span style={{ fontWeight: 900, width: '20px', color: 'var(--silver)', fontSize: compact ? '0.7rem' : '0.8rem' }}>{res.position}</span>
+                        <span style={{ display: 'inline-block', width: compact ? '10px' : '12px', height: compact ? '10px' : '12px', borderRadius: '50%', backgroundColor: res.driver_color || 'var(--silver)', border: '1px solid rgba(255,255,255,0.2)' }} title="Driver Color" />
+                        <span className="text-f1">{res.driver_name}</span>
+                    </div>
+                    <div className="flex gap-2 items-center">
+                        {res.pit_stops > 0 && <span title="Pit Stops" style={{ color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 600, marginRight: '0.5rem' }}>{res.pit_stops} Pits</span>}
+                        {res.penalties_time > 0 && <span title="Time Penalties" style={{ color: 'var(--f1-red)', fontSize: '0.7rem', fontWeight: 600, marginRight: '0.5rem' }}>+{res.penalties_time}s</span>}
+
+                        {res.is_dnf ? (
+                            <span style={{ color: 'var(--f1-red)', fontSize: '0.7rem', fontWeight: 900, background: 'rgba(255,24,1,0.1)', padding: '2px 8px', borderRadius: '4px' }}>DNF</span>
+                        ) : (
+                            <>
+                                {res.fastest_lap && <span title="Fastest Lap" style={{ background: '#9c27b0', color: 'white', fontSize: '0.6rem', padding: '2px 4px', borderRadius: '2px', fontWeight: 900 }}>FL</span>}
+                                {res.clean_driver && <span title="Clean Driver" style={{ background: 'var(--success)', color: 'white', fontSize: '0.6rem', padding: '2px 4px', borderRadius: '2px', fontWeight: 900 }}>CD</span>}
+                            </>
+                        )}
+                        {res.is_dropped && (
+                            <span title="Score Dropped from Standings" style={{ color: 'var(--white)', fontSize: '0.6rem', fontWeight: 900, background: 'var(--f1-red)', padding: '2px 6px', borderRadius: '2px', marginLeft: '0.2rem' }}>
+                                DROPPED
+                            </span>
+                        )}
+                        <span style={{
+                            fontWeight: 900,
+                            color: res.is_dropped ? 'var(--f1-red)' : 'var(--white)',
+                            marginLeft: '1rem',
+                            textDecoration: res.is_dropped ? 'line-through' : 'none',
+                            opacity: res.is_dropped ? 0.6 : 1,
+                            fontSize: compact ? '0.8rem' : '1rem'
+                        }}>
+                            {res.points_earned} <span style={{ fontSize: '0.7rem', opacity: 0.3 }}>PTS</span>
+                            <span style={{ marginLeft: '0.8rem', paddingLeft: '0.8rem', borderLeft: `1px solid ${res.is_dropped ? 'rgba(255,24,1,0.2)' : 'rgba(255,255,255,0.1)'}`, color: 'var(--silver)', fontSize: compact ? '0.7rem' : '0.8rem', textDecoration: 'none' }}>
+                                P{res.position} {res.quali_position > 0 && <span style={{ opacity: 0.5, fontSize: '0.7rem' }}>(Q{res.quali_position})</span>}
+                            </span>
+                        </span>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 export default function Dashboard() {
     const [leaguesList, setLeaguesList] = useState<any[]>([]);
     const [selectedLeagueName, setSelectedLeagueName] = useState<string | null>(null);
@@ -526,47 +591,7 @@ export default function Dashboard() {
                                                     </div>
                                                 ) : (
                                                     <>
-                                                        <div className="flex flex-col">
-                                                            {raceResults.map((res, idx) => (
-                                                                <div key={idx} className="flex justify-between items-center hover-row" style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', transition: 'background 0.2s' }} onClick={() => handleDriverClick(res)}>
-                                                                    <div className="flex items-center gap-3">
-                                                                        <span style={{ fontWeight: 900, width: '20px', color: 'var(--silver)', fontSize: '0.8rem' }}>{res.position}</span>
-                                                                        <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: res.driver_color || 'var(--silver)', border: '1px solid rgba(255,255,255,0.2)' }} title="Driver Color" />
-                                                                        <span className="text-f1">{res.driver_name}</span>
-                                                                    </div>
-                                                                    <div className="flex gap-2 items-center">
-                                                                        {res.pit_stops > 0 && <span title="Pit Stops" style={{ color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 600, marginRight: '0.5rem' }}>{res.pit_stops} Pits</span>}
-                                                                        {res.penalties_time > 0 && <span title="Time Penalties" style={{ color: 'var(--f1-red)', fontSize: '0.7rem', fontWeight: 600, marginRight: '0.5rem' }}>+{res.penalties_time}s</span>}
-
-                                                                        {res.is_dnf ? (
-                                                                            <span style={{ color: 'var(--f1-red)', fontSize: '0.7rem', fontWeight: 900, background: 'rgba(255,24,1,0.1)', padding: '2px 8px', borderRadius: '4px' }}>DNF</span>
-                                                                        ) : (
-                                                                            <>
-                                                                                {res.fastest_lap && <span title="Fastest Lap" style={{ background: '#9c27b0', color: 'white', fontSize: '0.6rem', padding: '2px 4px', borderRadius: '2px', fontWeight: 900 }}>FL</span>}
-                                                                                {res.clean_driver && <span title="Clean Driver" style={{ background: 'var(--success)', color: 'white', fontSize: '0.6rem', padding: '2px 4px', borderRadius: '2px', fontWeight: 900 }}>CD</span>}
-                                                                            </>
-                                                                        )}
-                                                                        {res.is_dropped && (
-                                                                            <span title="Score Dropped from Standings" style={{ color: 'var(--white)', fontSize: '0.6rem', fontWeight: 900, background: 'var(--f1-red)', padding: '2px 6px', borderRadius: '2px', marginLeft: '0.2rem' }}>
-                                                                                DROPPED
-                                                                            </span>
-                                                                        )}
-                                                                        <span style={{
-                                                                            fontWeight: 900,
-                                                                            color: res.is_dropped ? 'var(--f1-red)' : 'var(--white)',
-                                                                            marginLeft: '1rem',
-                                                                            textDecoration: res.is_dropped ? 'line-through' : 'none',
-                                                                            opacity: res.is_dropped ? 0.6 : 1
-                                                                        }}>
-                                                                            {res.points_earned} <span style={{ fontSize: '0.7rem', opacity: 0.3 }}>PTS</span>
-                                                                            <span style={{ marginLeft: '0.8rem', paddingLeft: '0.8rem', borderLeft: `1px solid ${res.is_dropped ? 'rgba(255,24,1,0.2)' : 'rgba(255,255,255,0.1)'}`, color: 'var(--silver)', fontSize: '0.8rem', textDecoration: 'none' }}>
-                                                                                P{res.position} {res.quali_position > 0 && <span style={{ opacity: 0.5, fontSize: '0.7rem' }}>(Q{res.quali_position})</span>}
-                                                                            </span>
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
+                                                        <RaceResultsTable raceResults={raceResults} handleDriverClick={handleDriverClick} />
 
                                                         {raceGraphData.length > 0 && (
                                                             <div style={{ marginTop: '2rem', padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
@@ -607,24 +632,57 @@ export default function Dashboard() {
                                 <div style={{
                                     position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
                                     background: 'var(--f1-carbon-dark)', zIndex: 2000, display: 'flex',
-                                    flexDirection: 'column', padding: '1rem'
+                                    flexDirection: 'column', padding: '1.5rem', overflow: 'hidden'
                                 }}>
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h2 className="text-f1" style={{ fontSize: '1.5rem', margin: 0 }}>{selectedRace?.track} - Full Race Pace</h2>
+                                    <div className="flex justify-between items-center mb-6" style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                        <div className="flex items-center gap-4">
+                                            <h2 className="text-f1" style={{ fontSize: '1.5rem', margin: 0, color: 'var(--white)' }}>{selectedRace?.track} - Full Race Pace</h2>
+                                        </div>
                                         <button className="btn-secondary" onClick={() => setShowFullScreenGraph(false)}>
                                             Close X
                                         </button>
                                     </div>
-                                    <div style={{ flex: 1, position: 'relative' }}>
-                                        <RaceGraphContent
-                                            raceGraphData={raceGraphData}
-                                            raceGraphDrivers={raceGraphDrivers}
-                                            showTyreLines={showTyreLines}
-                                            setShowTyreLines={setShowTyreLines}
-                                            formatLapTime={formatLapTime}
-                                            getTyreInfo={getTyreInfo}
-                                            isFullscreen={true}
-                                        />
+
+                                    <div className="fullscreen-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', flex: 1, minHeight: 0 }}>
+                                        {/* Results Sidebar in Fullscreen */}
+                                        <div className="f1-card" style={{
+                                            padding: 0,
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            background: 'rgba(0,0,0,0.2)',
+                                            maxHeight: '100%',
+                                            overflow: 'hidden',
+                                            border: '1px solid var(--glass-border)'
+                                        }}>
+                                            <div style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,24,1,0.05)' }}>
+                                                <h3 className="text-f1" style={{ fontSize: '0.8rem', margin: 0, color: 'var(--f1-red)' }}>RACE RESULTS</h3>
+                                            </div>
+                                            <div style={{ flex: 1, overflowY: 'auto' }}>
+                                                <RaceResultsTable raceResults={raceResults} handleDriverClick={handleDriverClick} compact={true} />
+                                            </div>
+                                        </div>
+
+                                        {/* Main Graph Area */}
+                                        <div className="f1-card fullscreen-graph-area" style={{
+                                            gridColumn: 'span 3',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            height: '100%',
+                                            padding: '1rem',
+                                            background: 'rgba(0,0,0,0.1)',
+                                            border: '1px solid var(--glass-border)',
+                                            minHeight: '400px'
+                                        }}>
+                                            <RaceGraphContent
+                                                raceGraphData={raceGraphData}
+                                                raceGraphDrivers={raceGraphDrivers}
+                                                showTyreLines={showTyreLines}
+                                                setShowTyreLines={setShowTyreLines}
+                                                formatLapTime={formatLapTime}
+                                                getTyreInfo={getTyreInfo}
+                                                isFullscreen={true}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -765,6 +823,14 @@ export default function Dashboard() {
           .container { padding: 1rem 0.5rem !important; }
           .dashboard-standings table th, .dashboard-standings table td { padding: 0.8rem 0.4rem !important; }
           .dashboard-standings table td:last-child { padding-right: 0.8rem !important; }
+        }
+        @media (max-width: 1024px) {
+          .fullscreen-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .fullscreen-graph-area {
+            grid-column: span 1 !important;
+          }
         }
         .hover-row:hover {
             background: rgba(255,255,255,0.1) !important;
