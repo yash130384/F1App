@@ -19,7 +19,7 @@ interface RaceGraphContentProps {
 
 function RaceGraphContent({ raceGraphData, raceGraphDrivers, showTyreLines, setShowTyreLines, formatLapTime, getTyreInfo, isFullscreen }: RaceGraphContentProps) {
     return (
-        <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minWidth: 0, boxSizing: 'border-box' }}>
             {isFullscreen && (
                 <div style={{ marginBottom: '1rem' }}>
                     <button
@@ -683,6 +683,7 @@ export default function Dashboard() {
                                             border: '1px solid var(--glass-border)',
                                             width: '100%',
                                             minHeight: '250px',
+                                            minWidth: 0,
                                             overflow: 'hidden',
                                             boxSizing: 'border-box'
                                         }}>
