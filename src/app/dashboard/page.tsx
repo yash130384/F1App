@@ -11,7 +11,7 @@ interface RaceGraphContentProps {
     raceGraphData: any[];
     raceGraphDrivers: any[];
     showTyreLines: boolean;
-    setShowTyreLines: Dispatch<SetStateAction<boolean>>;
+    setShowTyreLines: React.Dispatch<React.SetStateAction<boolean>>;
     formatLapTime: (ms: number) => string;
     getTyreInfo: (id: number) => any;
     isFullscreen: boolean;
@@ -277,15 +277,8 @@ export default function Dashboard() {
         if (res.success) {
             setSelectedRace(res.race);
             setRaceResults(res.results || []);
-
-            const graphRes = await getAllDriversRaceTelemetry(raceId);
-            if (graphRes.success) {
-                setRaceGraphData(graphRes.laps || []);
-                setRaceGraphDrivers(graphRes.drivers || []);
-            } else {
-                setRaceGraphData([]);
-                setRaceGraphDrivers([]);
-            }
+            setRaceGraphData([]);
+            setRaceGraphDrivers([]);
         } else {
             alert(res.error || 'Failed to load race details.');
         }
@@ -920,7 +913,7 @@ export default function Dashboard() {
                                                                     <td style={{ padding: '0.65rem 0.5rem', color: 'var(--silver)', fontSize: '0.8rem' }}>{lap.sector2_ms ? formatLapTime(lap.sector2_ms) : '-'}</td>
                                                                     <td style={{ padding: '0.65rem 0.5rem', color: 'var(--silver)', fontSize: '0.8rem' }}>{lap.sector3_ms ? formatLapTime(lap.sector3_ms) : '-'}</td>
                                                                     <td style={{ padding: '0.65rem 0.5rem' }}>
-                                                                        {lap.tyre_compound ? <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', background: getTyreColor(lap.tyre_compound), border: '1px solid rgba(255,255,255,0.3)' }} title={`Compound ${lap.tyre_compound}`} /> : '-'}
+                                                                        {lap.tyre_compound ? <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', background: getTyreInfo(lap.tyre_compound).color, border: '1px solid rgba(255,255,255,0.3)' }} title={`Compound ${lap.tyre_compound}`} /> : '-'}
                                                                     </td>
                                                                     <td style={{ padding: '0.65rem 0.5rem' }}>
                                                                         {lap.is_pit_lap && <span style={{ background: '#ff8700', color: 'white', fontSize: '0.6rem', padding: '1px 5px', borderRadius: '3px', fontWeight: 900 }}>PIT</span>}
