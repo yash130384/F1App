@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getDashboardData, getAllLeagues, getRaceDetails, deleteRace, getActiveTelemetrySession, getDriverRaceTelemetry, getDriverPositionHistory, getSessionSafetyCarEvents } from '@/lib/actions';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { getDashboardData, getAllLeagues, getRaceDetails, deleteRace, getActiveTelemetrySession } from '@/lib/actions';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 import RaceCountdown from './RaceCountdown';
 import LiveTrackMap from './LiveTrackMap';
 
@@ -223,6 +225,8 @@ export default function Dashboard() {
     const [fetchingRace, setFetchingRace] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const router = useRouter();
+
     // Fetch all leagues on mount
     useEffect(() => {
         async function loadInitialLeagues() {
@@ -285,45 +289,11 @@ export default function Dashboard() {
         setFetchingRace(false);
     };
 
-    const handleDriverClick = async (driverRes: any) => {
-        if (!selectedRace) return;
-
-        // Scroll to top of window
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        setFetchingDriver(true);
-        setDriverPositionHistory([]);
-        setSafetyCarEvents([]);
-        setSessionIdForDriver(null);
-        setSelectedDriverDetails({ summary: driverRes, laps: [] });
-
-        const [telRes, posRes] = await Promise.all([
-            getDriverRaceTelemetry(selectedRace.id, driverRes.driver_id),
-            getDriverPositionHistory(selectedRace.id, driverRes.driver_id),
-        ]);
-
-        if (telRes.success) {
-            setSelectedDriverDetails({ summary: driverRes, laps: telRes.laps || [] });
-        } else {
-            alert('Telemetrie konnte nicht geladen werden.');
-            setSelectedDriverDetails(null);
-            setFetchingDriver(false);
-            return;
+    // Fahrer-Klick → zur Renndetailseite navigieren
+    const handleDriverClick = (driverRes: any) => {
+        if (selectedRace?.id) {
+            router.push(`/race/${selectedRace.id}`);
         }
-
-        if (posRes.success && posRes.positions && posRes.positions.length > 0) {
-            // Nur Positionen des aktuellen Fahrers per carIndex filtern
-            const gameName = posRes.gameName;
-            setDriverPositionHistory(posRes.positions);
-            setSessionIdForDriver(posRes.sessionId || null);
-            // Safety-Car-Events für die Session laden
-            if (posRes.sessionId) {
-                const scRes = await getSessionSafetyCarEvents(posRes.sessionId);
-                if (scRes.success) setSafetyCarEvents(scRes.events || []);
-            }
-        }
-
-        setFetchingDriver(false);
     };
 
     const getTyreInfo = (compoundId: number) => {
@@ -578,20 +548,24 @@ export default function Dashboard() {
                                     <h2 className="text-f1" style={{ marginBottom: '1rem', fontSize: '1.2rem', color: 'var(--f1-red)', opacity: 0.8 }}>RECENT RACES</h2>
                                     <div className="flex flex-col gap-2">
                                         {races.map(race => (
-                                            <button
+                                            <Link
                                                 key={race.id}
-                                                className={`f1-card race-select-btn ${selectedRace?.id === race.id ? 'active' : ''}`}
-                                                onClick={() => selectRace(race.id)}
-                                                style={{ width: '100%', textAlign: 'left', border: 'none' }}
+                                                href={`/race/${race.id}`}
+                                                style={{ textDecoration: 'none' }}
                                             >
-                                                <div className="flex justify-between items-center">
-                                                    <div>
-                                                        <div style={{ fontSize: '0.6rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '1px' }} suppressHydrationWarning>{new Date(race.created_at).toLocaleDateString()}</div>
-                                                        <div className="text-f1" style={{ fontSize: '1rem', color: 'var(--white)' }}>{race.track || 'Unknown Track'}</div>
+                                                <div
+                                                    className="f1-card hover-f1 race-select-btn"
+                                                    style={{ width: '100%', textAlign: 'left' }}
+                                                >
+                                                    <div className="flex justify-between items-center">
+                                                        <div>
+                                                            <div style={{ fontSize: '0.6rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '1px' }} suppressHydrationWarning>{new Date(race.created_at).toLocaleDateString()}</div>
+                                                            <div className="text-f1" style={{ fontSize: '1rem', color: 'var(--white)' }}>{race.track || 'Unknown Track'}</div>
+                                                        </div>
+                                                        <div style={{ opacity: 0.4, color: 'var(--f1-red)', fontSize: '1.2rem' }}>&rarr;</div>
                                                     </div>
-                                                    <div style={{ opacity: selectedRace?.id === race.id ? 1 : 0.3 }}>&rarr;</div>
                                                 </div>
-                                            </button>
+                                            </Link>
                                         ))}
                                         {races.length === 0 && <div className="f1-card" style={{ padding: '2rem', textAlign: 'center', opacity: 0.5 }}>No races recorded.</div>}
                                     </div>
