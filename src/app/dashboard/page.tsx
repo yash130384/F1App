@@ -550,7 +550,7 @@ export default function Dashboard() {
                                         {races.map(race => (
                                             <Link
                                                 key={race.id}
-                                                href={`/race/${race.id}`}
+                                                href={`/race/${race.id}?league=${encodeURIComponent(selectedLeagueName || '')}`}
                                                 style={{ textDecoration: 'none' }}
                                             >
                                                 <div

@@ -421,7 +421,12 @@ export async function getAllLeagues() {
  */
 export async function getRaceDetails(raceId: string) {
     try {
-        const race = await query<any>(`SELECT * FROM races WHERE id = ?`, [raceId]);
+        const race = await query<any>(`
+            SELECT r.*, l.name as league_name
+            FROM races r
+            JOIN leagues l ON l.id = r.league_id
+            WHERE r.id = ?
+        `, [raceId]);
         if (race.length === 0) throw new Error('Race not found.');
 
         const results = await query<any>(`
@@ -432,12 +437,17 @@ export async function getRaceDetails(raceId: string) {
             ORDER BY rr.position ASC
         `, [raceId]);
 
-        return { success: true, race: race[0], results };
+        // Session-ID f\u00fcr Safety-Car-Events (optional)
+        const sessionRow = await query<any>(`SELECT id FROM telemetry_sessions WHERE race_id = ? LIMIT 1`, [raceId]);
+        const telemetrySessionId = sessionRow.length > 0 ? sessionRow[0].id : null;
+
+        return { success: true, race: race[0], results, telemetrySessionId };
     } catch (error: any) {
         console.error('Fetch Race Details Error:', error);
         return { success: false, error: error.message };
     }
 }
+
 
 /**
  * Seeds the database with test data.
