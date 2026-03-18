@@ -1,36 +1,102 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# F1App – Ligaverwaltung & Telemetrie-Dashboard
 
-## Getting Started
+Eine Next.js-Anwendung zur Verwaltung von F1-Ligen, Rennergebnissen und Live-Telemetrie-Auswertung aus F1 25.
 
-First, run the development server:
+## Features
+
+- 🏆 Liga- und Fahrerverwaltung mit individuellem Punktesystem
+- 🏁 Rennergebnisse mit automatischer Wertungsberechnung (inkl. Streichresultate)
+- 📊 Meisterschaftsverlauf als Graph
+- 📡 Live-Telemetrie-Integration mit UDP-Router
+- 🔍 Detaillierte Fahrerauswertung: Sektorzeiten, Reifenstrategie, Schadensreport
+- 📈 Positionsverlauf-Graph pro Runde
+- 🚗 Safety-Car-Phasen als Referenzlinien in Telemetrie-Graphen
+
+## Voraussetzungen
+
+- Node.js 18+
+- PostgreSQL-Datenbank (empfohlen: [Neon](https://neon.tech))
+- F1 25 (PC/Konsole) mit aktivierter UDP-Telemetrie
+- Telemetry-Router (im Unterordner `telemetry-router/`)
+
+## Setup
+
+### 1. Repository klonen
+
+```bash
+git clone <repo-url>
+cd F1App
+```
+
+### 2. Abhängigkeiten installieren
+
+```bash
+npm install
+```
+
+### 3. Umgebungsvariablen konfigurieren
+
+Datei `.env.local` im Hauptverzeichnis erstellen:
+
+```env
+DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+```
+
+### 4. Datenbank initialisieren
+
+Die Schema-Initialisierung erfolgt automatisch beim ersten Start der App.  
+Optional kann die Migration manuell ausgeführt werden:
+
+```bash
+node scripts/migrate_to_neon.mjs
+```
+
+### 5. App starten
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Die App ist unter [http://localhost:3000](http://localhost:3000) erreichbar.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Nutzung
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Liga anlegen
 
-## Learn More
+1. Im Admin-Bereich (`/admin`) eine neue Liga erstellen
+2. Fahrer hinzufügen und optional **In-Game Namen** vergeben (für Telemetrie-Zuordnung)
+3. Punktekonfiguration anpassen
 
-To learn more about Next.js, take a look at the following resources:
+### Rennen manually hinzufügen
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Im Admin-Bereich unter „Ergebnisse" → Ergebnis manuell eintragen.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Telemetrie-Integration
 
-## Deploy on Vercel
+1. Telemetry-Router starten (siehe `telemetry-router/README.md`)
+2. F1 25 UDP-Telemetrie aktivieren (IP des PCs, Port 20777)
+3. Rennen fahren – Daten werden automatisch erfasst und am Saisonende promoted
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Admin-Hub
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Erreichbar unter `/admin` mit dem Admin-Passwort der Liga:
+- Spieler zuordnen
+- Sessions promoten
+- Ergebnisse korrigieren
+
+## Technologie
+
+- **Framework**: Next.js 15 (App Router)
+- **Datenbank**: PostgreSQL via Neon (serverless)
+- **Styling**: Vanilla CSS (F1-Design-System)
+- **Charts**: Recharts
+- **Telemetrie**: Node.js UDP-Router (separates Paket)
+
+## Fehlerbehebung
+
+| Problem | Lösung |
+|---|---|
+| Datenbank verbindet nicht | `DATABASE_URL` in `.env.local` prüfen |
+| Telemetrie wird nicht erfasst | Router läuft? F1-UDP-IP korrekt? |
+| Fahrer nicht zugeordnet | In-Game-Namen im Admin setzen |
+| Build-Fehler | `npm install` erneut ausführen |

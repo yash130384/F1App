@@ -900,10 +900,21 @@ export default function AdminHub() {
                                 <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
                                     <div>
                                         <h2 className="text-f1 text-gradient" style={{ fontSize: '2.5rem', letterSpacing: '-2px' }}>MANAGE SESSION</h2>
-                                        <p style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Recorded: {new Date(managingSession.created_at).toLocaleString()}</p>
+                                        <p style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Aufgezeichnet: {new Date(managingSession.created_at).toLocaleString()}</p>
                                     </div>
                                     <div className="flex gap-4">
-                                        <button onClick={() => setManagingSession(null)} className="btn-secondary">BACK TO SESSIONS</button>
+                                        <button
+                                            onClick={() => {
+                                                if (confirm('Session-Zuordnung zurücksetzen? Die Teilnehmer-Zuordnungen bleiben erhalten, du kehrst nur zur Sesssion-Übersicht zurück.')) {
+                                                    setManagingSession(null);
+                                                }
+                                            }}
+                                            className="btn-secondary"
+                                            style={{ background: 'rgba(255,24,1,0.1)', borderColor: 'rgba(255,24,1,0.3)', color: 'var(--f1-red)', fontSize: '0.7rem' }}
+                                        >
+                                            ↩ RESET / ZURÜCK
+                                        </button>
+                                        <button onClick={() => setManagingSession(null)} className="btn-secondary">ZURÜCK ZU SESSIONS</button>
                                     </div>
                                 </header>
 
@@ -956,7 +967,8 @@ export default function AdminHub() {
                                         <div style={{ flex: 1 }}>
                                             <h3 className="text-f1" style={{ fontSize: '1.2rem', color: 'var(--f1-red)' }}>PROMOTE TO CHAMPIONSHIP RACE</h3>
                                             <p style={{ fontSize: '0.85rem', color: 'var(--silver)', marginTop: '0.5rem' }}>
-                                                Select a track and save this session as an Official Race Result. Points will be automatically calculated out of the assigned drivers based on your League rules. Unassigned drivers will not receive points.
+                                                Strecke auswählen und Session als offizielles Rennergebnis speichern. Punkte werden automatisch berechnet.
+                                                <strong style={{ color: '#ffc107' }}> Nicht zugeordnete Fahrer erhalten automatisch DNF und 0 Punkte.</strong>
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-4">

@@ -8,10 +8,12 @@ function parseSession(buffer) {
         sessionTypeMapped = "Practice";
     else if (sessionTypeRaw >= 5 && sessionTypeRaw <= 9)
         sessionTypeMapped = "Qualifying";
-    else if (sessionTypeRaw >= 10 && sessionTypeRaw <= 12)
+    else if (sessionTypeRaw >= 10 && sessionTypeRaw <= 15)
         sessionTypeMapped = "Race";
     else if (sessionTypeRaw === 13)
         sessionTypeMapped = "Time Trial";
+    else
+        sessionTypeMapped = `Unknown_${sessionTypeRaw}`;
     const marshalZones = [];
     for (let i = 0; i < 21; i++) {
         const offset = 48 + (i * 5);

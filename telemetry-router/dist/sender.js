@@ -32,27 +32,45 @@ function startSender(config, state) {
         });
         return;
     }
-    // Live Routing
     console.log(`Starting Live Routing to ${config.url} every ${config.intervalMs}ms`);
+    let skipCount = 0;
     setInterval(async () => {
         const payload = state.buildPayloadAndClear();
-        if (payload.sessionType !== 'Unknown' && payload.participants.length > 0) {
+        // Only send if it's a Race session (Type 15) and there are human participants
+        const hasHumans = payload.participants.some(p => p.isHuman);
+        const isSession15 = payload.sessionData?.sessionTypeRaw === 15;
+        if (isSession15 && hasHumans) {
+            skipCount = 0; // reset
             const body = {
                 leagueId: config.leagueId,
                 packet: payload
             };
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
             try {
                 const res = await (0, node_fetch_1.default)(config.url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
+                    body: JSON.stringify(body),
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
                 if (!res.ok) {
                     console.error(`Failed to send chunk, HTTP status: ${res.status}`);
                 }
+                else {
+                    console.log(`Successfully sent ${payload.participants.length} participants telemetry`);
+                }
             }
             catch (e) {
+                clearTimeout(timeoutId);
                 console.error(`Error sending telemetry: ${e.message}`);
+            }
+        }
+        else {
+            skipCount++;
+            if (skipCount % 5 === 0) {
+                console.log(`[!] Skipping send: sessionType=${payload.sessionType}, participants=${payload.participants.length}`);
             }
         }
     }, config.intervalMs);

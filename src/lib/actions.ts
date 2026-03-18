@@ -808,41 +808,73 @@ export async function promoteTelemetryToRace(leagueId: string, adminPass: string
             throw new Error('Unauthorized.');
         }
 
-        // 1. Get telemetry participants
+        // 1. Alle Teilnehmer laden (inkl. nicht zugeordnete)
         const participants = await query<any>(
             `SELECT tp.*, 
             (SELECT MIN(lap_time_ms) FROM telemetry_laps tl WHERE tl.participant_id = tp.id AND tl.is_valid = true) as fastest_lap_ms
             FROM telemetry_participants tp 
-            WHERE tp.session_id = ? AND tp.driver_id IS NOT NULL
+            WHERE tp.session_id = ?
             ORDER BY tp.position ASC`,
             [sessionId]
         );
 
-        if (participants.length === 0) {
-            throw new Error('No assigned drivers found in this session to promote.');
+        // Mindestens 1 zugeordneter Fahrer muss vorhanden sein
+        const assignedParticipants = participants.filter((p: any) => p.driver_id);
+        if (assignedParticipants.length === 0) {
+            throw new Error('Keine zugeordneten Fahrer in der Session gefunden.');
         }
 
-        // Find overall fastest lap to mark it
+        // Schnellste Runde nur unter zugeordneten Fahrern bestimmen
         let minLap = Infinity;
         let fastestDriverId: string | null = null;
-        for (const p of participants) {
+        for (const p of assignedParticipants) {
             if (p.fastest_lap_ms && p.fastest_lap_ms < minLap) {
                 minLap = p.fastest_lap_ms;
                 fastestDriverId = p.driver_id;
             }
         }
 
-        const resultsToSave = participants.map((p: any) => ({
-            driver_id: p.driver_id,
-            position: p.position || 0,
-            quali_position: p.start_position || 0,
-            fastest_lap: p.driver_id === fastestDriverId,
-            clean_driver: (p.warnings || 0) === 0 && (p.penalties_time || 0) === 0,
-            is_dnf: false,
-            pit_stops: p.pit_stops || 0,
-            warnings: p.warnings || 0,
-            penalties_time: p.penalties_time || 0
-        }));
+        const resultsToSave = participants.map((p: any) => {
+            if (!p.driver_id) return null; // Nicht zugeordnet → wird unten als DNF per Liga-Fahrer ergänzt
+            return {
+                driver_id: p.driver_id,
+                position: p.position || 0,
+                quali_position: p.start_position || 0,
+                fastest_lap: p.driver_id === fastestDriverId,
+                clean_driver: (p.warnings || 0) === 0 && (p.penalties_time || 0) === 0,
+                is_dnf: false,
+                pit_stops: p.pit_stops || 0,
+                warnings: p.warnings || 0,
+                penalties_time: p.penalties_time || 0
+            };
+        }).filter(Boolean);
+
+        // Alle Liga-Fahrer die NICHT in der Session erschienen sind, erhalten DNF
+        // (Fahrer die in der Liga sind, aber nicht im Rennen waren)
+        // Diese werden außerhalb hinzugefügt durch saveRaceResults falls benötigt.
+        // Hier: Alle Teilnehmer OHNE driver_id bekommen separaten DNF-Eintrag falls sie einem Liga-Fahrer entsprechen.
+        // Wir holen alle Liga-Fahrer und fügen fehlende als DNF hinzu:
+        const allLeagueDrivers = await query<any>(
+            `SELECT id FROM drivers WHERE league_id = ?`,
+            [leagueId]
+        );
+        const presentDriverIds = new Set(resultsToSave.map((r: any) => r.driver_id));
+        for (const ld of allLeagueDrivers) {
+            if (!presentDriverIds.has(ld.id)) {
+                // Fahrer war nicht im Rennen (oder nicht zugeordnet) → DNF mit 0 Punkten
+                resultsToSave.push({
+                    driver_id: ld.id,
+                    position: 0,
+                    quali_position: 0,
+                    fastest_lap: false,
+                    clean_driver: false,
+                    is_dnf: true,
+                    pit_stops: 0,
+                    warnings: 0,
+                    penalties_time: 0
+                });
+            }
+        }
 
         // 2. Reuse the saveRaceResults logic
         const saveRes = await saveRaceResults(leagueId, track, resultsToSave, existingRaceId);
@@ -926,6 +958,8 @@ export async function deleteTelemetrySession(sessionId: string, leagueId: string
         const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
         if (leagues.length === 0 || leagues[0].admin_password !== adminPass) throw new Error('Unauthorized.');
 
+        await run(`DELETE FROM telemetry_safety_car_events WHERE session_id = ?`, [sessionId]);
+        await run(`DELETE FROM telemetry_position_history WHERE session_id = ?`, [sessionId]);
         await run(`DELETE FROM telemetry_laps WHERE participant_id IN (SELECT id FROM telemetry_participants WHERE session_id = ?)`, [sessionId]);
         await run(`DELETE FROM telemetry_participants WHERE session_id = ?`, [sessionId]);
         await run(`DELETE FROM telemetry_sessions WHERE id = ? AND league_id = ?`, [sessionId, leagueId]);
@@ -978,7 +1012,8 @@ export async function getDriverRaceTelemetry(raceId: string, driverId: string) {
         const participantId = participant[0].id;
 
         const laps = await query<any>(`
-            SELECT lap_number, lap_time_ms, is_valid, tyre_compound, is_pit_lap
+            SELECT lap_number, lap_time_ms, is_valid, tyre_compound, is_pit_lap,
+                   sector1_ms, sector2_ms, sector3_ms, car_damage_json
             FROM telemetry_laps
             WHERE participant_id = ?
             ORDER BY lap_number ASC
@@ -986,7 +1021,74 @@ export async function getDriverRaceTelemetry(raceId: string, driverId: string) {
 
         return { success: true, laps };
     } catch (error: any) {
-        console.error('Fetch Telemetry Laps Error:', error);
+        console.error('Telemetrie-Runden Fehler:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Lädt den Positionsverlauf eines Fahrers für ein Rennen (aus telemetry_position_history).
+ */
+export async function getDriverPositionHistory(raceId: string, driverId: string) {
+    try {
+        const session = await query<any>(`SELECT id FROM telemetry_sessions WHERE race_id = ? LIMIT 1`, [raceId]);
+        if (session.length === 0) return { success: true, positions: [] };
+
+        const sessionId = session[0].id;
+
+        // Fahrzeug-Index über den Teilnehmer-Datensatz bestimmen
+        const participant = await query<any>(
+            `SELECT id FROM telemetry_participants WHERE session_id = ? AND driver_id = ? LIMIT 1`,
+            [sessionId, driverId]
+        );
+        if (participant.length === 0) return { success: true, positions: [] };
+
+        // car_index aus der session via game_name ermitteln:
+        // Position-Historie ist nach car_index gespeichert, daher brauchen wir den Mapping-Weg.
+        // Wir holen alle Positionen für diese Session und gleichen über den Fahrer-Namen ab.
+        const participantGameName = await query<any>(
+            `SELECT game_name FROM telemetry_participants WHERE id = ?`,
+            [participant[0].id]
+        );
+        if (participantGameName.length === 0) return { success: true, positions: [] };
+
+        // Der car_index ist nicht direkt gespeichert, daher nutzen wir die Reihenfolge der Teilnehmer.
+        // Alternativ: Alle Positions-Historien für die Session laden und nach Übereinstimmung mit bekannten
+        // Rundendaten des Fahrers filtern.
+        // Einfachster Ansatz: Wir geben alle Positionen per car_index zurück, die der Fahrer-Position entsprechen.
+        // Da wir nicht direkt den car_index im participant speichern, laden wir alle Positionen
+        // und versuchen anhand der Rundenzeiten die beste Übereinstimmung.
+        // Praktischer: Wir speichern alle Positionen und lassen das Frontend nur jene anzeigen,
+        // die zu den Rundennummern des Fahrers passen.
+        // HIER: Direktabfrage nach session_id und dem car_index-Mapping über einen Vergleich.
+        // Da car_index intern vergeben wird, geben wir alle Positionen der Session zurück.
+        const allPositions = await query<any>(`
+            SELECT car_index, lap_number, position
+            FROM telemetry_position_history
+            WHERE session_id = ?
+            ORDER BY lap_number ASC, car_index ASC
+        `, [sessionId]);
+
+        return { success: true, positions: allPositions, sessionId, participantId: participant[0].id, gameName: participantGameName[0].game_name };
+    } catch (error: any) {
+        console.error('Positionsverlauf Fehler:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Lädt Safety-Car-Events für eine Session.
+ */
+export async function getSessionSafetyCarEvents(sessionId: string) {
+    try {
+        const events = await query<any>(`
+            SELECT safety_car_type, event_type, lap_number
+            FROM telemetry_safety_car_events
+            WHERE session_id = ?
+            ORDER BY lap_number ASC
+        `, [sessionId]);
+        return { success: true, events };
+    } catch (error: any) {
         return { success: false, error: error.message };
     }
 }

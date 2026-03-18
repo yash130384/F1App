@@ -97,7 +97,26 @@ const SCHEMA = [
   `ALTER TABLE telemetry_participants ADD COLUMN IF NOT EXISTS warnings INTEGER DEFAULT 0`,
   `ALTER TABLE telemetry_participants ADD COLUMN IF NOT EXISTS penalties_time INTEGER DEFAULT 0`,
   `ALTER TABLE telemetry_laps ADD COLUMN IF NOT EXISTS tyre_compound INTEGER`,
-  `ALTER TABLE telemetry_laps ADD COLUMN IF NOT EXISTS is_pit_lap BOOLEAN DEFAULT false`
+  `ALTER TABLE telemetry_laps ADD COLUMN IF NOT EXISTS is_pit_lap BOOLEAN DEFAULT false`,
+  `ALTER TABLE telemetry_laps ADD COLUMN IF NOT EXISTS sector1_ms INTEGER`,
+  `ALTER TABLE telemetry_laps ADD COLUMN IF NOT EXISTS sector2_ms INTEGER`,
+  `ALTER TABLE telemetry_laps ADD COLUMN IF NOT EXISTS sector3_ms INTEGER`,
+  `ALTER TABLE telemetry_laps ADD COLUMN IF NOT EXISTS car_damage_json TEXT`,
+  `CREATE TABLE IF NOT EXISTS telemetry_safety_car_events (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id TEXT NOT NULL,
+    safety_car_type INTEGER NOT NULL,
+    event_type INTEGER NOT NULL,
+    lap_number INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS telemetry_position_history (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id TEXT NOT NULL,
+    car_index INTEGER NOT NULL,
+    lap_number INTEGER NOT NULL,
+    position INTEGER NOT NULL
+  )`
 ];
 
 const initSchema = async () => {
