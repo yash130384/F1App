@@ -56,6 +56,67 @@ function TyreBadge({ compoundId }: { compoundId: number }) {
     );
 }
 
+// ── Schaden-Erkennung ─────────────────────────────────────────────────────────
+
+const DAMAGE_PARTS: { key: string; label: string; wing?: boolean }[] = [
+    { key: 'frontLeftWingDamage',  label: 'FL-Flügel',   wing: true },
+    { key: 'frontRightWingDamage', label: 'FR-Flügel',   wing: true },
+    { key: 'rearWingDamage',       label: 'Heckflügel',  wing: true },
+    { key: 'floorDamage',          label: 'Unterboden' },
+    { key: 'diffuserDamage',        label: 'Diffusor' },
+    { key: 'sidepodDamage',        label: 'Sidepod' },
+    { key: 'gearBoxDamage',        label: 'Getriebe' },
+    { key: 'engineDamage',         label: 'Motor' },
+    { key: 'engineBlown',          label: 'Motor ausgefallen' },
+];
+
+interface DamageEvent {
+    lap: number;
+    newDamages: { label: string; from: number; to: number }[];
+    repairs:    { label: string; from: number; to: number }[];
+    isPitLap: boolean;
+}
+
+function computeDamageEvents(laps: any[]): DamageEvent[] {
+    const events: DamageEvent[] = [];
+    let prev: Record<string, number> = {};
+
+    laps.forEach((lap: any) => {
+        if (!lap.car_damage_json) return;
+        let curr: Record<string, number>;
+        try { curr = JSON.parse(lap.car_damage_json); } catch { return; }
+
+        const newDamages: DamageEvent['newDamages'] = [];
+        const repairs:    DamageEvent['repairs']    = [];
+
+        DAMAGE_PARTS.forEach(({ key, label }) => {
+            const from = prev[key] ?? 0;
+            const to   = key === 'engineBlown' ? (curr[key] ? 100 : 0) : (curr[key] ?? 0);
+            if (to > from)    newDamages.push({ label, from, to });
+            else if (to < from) repairs.push({ label, from, to }); // repariert
+        });
+
+        if (newDamages.length > 0 || repairs.length > 0) {
+            events.push({ lap: lap.lap_number, newDamages, repairs, isPitLap: !!lap.is_pit_lap });
+        }
+        DAMAGE_PARTS.forEach(({ key }) => {
+            prev[key] = key === 'engineBlown' ? (curr[key] ? 100 : 0) : (curr[key] ?? 0);
+        });
+    });
+    return events;
+}
+
+// Custom Label-Komponente für Chart-Referenzlinien (Pit / Schaden / Reparatur)
+function ChartEventLabel({ viewBox, value, color, bg }: any) {
+    const { x, y } = viewBox;
+    return (
+        <g>
+            <rect x={x - 8} y={y + 4} width={16} height={14} rx={3} fill={bg} fillOpacity={0.92} />
+            <text x={x} y={y + 14} textAnchor="middle" fill={color} fontSize={8} fontWeight={900} fontFamily="monospace">{value}</text>
+        </g>
+    );
+}
+
 // Tooltip für den Alle-Fahrer-Graph: zeigt aktuelle Reifen pro Fahrer
 function AllDriversTooltip({ active, payload, label, drivers, graphData }: any) {
     if (!active || !payload || payload.length === 0) return null;
@@ -493,24 +554,49 @@ function RaceDetailContent() {
                                                     ];
                                                 }}
                                             />
+                                            {/* Safety Car */}
                                             {scEvents.map((e: any, i: number) => (
-                                                <ReferenceLine key={i} x={e.lap_number} stroke="#ffc107" strokeDasharray="4 3" strokeWidth={1.5}
-                                                    label={{ value: e.safety_car_type === 1 ? 'SC' : 'VSC', position: 'top', fill: '#ffc107', fontSize: 9 }} />
+                                                <ReferenceLine key={`sc-${i}`} x={e.lap_number} stroke="#ffc107" strokeDasharray="4 3" strokeWidth={1.5}
+                                                    label={{ value: e.safety_car_type === 1 ? 'SC' : 'VSC', position: 'insideTopLeft', fill: '#ffc107', fontSize: 8 }} />
                                             ))}
+                                            {/* Pit-Stopps */}
+                                            {driverLaps.filter((l: any) => l.is_pit_lap).map((l: any) => (
+                                                <ReferenceLine key={`pit-${l.lap_number}`} x={l.lap_number} stroke="#ff8700"
+                                                    strokeWidth={1} strokeDasharray="3 2"
+                                                    label={<ChartEventLabel value="PIT" color="#ff8700" bg="rgba(255,135,0,0.18)" />} />
+                                            ))}
+                                            {/* Schaden-Events */}
+                                            {computeDamageEvents(driverLaps).map((ev, i) => {
+                                                const hasDmg = ev.newDamages.length > 0;
+                                                const hasRepair = ev.repairs.length > 0;
+                                                const dmgLabel = ev.isPitLap && hasRepair ? (hasDmg ? '⚠🔧' : '🔧') : hasDmg ? '⚠' : null;
+                                                if (!dmgLabel) return null;
+                                                const dmgColor = hasDmg ? '#ff4444' : '#34c38f';
+                                                const dmgBg   = hasDmg ? 'rgba(225,6,0,0.25)' : 'rgba(52,195,143,0.2)';
+                                                const tooltip = [
+                                                    ...ev.newDamages.map(d => `${d.label}: ${d.from}→${d.to}%`),
+                                                    ...ev.repairs.map(d => `${d.label} repariert`),
+                                                ].join(', ');
+                                                return (
+                                                    <ReferenceLine key={`dmg-${i}`} x={ev.lap} stroke={dmgColor}
+                                                        strokeWidth={1} strokeDasharray="2 3"
+                                                        label={<ChartEventLabel value={dmgLabel} color={dmgColor} bg={dmgBg} />}
+                                                    />
+                                                );
+                                            })}
                                             <Line type="monotone" dataKey="lap_time_ms" stroke="url(#singleTyre)" strokeWidth={2.5}
                                                 dot={(props: any) => {
                                                     const lap = driverLaps[props.index];
                                                     if (!lap) return <g key={props.key} />;
-                                                    // Zeige Reifen-Badge als Dot wenn Pit-Runde
                                                     if (lap.is_pit_lap && lap.tyre_compound) {
                                                         const info = getTyreInfo(lap.tyre_compound);
                                                         return (
-                                                            <circle key={props.key} cx={props.cx} cy={props.cy} r={5}
-                                                                fill={info.color} stroke="rgba(255,255,255,0.4)" strokeWidth={1.5} />
+                                                            <circle key={props.key} cx={props.cx} cy={props.cy} r={6}
+                                                                fill={info.color} stroke="rgba(255,255,255,0.5)" strokeWidth={2} />
                                                         );
                                                     }
                                                     return <circle key={props.key} cx={props.cx} cy={props.cy} r={2.5}
-                                                        fill={!lap.is_valid ? 'rgba(225,6,0,0.3)' : 'var(--f1-red)'} />;
+                                                        fill={!lap.is_valid ? 'rgba(225,6,0,0.3)' : 'rgba(225,6,0,0.7)'} />;
                                                 }}
                                                 isAnimationActive={false}
                                             />
@@ -558,11 +644,14 @@ function RaceDetailContent() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {driverLaps.map((lap: any) => {
+                                            {(() => {
+                                                const dmgEvents = computeDamageEvents(driverLaps);
+                                                const dmgByLap = new Map(dmgEvents.map(e => [e.lap, e]));
+                                                return driverLaps.map((lap: any) => {
                                                 const isFastest = lap.is_valid && lap.lap_time_ms === fastestLapMs;
-                                                const hasDmg = lap.car_damage_json && (() => { try { return JSON.parse(lap.car_damage_json).engineBlown; } catch { return false; } })();
+                                                const dmgEv = dmgByLap.get(lap.lap_number);
                                                 return (
-                                                    <tr key={lap.lap_number} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                                    <tr key={lap.lap_number} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: dmgEv?.newDamages.length ? 'rgba(225,6,0,0.03)' : 'transparent' }}>
                                                         <td style={{ padding: '0.5rem 0.5rem', color: 'var(--silver)', fontSize: '0.76rem' }}>{lap.lap_number}</td>
                                                         <td style={{ padding: '0.5rem 0.5rem', fontWeight: isFastest ? 900 : 400, fontSize: '0.8rem', color: isFastest ? '#9c27b0' : lap.is_valid ? 'var(--white)' : 'rgba(225,6,0,0.4)', fontFamily: 'monospace' }}>
                                                             {formatLapTime(lap.lap_time_ms)}
@@ -578,12 +667,22 @@ function RaceDetailContent() {
                                                         <td style={{ padding: '0.5rem 0.5rem' }}>
                                                             <div style={{ display: 'flex', gap: '3px' }}>
                                                                 {lap.is_pit_lap && <span style={{ background: '#ff8700', color: 'white', fontSize: '0.52rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>PIT</span>}
-                                                                {hasDmg && <span style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.52rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>AUSFALL</span>}
+                                                                {dmgEv && dmgEv.newDamages.length > 0 && (
+                                                                    <span title={dmgEv.newDamages.map(d => `${d.label}: ${d.from}→${d.to}%`).join(', ')}
+                                                                        style={{ background: 'rgba(225,6,0,0.8)', color: 'white', fontSize: '0.52rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900, cursor: 'help' }}
+                                                                    >⚠ SCHADEN</span>
+                                                                )}
+                                                                {dmgEv && dmgEv.repairs.length > 0 && lap.is_pit_lap && (
+                                                                    <span title={dmgEv.repairs.map(d => `${d.label} repariert`).join(', ')}
+                                                                        style={{ background: 'rgba(52,195,143,0.8)', color: 'white', fontSize: '0.52rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900, cursor: 'help' }}
+                                                                    >🔧 REP</span>
+                                                                )}
                                                             </div>
                                                         </td>
                                                     </tr>
                                                 );
-                                            })}
+                                            });
+                                            })()}
                                         </tbody>
                                     </table>
                                 </div>
