@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
-export async function GET(req: Request, { params }: { params: { raceId: string } }) {
-    const { raceId } = params;
+export async function GET(req: Request, { params }: { params: Promise<{ raceId: string }> }) {
+    const { raceId } = await params;
 
     try {
         // 1. Telemetry session identifying
