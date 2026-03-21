@@ -5,6 +5,48 @@ import { query, run } from './db';
 import { calculatePoints, DEFAULT_CONFIG, PointsConfig } from './scoring';
 
 /**
+ * Fetches sessions that are not linked to any existing league.
+ */
+export async function getDiscoverableSessions(leagueId: string, adminPass: string) {
+    try {
+        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
+        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
+            throw new Error('Unauthorized.');
+        }
+
+        const sessions = await query<any>(`
+            SELECT ts.id, ts.league_id as original_league_name, ts.track_id, ts.session_type, ts.created_at,
+                   (SELECT COUNT(*) FROM telemetry_participants tp WHERE tp.session_id = ts.id AND tp.is_human = true) as human_count
+            FROM telemetry_sessions ts
+            WHERE ts.league_id NOT IN (SELECT id FROM leagues)
+            ORDER BY ts.created_at DESC LIMIT 50
+        `);
+
+        return { success: true, sessions };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Claims a discoverable session for the current league.
+ */
+export async function claimSession(leagueId: string, adminPass: string, sessionId: string) {
+    try {
+        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
+        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
+            throw new Error('Unauthorized.');
+        }
+
+        await run(`UPDATE telemetry_sessions SET league_id = ? WHERE id = ?`, [leagueId, sessionId]);
+        
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
  * Creates a new league.
  */
 export async function createLeague(name: string, adminPass: string, joinPass: string) {

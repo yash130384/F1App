@@ -23,7 +23,9 @@ import {
     assignTelemetryPlayer,
     promoteTelemetryToRace,
     getTelemetrySessionDetails,
-    adminAddDriver
+    adminAddDriver,
+    getDiscoverableSessions,
+    claimSession
 } from '@/lib/actions';
 import { DEFAULT_CONFIG, PointsConfig, calculatePoints, formatPoints } from '@/lib/scoring';
 import { F1_TRACKS_2025 } from '@/lib/constants';
@@ -42,6 +44,7 @@ export default function AdminHub() {
     const [drivers, setDrivers] = useState<any[]>([]);
     const [pointsConfig, setPointsConfig] = useState<PointsConfig>(DEFAULT_CONFIG);
     const [telemetrySessions, setTelemetrySessions] = useState<any[]>([]);
+    const [discoverableSessions, setDiscoverableSessions] = useState<any[]>([]);
 
     // UI State
     const [loading, setLoading] = useState(false);
@@ -114,6 +117,9 @@ export default function AdminHub() {
     async function refreshTelemetry(lId: string, pass: string) {
         const res = await getAllTelemetrySessions(lId, pass);
         if (res.success) setTelemetrySessions(res.sessions || []);
+        
+        const dRes = await getDiscoverableSessions(lId, pass);
+        if (dRes.success) setDiscoverableSessions(dRes.sessions || []);
     }
 
     async function refreshLeagues() {
@@ -336,6 +342,19 @@ export default function AdminHub() {
             setActiveTab('races');
         } else {
             alert('Error promoting: ' + res.error);
+        }
+        setSubmitting(false);
+    };
+
+    const handleClaimSession = async (sessionId: string) => {
+        if (!leagueId || !adminPass) return;
+        setSubmitting(true);
+        const res = await claimSession(leagueId, adminPass, sessionId);
+        if (res.success) {
+            alert('Session adopted successfully!');
+            refreshTelemetry(leagueId, adminPass);
+        } else {
+            alert('Error adopting session: ' + res.error);
         }
         setSubmitting(false);
     };
@@ -1022,6 +1041,44 @@ export default function AdminHub() {
                                         </div>
                                     )}
                                 </div>
+
+                                {discoverableSessions.length > 0 && (
+                                    <div className="mt-12 bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-6">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-xl">🔍</div>
+                                            <div>
+                                                <h2 className="text-f1 text-yellow-500" style={{ fontSize: '1.2rem' }}>DISCOVERABLE SESSIONS (UNASSIGNED)</h2>
+                                                <p style={{ fontSize: '0.8rem', color: 'var(--silver)' }}>Telemetry recorded with unknown or incorrect league data. You can "Adopt" these into your league.</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col gap-3">
+                                            {discoverableSessions.map(s => (
+                                                <div key={s.id} className="flex justify-between items-center p-4 bg-black/40 rounded border border-white/5 hover:border-yellow-500/30 transition-all">
+                                                    <div>
+                                                        <div className="text-f1" style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                            {s.session_type}
+                                                            <span className="status-badge" style={{ background: 'rgba(255,193,7,0.1)', color: '#ffc107', border: '1px solid rgba(255,193,7,0.3)' }}>ORPHANED</span>
+                                                        </div>
+                                                        <div style={{ fontSize: '0.8rem', color: 'var(--silver)', marginTop: '4px' }}>
+                                                            Original Name: <strong style={{ color: '#ffc107' }}>{s.original_league_name}</strong> | 
+                                                            Track: <strong style={{ color: 'white' }}>{s.track_id}</strong> | 
+                                                            Humans: <strong style={{ color: 'white' }}>{s.human_count}</strong> | 
+                                                            {new Date(s.created_at).toLocaleString()}
+                                                        </div>
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => handleClaimSession(s.id)} 
+                                                        disabled={submitting}
+                                                        className="btn-primary" 
+                                                        style={{ background: '#ffc107', color: 'black', padding: '0.5rem 1.5rem', fontSize: '0.75rem', fontWeight: 'bold' }}
+                                                    >
+                                                        {submitting ? 'ADOPTING...' : 'ADOPT SESSION'}
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

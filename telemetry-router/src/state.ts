@@ -87,6 +87,13 @@ export class SessionState {
     public isActive: boolean = false;
     public isSessionEnded: boolean = false;
     public sessionData?: any;
+    public packetCount: number = 0;
+    public lastPacketTime: number = 0;
+
+    private incrementPackets() {
+        this.packetCount++;
+        this.lastPacketTime = Date.now();
+    }
 
     public trackFlags: number = 0; // 0=none, 1=green, 2=blue, 3=yellow
     private safetyCarEvents: SafetyCarEvent[] = [];
@@ -278,6 +285,7 @@ export class SessionState {
     }
 
     public updateSession(data: any) {
+        this.incrementPackets();
         this.sessionType = data.sessionTypeMapped;
         this.trackId = data.trackId;
         this.trackName = data.trackName;
@@ -287,11 +295,13 @@ export class SessionState {
     }
 
     public updateCarStatus(carIdx: number, data: CarStatusData) {
+        this.incrementPackets();
         const p = this.getPlayer(carIdx);
         p.carStatusData = data;
     }
 
     public updateTelemetry(carIdx: number, data: CarTelemetryData) {
+        this.incrementPackets();
         const p = this.getPlayer(carIdx);
         if (data.speedKmh > p.topSpeedKmh) {
             p.topSpeedKmh = data.speedKmh;
@@ -300,16 +310,19 @@ export class SessionState {
     }
 
     public updateCarDamage(carIdx: number, data: CarDamageData) {
+        this.incrementPackets();
         const p = this.getPlayer(carIdx);
         p.carDamageData = data;
     }
 
     public updateMotion(carIdx: number, data: MotionData) {
+        this.incrementPackets();
         const p = this.getPlayer(carIdx);
         p.motionData = data;
     }
 
     public updateTyreSets(carIdx: number, tyreSets: TyreSetData[]) {
+        this.incrementPackets();
         const p = this.getPlayer(carIdx);
         p.tyreSets = tyreSets;
     }
@@ -421,6 +434,17 @@ export class SessionState {
             incidentLog: this.incidentLog,
             trackFlags: this.trackFlags,
             lapPositions,
+        };
+    }
+
+    public getDashboardState() {
+        return {
+            sessionId: 'current',
+            trackName: this.trackName,
+            sessionType: this.sessionType,
+            isActive: this.isActive,
+            packetCount: this.packetCount,
+            lastPacketTime: this.lastPacketTime
         };
     }
 }

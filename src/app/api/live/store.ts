@@ -76,6 +76,8 @@ export interface LivePlayerState {
 }
 
 export interface LiveState {
+    leagueId?: string;
+    leagueName?: string;
     sessionType: string;
     trackId: number;
     trackLength: number;

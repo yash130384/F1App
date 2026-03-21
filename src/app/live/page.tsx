@@ -71,6 +71,8 @@ interface LivePlayerState {
 }
 
 interface LiveState {
+    leagueId?: string;
+    leagueName?: string;
     sessionType: string;
     trackId: number;
     trackLength: number;
@@ -130,6 +132,8 @@ export default function LivePage() {
                     timestamp: Date.now(),
                     incidentLog: raw.incidentLog || [],
                     trackFlags: raw.trackFlags || 0,
+                    leagueId: raw.leagueId,
+                    leagueName: raw.leagueName,
                     players: raw.participants.map((p: any) => ({
                         gameName: p.gameName,
                         position: p.position,
@@ -183,9 +187,24 @@ export default function LivePage() {
                     <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: '#fff' }}>
                         🏎 Live Dashboard
                     </h1>
-                    <p style={{ fontSize: 11, color: '#666', margin: '2px 0 0' }}>
-                        {liveState?.sessionType ?? 'Waiting for session...'} • Track {liveState?.trackId ?? '--'}
-                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                        <p style={{ fontSize: 11, color: '#666', margin: 0 }}>
+                            {liveState?.sessionType ?? 'Waiting for session...'} • Track {liveState?.trackId ?? '--'}
+                        </p>
+                        {liveState?.leagueName && (
+                            <span style={{
+                                fontSize: 10,
+                                padding: '2px 8px',
+                                borderRadius: 4,
+                                background: liveState.leagueId && liveState.leagueId.length === 36 ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                color: liveState.leagueId && liveState.leagueId.length === 36 ? '#22c55e' : '#ef4444',
+                                border: `1px solid ${liveState.leagueId && liveState.leagueId.length === 36 ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                                fontWeight: 600,
+                            }}>
+                                🏆 {liveState.leagueName} {(!(liveState.leagueId && liveState.leagueId.length === 36)) && '(Unassigned)'}
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                     {liveState && liveState.players.length > 0 && (

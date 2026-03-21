@@ -12,6 +12,7 @@ import { parseMotionData } from './parsers/motionData';
 import { parseTyreSets } from './parsers/tyreSets';
 import { SessionState } from './state';
 import { startSender } from './sender';
+import { renderDashboard } from './dashboard';
 
 export function startUdpListener(config: AppConfig) {
     if (!config.port) {
@@ -25,19 +26,17 @@ export function startUdpListener(config: AppConfig) {
     // Aggregationsschleife starten
     startSender(config, state);
 
+    // Dashboard alle 500ms aktualisieren
+    setInterval(() => {
+        renderDashboard(config, state.getDashboardState());
+    }, 500);
+
     server.on('error', (err) => {
         console.error(`UDP-Serverfehler:\n${err.stack}`);
         server.close();
     });
 
-    let packetCount = 0;
-
     server.on('message', (msg, rinfo) => {
-        packetCount++;
-        if (packetCount % 600 === 0) {
-            console.log(`600 Pakete empfangen... letztes von ${rinfo.address}:${rinfo.port} (${msg.length} Bytes)`);
-        }
-
         if (msg.length < 29) return;
 
         try {

@@ -67,20 +67,14 @@ export function startSender(config: AppConfig, state: SessionState) {
 
                 if (!res.ok) {
                     console.error(`Failed to send chunk, HTTP status: ${res.status}`);
-                } else {
-                    const modeLabel = config.transmissionMode || 'Default';
-                    console.log(`[${modeLabel}] Successfully sent ${payload.participants.length} participants telemetry`);
                 }
             } catch (e: any) {
                 clearTimeout(timeoutId);
                 console.error(`Error sending telemetry: ${e.message}`);
             }
         } else {
-            skipCount++;
-            const logThreshold = config.intervalMs >= 5000 ? 1 : 10;
-            if (skipCount % logThreshold === 0) {
-                console.log(`[!] Skipping send: sessionType=${payload.sessionType}, participants=${payload.participants.length}`);
-            }
+            // Silently skip if no humans or wrong session type
+            // (Dashboard handles status display)
         }
     }, config.intervalMs);
 }

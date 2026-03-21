@@ -13,10 +13,21 @@ export async function POST(req: Request) {
         }
 
         let leagueId = incomingLeagueId;
+        let leagueName = 'Unknown';
+
         if (incomingLeagueId.length !== 36) {
-            const leagueRes = await query<any>('SELECT id FROM leagues WHERE name ILIKE ? LIMIT 1', [incomingLeagueId]);
+            const leagueRes = await query<any>('SELECT id, name FROM leagues WHERE name ILIKE ? LIMIT 1', [incomingLeagueId]);
             if (leagueRes.length > 0) {
                 leagueId = leagueRes[0].id;
+                leagueName = leagueRes[0].name;
+            } else {
+                leagueName = incomingLeagueId; // Fallback to raw name if not found
+            }
+        } else {
+            // It's a UUID, let's find the name
+            const leagueRes = await query<any>('SELECT name FROM leagues WHERE id = ? LIMIT 1', [incomingLeagueId]);
+            if (leagueRes.length > 0) {
+                leagueName = leagueRes[0].name;
             }
         }
 
@@ -216,6 +227,8 @@ export async function POST(req: Request) {
                     };
                 });
                 updateLiveState({
+                    leagueId: leagueId,
+                    leagueName: leagueName,
                     sessionType: sessionType ?? 'Unknown',
                     trackId: trackId ?? -1,
                     trackLength: trackLength ?? 0,
