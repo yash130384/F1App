@@ -8,6 +8,7 @@ import { parseTelemetry } from './parsers/telemetry';
 import { parseCarStatus } from './parsers/carStatus';
 import { parseEventData } from './parsers/eventData';
 import { parseCarDamage } from './parsers/carDamage';
+import { parseMotionData } from './parsers/motionData';
 import { SessionState } from './state';
 import { startSender } from './sender';
 
@@ -42,6 +43,11 @@ export function startUdpListener(config: AppConfig) {
             const header = parseHeader(msg);
 
             switch (header.packetId) {
+                case 0: { // Motion-Daten (G-Kräfte, Weltpositionen)
+                    const motionArray = parseMotionData(msg);
+                    motionArray.forEach((m, i) => state.updateMotion(i, m));
+                    break;
+                }
                 case 1: { // Session-Daten
                     const sessionData = parseSession(msg);
                     state.sessionType = sessionData.sessionTypeMapped;

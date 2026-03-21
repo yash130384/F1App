@@ -2,6 +2,8 @@ import { ParticipantData } from './parsers/participants';
 import { LapData } from './parsers/lapData';
 import { CarTelemetryData } from './parsers/telemetry';
 import { CarDamageData } from './parsers/carDamage';
+import { CarStatusData } from './parsers/carStatus';
+import { MotionData } from './parsers/motionData';
 
 export interface LapEntry {
     lapNumber: number;
@@ -60,8 +62,9 @@ export interface PlayerState {
     participantData?: ParticipantData;
     lapData?: LapData;
     telemetryData?: CarTelemetryData;
-    carStatusData?: any;
+    carStatusData?: CarStatusData;
     carDamageData?: CarDamageData;
+    motionData?: MotionData;
 }
 
 export class SessionState {
@@ -212,7 +215,7 @@ export class SessionState {
         p.lapData = data;
     }
 
-    public updateCarStatus(carIdx: number, data: any) {
+    public updateCarStatus(carIdx: number, data: CarStatusData) {
         const p = this.getPlayer(carIdx);
         p.carStatusData = data;
     }
@@ -230,6 +233,11 @@ export class SessionState {
         p.carDamageData = data;
     }
 
+    public updateMotion(carIdx: number, data: MotionData) {
+        const p = this.getPlayer(carIdx);
+        p.motionData = data;
+    }
+
     // Payload erstellen und Runden/Events leeren, um keine Duplikate zu senden
     public buildPayloadAndClear() {
         const participantsList = Array.from(this.players.entries())
@@ -237,6 +245,16 @@ export class SessionState {
             .map(([_, p]) => {
                 const lapsToSend = [...p.laps];
                 p.laps = []; // Nach dem Extrahieren leeren
+
+                // Kompakten Delta-Wert berechnen (ms)
+                const lapData = p.lapData;
+                const deltaToFront = lapData
+                    ? lapData.deltaToCarInFrontMinutesPart * 60000 + lapData.deltaToCarInFrontMSPart
+                    : 0;
+                const deltaToLeader = lapData
+                    ? lapData.deltaToRaceLeaderMinutesPart * 60000 + lapData.deltaToRaceLeaderMSPart
+                    : 0;
+
                 return {
                     gameName: p.gameName,
                     position: p.position,
@@ -250,10 +268,60 @@ export class SessionState {
                     warnings: p.warnings,
                     penaltiesTime: p.penaltiesTime,
                     laps: lapsToSend,
-                    participantData: p.participantData,
-                    lapData: p.lapData,
-                    telemetryData: p.telemetryData,
-                    carStatusData: p.carStatusData
+                    // Live-Daten für SSE
+                    telemetry: p.telemetryData ? {
+                        speedKmh: p.telemetryData.speedKmh,
+                        throttle: p.telemetryData.throttle,
+                        brake: p.telemetryData.brake,
+                        steer: p.telemetryData.steer,
+                        clutch: p.telemetryData.clutch,
+                        gear: p.telemetryData.gear,
+                        engineRPM: p.telemetryData.engineRPM,
+                        drs: p.telemetryData.drs,
+                        brakesTemperature: p.telemetryData.brakesTemperature,
+                        tyresSurfaceTemperature: p.telemetryData.tyresSurfaceTemperature,
+                        tyresInnerTemperature: p.telemetryData.tyresInnerTemperature,
+                        tyresPressure: p.telemetryData.tyresPressure,
+                    } : undefined,
+                    status: p.carStatusData ? {
+                        ersDeployMode: p.carStatusData.ersDeployMode,
+                        ersStoreEnergy: p.carStatusData.ersStoreEnergy,
+                        fuelMix: p.carStatusData.fuelMix,
+                        fuelRemainingLaps: p.carStatusData.fuelRemainingLaps,
+                        fuelInTank: p.carStatusData.fuelInTank,
+                        visualTyreCompound: p.carStatusData.visualTyreCompound,
+                        actualTyreCompound: p.carStatusData.actualTyreCompound,
+                        tyresAgeLaps: p.carStatusData.tyresAgeLaps,
+                    } : undefined,
+                    damage: p.carDamageData ? {
+                        tyreBlisters: p.carDamageData.tyreBlisters,
+                        tyresWear: p.carDamageData.tyresWear,
+                        tyresDamage: p.carDamageData.tyresDamage,
+                        brakesDamage: p.carDamageData.brakesDamage,
+                        frontLeftWingDamage: p.carDamageData.frontLeftWingDamage,
+                        frontRightWingDamage: p.carDamageData.frontRightWingDamage,
+                        rearWingDamage: p.carDamageData.rearWingDamage,
+                        gearBoxDamage: p.carDamageData.gearBoxDamage,
+                        engineDamage: p.carDamageData.engineDamage,
+                    } : undefined,
+                    motion: p.motionData ? {
+                        gForceLateral: p.motionData.gForceLateral,
+                        gForceLongitudinal: p.motionData.gForceLongitudinal,
+                        gForceVertical: p.motionData.gForceVertical,
+                    } : undefined,
+                    lapInfo: lapData ? {
+                        currentLapNum: lapData.currentLapNum,
+                        currentLapTimeInMS: lapData.currentLapTimeInMS,
+                        lastLapTimeInMS: lapData.lastLapTimeInMS,
+                        pitStatus: lapData.pitStatus,
+                        deltaToCarInFrontMs: deltaToFront,
+                        deltaToRaceLeaderMs: deltaToLeader,
+                    } : undefined,
+                    sessionStatus: p.carStatusData ? {
+                        pitStopWindowIdealLap: (p as any).pitStopWindowIdealLap ?? 0,
+                        pitStopWindowLatestLap: (p as any).pitStopWindowLatestLap ?? 0,
+                        pitStopRejoinPosition: (p as any).pitStopRejoinPosition ?? 0,
+                    } : undefined,
                 };
             });
 

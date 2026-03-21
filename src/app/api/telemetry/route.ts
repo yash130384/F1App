@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { run, query } from '@/lib/db';
+import { updateLiveState } from '@/app/api/live/store';
 import crypto from 'crypto';
 
 export async function POST(req: Request) {
@@ -156,7 +157,76 @@ export async function POST(req: Request) {
             }));
         }
 
-        // 5. Session-Ende verarbeiten
+        // 5. Live-Store aktualisieren (für SSE-Stream)
+        if (participants && Array.isArray(participants)) {
+            try {
+                const livePlayers = participants.map((p: any) => {
+                    const t = p.telemetryData || p.telemetry || {};
+                    const s = p.carStatusData || p.status || {};
+                    const d = p.carDamageData || p.damage || {};
+                    const m = p.motionData || p.motion || {};
+                    const l = p.lapData || p.lapInfo || {};
+                    return {
+                        gameName: p.gameName,
+                        position: p.position ?? 0,
+                        isHuman: p.isHuman ?? false,
+                        teamId: p.teamId ?? 0,
+                        pitStops: p.pitStops ?? 0,
+                        speedKmh: t.speedKmh ?? 0,
+                        throttle: t.throttle ?? 0,
+                        brake: t.brake ?? 0,
+                        steer: t.steer ?? 0,
+                        clutch: t.clutch ?? 0,
+                        gear: t.gear ?? 0,
+                        engineRPM: t.engineRPM ?? 0,
+                        drs: t.drs ?? 0,
+                        brakesTemperature: t.brakesTemperature ?? [0, 0, 0, 0],
+                        tyresSurfaceTemperature: t.tyresSurfaceTemperature ?? [0, 0, 0, 0],
+                        tyresInnerTemperature: t.tyresInnerTemperature ?? [0, 0, 0, 0],
+                        tyresPressure: t.tyresPressure ?? [0, 0, 0, 0],
+                        gForceLateral: m.gForceLateral ?? 0,
+                        gForceLongitudinal: m.gForceLongitudinal ?? 0,
+                        gForceVertical: m.gForceVertical ?? 0,
+                        ersDeployMode: s.ersDeployMode ?? 0,
+                        fuelMix: s.fuelMix ?? 0,
+                        fuelRemainingLaps: s.fuelRemainingLaps ?? 0,
+                        fuelInTank: s.fuelInTank ?? 0,
+                        actualTyreCompound: s.actualTyreCompound ?? 0,
+                        visualTyreCompound: s.visualTyreCompound ?? 0,
+                        tyresAgeLaps: s.tyresAgeLaps ?? 0,
+                        tyreBlisters: d.tyreBlisters ?? [0, 0, 0, 0],
+                        tyresWear: d.tyresWear ?? [0, 0, 0, 0],
+                        tyresDamage: d.tyresDamage ?? [0, 0, 0, 0],
+                        brakesDamage: d.brakesDamage ?? [0, 0, 0, 0],
+                        frontLeftWingDamage: d.frontLeftWingDamage ?? 0,
+                        frontRightWingDamage: d.frontRightWingDamage ?? 0,
+                        rearWingDamage: d.rearWingDamage ?? 0,
+                        gearBoxDamage: d.gearBoxDamage ?? 0,
+                        engineDamage: d.engineDamage ?? 0,
+                        currentLapTimeInMS: l.currentLapTimeInMS ?? 0,
+                        lastLapTimeInMS: l.lastLapTimeInMS ?? 0,
+                        currentLapNum: l.currentLapNum ?? 0,
+                        pitStatus: l.pitStatus ?? 0,
+                        deltaToCarInFrontMs: l.deltaToCarInFrontMs ?? 0,
+                        deltaToRaceLeaderMs: l.deltaToRaceLeaderMs ?? 0,
+                        pitStopWindowIdealLap: 0,
+                        pitStopWindowLatestLap: 0,
+                        pitStopRejoinPosition: 0,
+                    };
+                });
+                updateLiveState({
+                    sessionType: sessionType ?? 'Unknown',
+                    trackId: trackId ?? -1,
+                    trackLength: trackLength ?? 0,
+                    timestamp: Date.now(),
+                    players: livePlayers,
+                });
+            } catch (liveErr) {
+                console.error('Live-Store Fehler:', liveErr);
+            }
+        }
+
+        // 6. Session-Ende verarbeiten
         if (isSessionEnded) {
             await run(`UPDATE telemetry_sessions SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [sessionId]);
 
