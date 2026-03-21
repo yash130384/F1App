@@ -10,12 +10,23 @@ declare global {
     var __sseClients: Set<ReadableStreamDefaultController>;
 }
 
+export interface Incident {
+    timestamp: number;
+    type: 'PENALTY' | 'COLLISION' | 'OVERTAKE' | 'RETIREMENT' | 'SAFETY_CAR';
+    details: string;
+    vehicleIdx?: number;
+    otherVehicleIdx?: number;
+    lapNum?: number;
+}
+
 export interface LivePlayerState {
     gameName: string;
     position: number;
     isHuman: boolean;
     teamId: number;
     pitStops: number;
+    warnings: number;
+    penaltiesTime: number;
     // Telemetrie
     speedKmh: number;
     throttle: number;
@@ -61,6 +72,7 @@ export interface LivePlayerState {
     pitStopWindowIdealLap: number;
     pitStopWindowLatestLap: number;
     pitStopRejoinPosition: number;
+    tyreSets?: any[];
 }
 
 export interface LiveState {
@@ -69,6 +81,9 @@ export interface LiveState {
     trackLength: number;
     timestamp: number;
     players: LivePlayerState[];
+    incidentLog?: Incident[];
+    trackFlags?: number;
+    sessionData?: any;
 }
 
 // Initialisierung

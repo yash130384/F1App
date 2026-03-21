@@ -116,7 +116,28 @@ const SCHEMA = [
     car_index INTEGER NOT NULL,
     lap_number INTEGER NOT NULL,
     position INTEGER NOT NULL
-  )`
+  )`,
+  `CREATE TABLE IF NOT EXISTS telemetry_incidents (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    details TEXT NOT NULL,
+    vehicle_idx INTEGER,
+    other_vehicle_idx INTEGER,
+    lap_num INTEGER,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS telemetry_stints (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+    participant_id TEXT NOT NULL,
+    stint_number INTEGER NOT NULL,
+    tyre_compound INTEGER NOT NULL,
+    visual_compound INTEGER NOT NULL,
+    start_lap INTEGER NOT NULL,
+    end_lap INTEGER,
+    tyre_age_at_start INTEGER DEFAULT 0
+  )`,
+  `ALTER TABLE telemetry_sessions ADD COLUMN IF NOT EXISTS track_flags INTEGER DEFAULT 0`
 ];
 
 const initSchema = async () => {

@@ -4,6 +4,8 @@ import { CarTelemetryData } from './parsers/telemetry';
 import { CarDamageData } from './parsers/carDamage';
 import { CarStatusData } from './parsers/carStatus';
 import { MotionData } from './parsers/motionData';
+import { TyreSetData } from './parsers/tyreSets';
+import { EventData } from './parsers/eventData';
 
 export interface LapEntry {
     lapNumber: number;
@@ -43,6 +45,15 @@ export interface LapPositionEntry {
     position: number;
 }
 
+export interface IncidentEntry {
+    timestamp: number;
+    type: 'PENALTY' | 'COLLISION' | 'OVERTAKE' | 'RETIREMENT' | 'SAFETY_CAR';
+    details: string;
+    vehicleIdx?: number;
+    otherVehicleIdx?: number;
+    lapNum?: number;
+}
+
 export interface PlayerState {
     gameName: string;
     position: number;
@@ -65,18 +76,21 @@ export interface PlayerState {
     carStatusData?: CarStatusData;
     carDamageData?: CarDamageData;
     motionData?: MotionData;
+    tyreSets?: TyreSetData[];
 }
 
 export class SessionState {
     public sessionType: string = 'Unknown';
     public trackId: number = -1;
+    public trackName: string = 'Unknown';
     public trackLength: number = 0;
     public isActive: boolean = false;
     public isSessionEnded: boolean = false;
     public sessionData?: any;
 
+    public trackFlags: number = 0; // 0=none, 1=green, 2=blue, 3=yellow
     private safetyCarEvents: SafetyCarEvent[] = [];
-    // Positionsverlauf aller Fahrzeuge, aus dem LapPositions-Paket aggregiert
+    private incidentLog: IncidentEntry[] = [];
     private lapPositions: LapPositionEntry[] = [];
 
     public handleSessionEnd() {
@@ -84,7 +98,6 @@ export class SessionState {
     }
 
     public addSafetyCarEvent(safetyCarType: number, eventType: number) {
-        // Aktuelle Rundenummer aus dem Spieler-Zustand ableiten
         let lapNumber = 0;
         for (const [, p] of this.players) {
             if (p.currentLapNum > 0) {
@@ -93,7 +106,56 @@ export class SessionState {
             }
         }
         this.safetyCarEvents.push({ safetyCarType, eventType, lapNumber });
-        console.log(`🚗 Safety Car Event: type=${safetyCarType}, eventType=${eventType}, lap=${lapNumber}`);
+        
+        const types = ['None', 'Full SC', 'VSC', 'Formation Lap'];
+        const events = ['Deployed', 'Returning', 'Returned', 'Resume Race'];
+        
+        this.addIncident({
+            type: 'SAFETY_CAR',
+            details: `${types[safetyCarType]} ${events[eventType]}`,
+            lapNum: lapNumber
+        });
+    }
+
+    public addIncident(incident: Omit<IncidentEntry, 'timestamp'>) {
+        this.incidentLog.push({
+            ...incident,
+            timestamp: Date.now()
+        });
+        // Keep log concise (e.g., last 50)
+        if (this.incidentLog.length > 50) this.incidentLog.shift();
+    }
+
+    public handleEvent(event: EventData) {
+        const car = event.vehicleIdx !== undefined ? this.getPlayer(event.vehicleIdx) : null;
+        const other = event.otherVehicleIdx !== undefined ? this.getPlayer(event.otherVehicleIdx) : null;
+
+        if (event.eventStringCode === 'PENA') {
+            this.addIncident({
+                type: 'PENALTY',
+                details: `Penalty for ${car?.gameName || 'Car '+event.vehicleIdx}: ${event.time}s`,
+                vehicleIdx: event.vehicleIdx,
+                lapNum: event.lapNum
+            });
+        } else if (event.eventStringCode === 'COLL') {
+            const v1 = this.getPlayer(event.vehicle1Idx || 0);
+            const v2 = this.getPlayer(event.vehicle2Idx || 0);
+            this.addIncident({
+                type: 'COLLISION',
+                details: `Collision between ${v1.gameName} and ${v2.gameName}`,
+                vehicleIdx: event.vehicle1Idx,
+                otherVehicleIdx: event.vehicle2Idx
+            });
+        } else if (event.eventStringCode === 'OVTK') {
+            const over = this.getPlayer(event.overtakingVehicleIdx || 0);
+            const under = this.getPlayer(event.beingOvertakenVehicleIdx || 0);
+            this.addIncident({
+                type: 'OVERTAKE',
+                details: `${over.gameName} overtook ${under.gameName}`,
+                vehicleIdx: event.overtakingVehicleIdx,
+                otherVehicleIdx: event.beingOvertakenVehicleIdx
+            });
+        }
     }
 
     // Verarbeite das LapPositions-Paket (ID 15): m_positionForVehicleIdx[50][22]
@@ -215,6 +277,15 @@ export class SessionState {
         p.lapData = data;
     }
 
+    public updateSession(data: any) {
+        this.sessionType = data.sessionTypeMapped;
+        this.trackId = data.trackId;
+        this.trackName = data.trackName;
+        this.trackLength = data.trackLength;
+        this.sessionData = data;
+        this.isActive = true;
+    }
+
     public updateCarStatus(carIdx: number, data: CarStatusData) {
         const p = this.getPlayer(carIdx);
         p.carStatusData = data;
@@ -236,6 +307,11 @@ export class SessionState {
     public updateMotion(carIdx: number, data: MotionData) {
         const p = this.getPlayer(carIdx);
         p.motionData = data;
+    }
+
+    public updateTyreSets(carIdx: number, tyreSets: TyreSetData[]) {
+        const p = this.getPlayer(carIdx);
+        p.tyreSets = tyreSets;
     }
 
     // Payload erstellen und Runden/Events leeren, um keine Duplikate zu senden
@@ -304,6 +380,7 @@ export class SessionState {
                         gearBoxDamage: p.carDamageData.gearBoxDamage,
                         engineDamage: p.carDamageData.engineDamage,
                     } : undefined,
+                    tyreSets: p.tyreSets,
                     motion: p.motionData ? {
                         gForceLateral: p.motionData.gForceLateral,
                         gForceLongitudinal: p.motionData.gForceLongitudinal,
@@ -335,11 +412,14 @@ export class SessionState {
         return {
             sessionType: this.sessionType,
             trackId: this.trackId,
+            trackName: this.trackName,
             trackLength: this.trackLength,
             isActive: this.isActive,
             sessionData: this.sessionData,
             participants: participantsList,
             safetyCarEvents,
+            incidentLog: this.incidentLog,
+            trackFlags: this.trackFlags,
             lapPositions,
         };
     }

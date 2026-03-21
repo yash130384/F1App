@@ -9,6 +9,7 @@ import { parseCarStatus } from './parsers/carStatus';
 import { parseEventData } from './parsers/eventData';
 import { parseCarDamage } from './parsers/carDamage';
 import { parseMotionData } from './parsers/motionData';
+import { parseTyreSets } from './parsers/tyreSets';
 import { SessionState } from './state';
 import { startSender } from './sender';
 
@@ -50,11 +51,7 @@ export function startUdpListener(config: AppConfig) {
                 }
                 case 1: { // Session-Daten
                     const sessionData = parseSession(msg);
-                    state.sessionType = sessionData.sessionTypeMapped;
-                    state.trackId = sessionData.trackId;
-                    state.trackLength = sessionData.trackLength;
-                    state.sessionData = sessionData;
-                    state.isActive = true;
+                    state.updateSession(sessionData);
                     break;
                 }
                 case 2: { // Rundendaten
@@ -68,11 +65,12 @@ export function startUdpListener(config: AppConfig) {
                         console.log('🏁 SESSION BEENDET (SEND). Wird übermittelt...');
                         state.handleSessionEnd();
                     } else if (eventData.eventStringCode === 'SCAR') {
-                        // Safety Car Event (safetyCarType und eventType aus dem Paket)
                         state.addSafetyCarEvent(
                             eventData.safetyCarType ?? 0,
                             eventData.eventType ?? 0
                         );
+                    } else {
+                        state.handleEvent(eventData);
                     }
                     break;
                 }
@@ -88,7 +86,13 @@ export function startUdpListener(config: AppConfig) {
                 }
                 case 7: { // Fahrzeug-Status
                     const carStatusArray = parseCarStatus(msg);
-                    carStatusArray.forEach((cs, i) => state.updateCarStatus(i, cs));
+                    carStatusArray.forEach((cs, i) => {
+                        state.updateCarStatus(i, cs);
+                        // Global flag tracken (vom Spieler oder erstem Auto)
+                        if (i === header.playerCarIndex || (i === 0 && !state.trackFlags)) {
+                            state.trackFlags = cs.vehicleFIAFlags;
+                        }
+                    });
                     break;
                 }
                 case 10: { // Fahrzeug-Schäden (CarDamage)
@@ -98,6 +102,11 @@ export function startUdpListener(config: AppConfig) {
                 }
                 case 15: { // Rundenpositionen (LapPositions) – alle Fahrzeuge pro Runde
                     state.updateLapPositions(msg);
+                    break;
+                }
+                case 20: { // Reifensätze (TyreSets)
+                    const tyreData = parseTyreSets(msg);
+                    state.updateTyreSets(tyreData.carIdx, tyreData.tyreSetData);
                     break;
                 }
             }

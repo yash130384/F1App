@@ -4,18 +4,19 @@ exports.SessionState = void 0;
 class SessionState {
     sessionType = 'Unknown';
     trackId = -1;
+    trackName = 'Unknown';
     trackLength = 0;
     isActive = false;
     isSessionEnded = false;
     sessionData;
+    trackFlags = 0; // 0=none, 1=green, 2=blue, 3=yellow
     safetyCarEvents = [];
-    // Positionsverlauf aller Fahrzeuge, aus dem LapPositions-Paket aggregiert
+    incidentLog = [];
     lapPositions = [];
     handleSessionEnd() {
         this.isSessionEnded = true;
     }
     addSafetyCarEvent(safetyCarType, eventType) {
-        // Aktuelle Rundenummer aus dem Spieler-Zustand ableiten
         let lapNumber = 0;
         for (const [, p] of this.players) {
             if (p.currentLapNum > 0) {
@@ -24,7 +25,54 @@ class SessionState {
             }
         }
         this.safetyCarEvents.push({ safetyCarType, eventType, lapNumber });
-        console.log(`🚗 Safety Car Event: type=${safetyCarType}, eventType=${eventType}, lap=${lapNumber}`);
+        const types = ['None', 'Full SC', 'VSC', 'Formation Lap'];
+        const events = ['Deployed', 'Returning', 'Returned', 'Resume Race'];
+        this.addIncident({
+            type: 'SAFETY_CAR',
+            details: `${types[safetyCarType]} ${events[eventType]}`,
+            lapNum: lapNumber
+        });
+    }
+    addIncident(incident) {
+        this.incidentLog.push({
+            ...incident,
+            timestamp: Date.now()
+        });
+        // Keep log concise (e.g., last 50)
+        if (this.incidentLog.length > 50)
+            this.incidentLog.shift();
+    }
+    handleEvent(event) {
+        const car = event.vehicleIdx !== undefined ? this.getPlayer(event.vehicleIdx) : null;
+        const other = event.otherVehicleIdx !== undefined ? this.getPlayer(event.otherVehicleIdx) : null;
+        if (event.eventStringCode === 'PENA') {
+            this.addIncident({
+                type: 'PENALTY',
+                details: `Penalty for ${car?.gameName || 'Car ' + event.vehicleIdx}: ${event.time}s`,
+                vehicleIdx: event.vehicleIdx,
+                lapNum: event.lapNum
+            });
+        }
+        else if (event.eventStringCode === 'COLL') {
+            const v1 = this.getPlayer(event.vehicle1Idx || 0);
+            const v2 = this.getPlayer(event.vehicle2Idx || 0);
+            this.addIncident({
+                type: 'COLLISION',
+                details: `Collision between ${v1.gameName} and ${v2.gameName}`,
+                vehicleIdx: event.vehicle1Idx,
+                otherVehicleIdx: event.vehicle2Idx
+            });
+        }
+        else if (event.eventStringCode === 'OVTK') {
+            const over = this.getPlayer(event.overtakingVehicleIdx || 0);
+            const under = this.getPlayer(event.beingOvertakenVehicleIdx || 0);
+            this.addIncident({
+                type: 'OVERTAKE',
+                details: `${over.gameName} overtook ${under.gameName}`,
+                vehicleIdx: event.overtakingVehicleIdx,
+                otherVehicleIdx: event.beingOvertakenVehicleIdx
+            });
+        }
     }
     // Verarbeite das LapPositions-Paket (ID 15): m_positionForVehicleIdx[50][22]
     updateLapPositions(buffer) {
@@ -134,6 +182,14 @@ class SessionState {
         p.currentLapNum = data.currentLapNum;
         p.lapData = data;
     }
+    updateSession(data) {
+        this.sessionType = data.sessionTypeMapped;
+        this.trackId = data.trackId;
+        this.trackName = data.trackName;
+        this.trackLength = data.trackLength;
+        this.sessionData = data;
+        this.isActive = true;
+    }
     updateCarStatus(carIdx, data) {
         const p = this.getPlayer(carIdx);
         p.carStatusData = data;
@@ -149,6 +205,14 @@ class SessionState {
         const p = this.getPlayer(carIdx);
         p.carDamageData = data;
     }
+    updateMotion(carIdx, data) {
+        const p = this.getPlayer(carIdx);
+        p.motionData = data;
+    }
+    updateTyreSets(carIdx, tyreSets) {
+        const p = this.getPlayer(carIdx);
+        p.tyreSets = tyreSets;
+    }
     // Payload erstellen und Runden/Events leeren, um keine Duplikate zu senden
     buildPayloadAndClear() {
         const participantsList = Array.from(this.players.entries())
@@ -156,6 +220,14 @@ class SessionState {
             .map(([_, p]) => {
             const lapsToSend = [...p.laps];
             p.laps = []; // Nach dem Extrahieren leeren
+            // Kompakten Delta-Wert berechnen (ms)
+            const lapData = p.lapData;
+            const deltaToFront = lapData
+                ? lapData.deltaToCarInFrontMinutesPart * 60000 + lapData.deltaToCarInFrontMSPart
+                : 0;
+            const deltaToLeader = lapData
+                ? lapData.deltaToRaceLeaderMinutesPart * 60000 + lapData.deltaToRaceLeaderMSPart
+                : 0;
             return {
                 gameName: p.gameName,
                 position: p.position,
@@ -169,10 +241,61 @@ class SessionState {
                 warnings: p.warnings,
                 penaltiesTime: p.penaltiesTime,
                 laps: lapsToSend,
-                participantData: p.participantData,
-                lapData: p.lapData,
-                telemetryData: p.telemetryData,
-                carStatusData: p.carStatusData
+                // Live-Daten für SSE
+                telemetry: p.telemetryData ? {
+                    speedKmh: p.telemetryData.speedKmh,
+                    throttle: p.telemetryData.throttle,
+                    brake: p.telemetryData.brake,
+                    steer: p.telemetryData.steer,
+                    clutch: p.telemetryData.clutch,
+                    gear: p.telemetryData.gear,
+                    engineRPM: p.telemetryData.engineRPM,
+                    drs: p.telemetryData.drs,
+                    brakesTemperature: p.telemetryData.brakesTemperature,
+                    tyresSurfaceTemperature: p.telemetryData.tyresSurfaceTemperature,
+                    tyresInnerTemperature: p.telemetryData.tyresInnerTemperature,
+                    tyresPressure: p.telemetryData.tyresPressure,
+                } : undefined,
+                status: p.carStatusData ? {
+                    ersDeployMode: p.carStatusData.ersDeployMode,
+                    ersStoreEnergy: p.carStatusData.ersStoreEnergy,
+                    fuelMix: p.carStatusData.fuelMix,
+                    fuelRemainingLaps: p.carStatusData.fuelRemainingLaps,
+                    fuelInTank: p.carStatusData.fuelInTank,
+                    visualTyreCompound: p.carStatusData.visualTyreCompound,
+                    actualTyreCompound: p.carStatusData.actualTyreCompound,
+                    tyresAgeLaps: p.carStatusData.tyresAgeLaps,
+                } : undefined,
+                damage: p.carDamageData ? {
+                    tyreBlisters: p.carDamageData.tyreBlisters,
+                    tyresWear: p.carDamageData.tyresWear,
+                    tyresDamage: p.carDamageData.tyresDamage,
+                    brakesDamage: p.carDamageData.brakesDamage,
+                    frontLeftWingDamage: p.carDamageData.frontLeftWingDamage,
+                    frontRightWingDamage: p.carDamageData.frontRightWingDamage,
+                    rearWingDamage: p.carDamageData.rearWingDamage,
+                    gearBoxDamage: p.carDamageData.gearBoxDamage,
+                    engineDamage: p.carDamageData.engineDamage,
+                } : undefined,
+                tyreSets: p.tyreSets,
+                motion: p.motionData ? {
+                    gForceLateral: p.motionData.gForceLateral,
+                    gForceLongitudinal: p.motionData.gForceLongitudinal,
+                    gForceVertical: p.motionData.gForceVertical,
+                } : undefined,
+                lapInfo: lapData ? {
+                    currentLapNum: lapData.currentLapNum,
+                    currentLapTimeInMS: lapData.currentLapTimeInMS,
+                    lastLapTimeInMS: lapData.lastLapTimeInMS,
+                    pitStatus: lapData.pitStatus,
+                    deltaToCarInFrontMs: deltaToFront,
+                    deltaToRaceLeaderMs: deltaToLeader,
+                } : undefined,
+                sessionStatus: p.carStatusData ? {
+                    pitStopWindowIdealLap: p.pitStopWindowIdealLap ?? 0,
+                    pitStopWindowLatestLap: p.pitStopWindowLatestLap ?? 0,
+                    pitStopRejoinPosition: p.pitStopRejoinPosition ?? 0,
+                } : undefined,
             };
         });
         // Safety-Car-Events und Positionsverlauf sammeln und leeren
@@ -183,11 +306,14 @@ class SessionState {
         return {
             sessionType: this.sessionType,
             trackId: this.trackId,
+            trackName: this.trackName,
             trackLength: this.trackLength,
             isActive: this.isActive,
             sessionData: this.sessionData,
             participants: participantsList,
             safetyCarEvents,
+            incidentLog: this.incidentLog,
+            trackFlags: this.trackFlags,
             lapPositions,
         };
     }

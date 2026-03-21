@@ -20,7 +20,7 @@ export async function POST(req: Request) {
             }
         }
 
-        const { sessionType, trackId, trackLength, isSessionEnded, participants, safetyCarEvents, lapPositions } = packet;
+        const { sessionType, trackId, trackLength, isSessionEnded, participants, safetyCarEvents, lapPositions, incidentLog, trackFlags } = packet;
 
         // 1. Aktive Session suchen oder neu anlegen
         let activeSession = await query<any>(
@@ -37,18 +37,17 @@ export async function POST(req: Request) {
         if (activeSession.length === 0) {
             sessionId = crypto.randomUUID();
             await run(
-                `INSERT INTO telemetry_sessions (id, league_id, track_id, track_length, session_type, is_active) VALUES (?, ?, ?, ?, ?, true)`,
-                [sessionId, leagueId, trackId, trackLength, sessionType]
+                `INSERT INTO telemetry_sessions (id, league_id, track_id, track_length, session_type, is_active, track_flags) VALUES (?, ?, ?, ?, ?, true, ?)`,
+                [sessionId, leagueId, trackId, trackLength, sessionType, trackFlags || 0]
             );
         } else {
             sessionId = activeSession[0].id;
-            await run(`UPDATE telemetry_sessions SET updated_at = CURRENT_TIMESTAMP, track_length = ? WHERE id = ?`, [trackLength, sessionId]);
+            await run(`UPDATE telemetry_sessions SET updated_at = CURRENT_TIMESTAMP, track_length = ?, track_flags = ? WHERE id = ?`, [trackLength, trackFlags || 0, sessionId]);
         }
 
-        // 2. Safety-Car-Events speichern (aus dem Router-Payload)
-        if (safetyCarEvents && Array.isArray(safetyCarEvents) && safetyCarEvents.length > 0) {
+        // 2. Safety-Car-Events & Incidents speichern
+        if (safetyCarEvents && Array.isArray(safetyCarEvents)) {
             for (const evt of safetyCarEvents) {
-                // Duplikate vermeiden (gleiche Runde + Typ)
                 const existing = await query<any>(
                     `SELECT id FROM telemetry_safety_car_events WHERE session_id = ? AND lap_number = ? AND safety_car_type = ? AND event_type = ?`,
                     [sessionId, evt.lapNumber, evt.safetyCarType, evt.eventType]
@@ -62,8 +61,23 @@ export async function POST(req: Request) {
             }
         }
 
+        if (incidentLog && Array.isArray(incidentLog)) {
+            for (const inc of incidentLog) {
+                const existing = await query<any>(
+                    `SELECT id FROM telemetry_incidents WHERE session_id = ? AND timestamp = ? AND details = ?`,
+                    [sessionId, new Date(inc.timestamp).toISOString(), inc.details]
+                );
+                if (existing.length === 0) {
+                    await run(
+                        `INSERT INTO telemetry_incidents (session_id, type, details, vehicle_idx, other_vehicle_idx, lap_num, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                        [sessionId, inc.type, inc.details, inc.vehicleIdx, inc.otherVehicleIdx, inc.lapNum, new Date(inc.timestamp).toISOString()]
+                    );
+                }
+            }
+        }
+
         // 3. Positionsverlauf aus LapPositions-Paket (ID 15) speichern
-        if (lapPositions && Array.isArray(lapPositions) && lapPositions.length > 0) {
+        if (lapPositions && Array.isArray(lapPositions)) {
             for (const lp of lapPositions) {
                 if (!lp.position || lp.position === 0) continue;
                 const existing = await query<any>(
@@ -108,48 +122,65 @@ export async function POST(req: Request) {
                         [sessionId, p.gameName, assignedDriverId, p.teamId, p.startPosition, p.position, p.lapDistance, p.topSpeedKmh, p.isHuman, p.pitStops || 0, p.warnings || 0, p.penaltiesTime || 0]
                     );
 
-                    // Nur Runden menschlicher Fahrer speichern
-                    if (partRow.length > 0 && p.isHuman && p.laps && Array.isArray(p.laps)) {
+                    if (partRow.length > 0 && p.isHuman) {
                         const participantId = partRow[0].id;
 
-                        const lapPromises = p.laps.map(async (lap: any) => {
-                            const existingLap = await query<any>(
-                                `SELECT id FROM telemetry_laps WHERE participant_id = ? AND lap_number = ?`,
-                                [participantId, lap.lapNumber]
+                        // Runden speichern
+                        if (p.laps && Array.isArray(p.laps)) {
+                            for (const lap of p.laps) {
+                                const existingLap = await query<any>(
+                                    `SELECT id FROM telemetry_laps WHERE participant_id = ? AND lap_number = ?`,
+                                    [participantId, lap.lapNumber]
+                                );
+
+                                if (existingLap.length === 0) {
+                                    const damageJson = lap.carDamage && (
+                                        lap.carDamage.frontLeftWingDamage > 0 ||
+                                        lap.carDamage.frontRightWingDamage > 0 ||
+                                        lap.carDamage.rearWingDamage > 0 ||
+                                        lap.carDamage.floorDamage > 0 ||
+                                        lap.carDamage.gearBoxDamage > 0 ||
+                                        lap.carDamage.engineDamage > 0 ||
+                                        lap.carDamage.engineBlown > 0 ||
+                                        lap.carDamage.engineSeized > 0
+                                    ) ? JSON.stringify(lap.carDamage) : null;
+
+                                    await run(
+                                        `INSERT INTO telemetry_laps (participant_id, lap_number, lap_time_ms, is_valid, tyre_compound, is_pit_lap, sector1_ms, sector2_ms, sector3_ms, car_damage_json)
+                                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                        [participantId, lap.lapNumber, lap.lapTimeMs, lap.isValid, lap.tyreCompound || null, lap.isPitLap ? true : false, lap.sector1Ms || null, lap.sector2Ms || null, lap.sector3Ms || null, damageJson]
+                                    );
+                                }
+                            }
+                        }
+
+                        // Stints tracken
+                        const status = p.status || {};
+                        const lapInfo = p.lapInfo || {};
+                        const currentCompound = status.actualTyreCompound;
+                        const visualCompound = status.visualTyreCompound;
+                        const currentLap = lapInfo.currentLapNum;
+                        const tyreAge = status.tyresAgeLaps || 0;
+
+                        if (currentCompound > 0) {
+                            const lastStint = await query<any>(
+                                `SELECT id, tyre_compound, start_lap FROM telemetry_stints WHERE participant_id = ? ORDER BY stint_number DESC LIMIT 1`,
+                                [participantId]
                             );
 
-                            if (existingLap.length === 0) {
-                                // Schadens-JSON für diese Runde
-                                const damageJson = lap.carDamage && (
-                                    lap.carDamage.frontLeftWingDamage > 0 ||
-                                    lap.carDamage.frontRightWingDamage > 0 ||
-                                    lap.carDamage.rearWingDamage > 0 ||
-                                    lap.carDamage.floorDamage > 0 ||
-                                    lap.carDamage.gearBoxDamage > 0 ||
-                                    lap.carDamage.engineDamage > 0 ||
-                                    lap.carDamage.engineBlown > 0 ||
-                                    lap.carDamage.engineSeized > 0
-                                ) ? JSON.stringify(lap.carDamage) : null;
-
+                            if (lastStint.length === 0 || lastStint[0].tyre_compound !== currentCompound) {
+                                // Neuen Stint anlegen
+                                const stintNum = lastStint.length > 0 ? lastStint.length + 1 : 1;
+                                if (lastStint.length > 0) {
+                                    await run(`UPDATE telemetry_stints SET end_lap = ? WHERE id = ?`, [currentLap - 1, lastStint[0].id]);
+                                }
                                 await run(
-                                    `INSERT INTO telemetry_laps (participant_id, lap_number, lap_time_ms, is_valid, tyre_compound, is_pit_lap, sector1_ms, sector2_ms, sector3_ms, car_damage_json)
-                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                                    [
-                                        participantId,
-                                        lap.lapNumber,
-                                        lap.lapTimeMs,
-                                        lap.isValid,
-                                        lap.tyreCompound || null,
-                                        lap.isPitLap ? true : false,
-                                        lap.sector1Ms || null,
-                                        lap.sector2Ms || null,
-                                        lap.sector3Ms || null,
-                                        damageJson
-                                    ]
+                                    `INSERT INTO telemetry_stints (participant_id, stint_number, tyre_compound, visual_compound, start_lap, tyre_age_at_start)
+                                     VALUES (?, ?, ?, ?, ?, ?)`,
+                                    [participantId, stintNum, currentCompound, visualCompound, currentLap, tyreAge]
                                 );
                             }
-                        });
-                        await Promise.all(lapPromises);
+                        }
                     }
                 } catch (dbErr) {
                     console.error("DB-Fehler für Teilnehmer:", dbErr);
@@ -161,57 +192,27 @@ export async function POST(req: Request) {
         if (participants && Array.isArray(participants)) {
             try {
                 const livePlayers = participants.map((p: any) => {
-                    const t = p.telemetryData || p.telemetry || {};
-                    const s = p.carStatusData || p.status || {};
-                    const d = p.carDamageData || p.damage || {};
-                    const m = p.motionData || p.motion || {};
-                    const l = p.lapData || p.lapInfo || {};
+                    const t = p.telemetry || {};
+                    const s = p.status || {};
+                    const d = p.damage || {};
+                    const m = p.motion || {};
+                    const l = p.lapInfo || {};
+                    const ss = p.sessionStatus || {};
                     return {
                         gameName: p.gameName,
                         position: p.position ?? 0,
                         isHuman: p.isHuman ?? false,
                         teamId: p.teamId ?? 0,
                         pitStops: p.pitStops ?? 0,
-                        speedKmh: t.speedKmh ?? 0,
-                        throttle: t.throttle ?? 0,
-                        brake: t.brake ?? 0,
-                        steer: t.steer ?? 0,
-                        clutch: t.clutch ?? 0,
-                        gear: t.gear ?? 0,
-                        engineRPM: t.engineRPM ?? 0,
-                        drs: t.drs ?? 0,
-                        brakesTemperature: t.brakesTemperature ?? [0, 0, 0, 0],
-                        tyresSurfaceTemperature: t.tyresSurfaceTemperature ?? [0, 0, 0, 0],
-                        tyresInnerTemperature: t.tyresInnerTemperature ?? [0, 0, 0, 0],
-                        tyresPressure: t.tyresPressure ?? [0, 0, 0, 0],
-                        gForceLateral: m.gForceLateral ?? 0,
-                        gForceLongitudinal: m.gForceLongitudinal ?? 0,
-                        gForceVertical: m.gForceVertical ?? 0,
-                        ersDeployMode: s.ersDeployMode ?? 0,
-                        fuelMix: s.fuelMix ?? 0,
-                        fuelRemainingLaps: s.fuelRemainingLaps ?? 0,
-                        fuelInTank: s.fuelInTank ?? 0,
-                        actualTyreCompound: s.actualTyreCompound ?? 0,
-                        visualTyreCompound: s.visualTyreCompound ?? 0,
-                        tyresAgeLaps: s.tyresAgeLaps ?? 0,
-                        tyreBlisters: d.tyreBlisters ?? [0, 0, 0, 0],
-                        tyresWear: d.tyresWear ?? [0, 0, 0, 0],
-                        tyresDamage: d.tyresDamage ?? [0, 0, 0, 0],
-                        brakesDamage: d.brakesDamage ?? [0, 0, 0, 0],
-                        frontLeftWingDamage: d.frontLeftWingDamage ?? 0,
-                        frontRightWingDamage: d.frontRightWingDamage ?? 0,
-                        rearWingDamage: d.rearWingDamage ?? 0,
-                        gearBoxDamage: d.gearBoxDamage ?? 0,
-                        engineDamage: d.engineDamage ?? 0,
-                        currentLapTimeInMS: l.currentLapTimeInMS ?? 0,
-                        lastLapTimeInMS: l.lastLapTimeInMS ?? 0,
-                        currentLapNum: l.currentLapNum ?? 0,
-                        pitStatus: l.pitStatus ?? 0,
-                        deltaToCarInFrontMs: l.deltaToCarInFrontMs ?? 0,
-                        deltaToRaceLeaderMs: l.deltaToRaceLeaderMs ?? 0,
-                        pitStopWindowIdealLap: 0,
-                        pitStopWindowLatestLap: 0,
-                        pitStopRejoinPosition: 0,
+                        warnings: p.warnings ?? 0,
+                        penaltiesTime: p.penaltiesTime ?? 0,
+                        ...t,
+                        ...s,
+                        ...d,
+                        ...m,
+                        ...l,
+                        ...ss,
+                        tyreSets: p.tyreSets
                     };
                 });
                 updateLiveState({
@@ -220,6 +221,9 @@ export async function POST(req: Request) {
                     trackLength: trackLength ?? 0,
                     timestamp: Date.now(),
                     players: livePlayers,
+                    incidentLog: incidentLog || [],
+                    trackFlags: trackFlags || 0,
+                    sessionData: packet.sessionData
                 });
             } catch (liveErr) {
                 console.error('Live-Store Fehler:', liveErr);

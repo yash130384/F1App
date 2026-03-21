@@ -5,6 +5,19 @@ import { InputTrace } from '@/components/live/InputTrace';
 import { GForceCrosshair } from '@/components/live/GForceCrosshair';
 import { TyreWidget } from '@/components/live/TyreWidget';
 import { BrakeWidget } from '@/components/live/BrakeWidget';
+import { PitAdvisor } from '@/components/live/PitAdvisor';
+import { FuelTracker } from '@/components/live/FuelTracker';
+import { GapMatrix } from '@/components/live/GapMatrix';
+import { IncidentLog } from '@/components/live/IncidentLog';
+
+interface Incident {
+    timestamp: number;
+    type: 'PENALTY' | 'COLLISION' | 'OVERTAKE' | 'RETIREMENT' | 'SAFETY_CAR';
+    details: string;
+    vehicleIdx?: number;
+    otherVehicleIdx?: number;
+    lapNum?: number;
+}
 
 interface LivePlayerState {
     gameName: string;
@@ -12,6 +25,8 @@ interface LivePlayerState {
     isHuman: boolean;
     teamId: number;
     pitStops: number;
+    warnings: number;
+    penaltiesTime: number;
     speedKmh: number;
     throttle: number;
     brake: number;
@@ -52,14 +67,18 @@ interface LivePlayerState {
     pitStopWindowIdealLap: number;
     pitStopWindowLatestLap: number;
     pitStopRejoinPosition: number;
+    tyreSets?: any[];
 }
 
 interface LiveState {
     sessionType: string;
     trackId: number;
     trackLength: number;
+    totalLaps?: number;
     timestamp: number;
     players: LivePlayerState[];
+    incidentLog?: Incident[];
+    trackFlags?: number;
 }
 
 function formatMs(ms: number): string {
@@ -74,6 +93,7 @@ const EMPTY_ARR = [0, 0, 0, 0];
 
 const DUMMY: LivePlayerState = {
     gameName: '---', position: 0, isHuman: false, teamId: 0, pitStops: 0,
+    warnings: 0, penaltiesTime: 0,
     speedKmh: 0, throttle: 0, brake: 0, steer: 0, clutch: 0,
     gear: 0, engineRPM: 0, drs: 0,
     brakesTemperature: EMPTY_ARR, tyresSurfaceTemperature: EMPTY_ARR,
@@ -100,10 +120,42 @@ export default function LivePage() {
         es.onopen = () => setConnected(true);
         es.onmessage = (e) => {
             try {
-                const data: LiveState = JSON.parse(e.data);
+                const raw = JSON.parse(e.data);
+                
+                const data: LiveState = {
+                    sessionType: raw.sessionType,
+                    trackId: raw.trackId,
+                    trackLength: raw.trackLength,
+                    totalLaps: raw.sessionData?.totalLaps || 50,
+                    timestamp: Date.now(),
+                    incidentLog: raw.incidentLog || [],
+                    trackFlags: raw.trackFlags || 0,
+                    players: raw.participants.map((p: any) => ({
+                        gameName: p.gameName,
+                        position: p.position,
+                        isHuman: p.isHuman,
+                        teamId: p.teamId,
+                        pitStops: p.pitStops,
+                        warnings: p.warnings,
+                        penaltiesTime: p.penaltiesTime,
+                        lastLapTimeInMS: p.lapInfo?.lastLapTimeInMS || 0,
+                        currentLapTimeInMS: p.lapInfo?.currentLapTimeInMS || 0,
+                        currentLapNum: p.lapInfo?.currentLapNum || 0,
+                        pitStatus: p.lapInfo?.pitStatus || 0,
+                        deltaToCarInFrontMs: p.lapInfo?.deltaToCarInFrontMs || 0,
+                        deltaToRaceLeaderMs: p.lapInfo?.deltaToRaceLeaderMs || 0,
+                        ...p.telemetry,
+                        ...p.status,
+                        ...p.damage,
+                        ...p.motion,
+                        ...p.sessionStatus,
+                        tyreSets: p.tyreSets
+                    }))
+                };
+
                 setLiveState(data);
                 setLastUpdate(Date.now());
-                // Auto-select first human driver if none selected
+                
                 setSelectedDriver(prev => {
                     if (!prev) {
                         const human = data.players.find(p => p.isHuman);
@@ -111,7 +163,7 @@ export default function LivePage() {
                     }
                     return prev;
                 });
-            } catch { /* ignore parse errors */ }
+            } catch (err) { console.error("Parse error", err); }
         };
         es.onerror = () => setConnected(false);
         return () => es.close();
@@ -126,18 +178,16 @@ export default function LivePage() {
 
     return (
         <div style={{ minHeight: '100vh', padding: '1.5rem', fontFamily: "'Inter', sans-serif" }}>
-            {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <div>
                     <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: '#fff' }}>
-                        🏎 Race Engineer
+                        🏎 Live Dashboard
                     </h1>
                     <p style={{ fontSize: 11, color: '#666', margin: '2px 0 0' }}>
                         {liveState?.sessionType ?? 'Waiting for session...'} • Track {liveState?.trackId ?? '--'}
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                    {/* Driver selector */}
                     {liveState && liveState.players.length > 0 && (
                         <select
                             value={selectedDriver}
@@ -163,7 +213,6 @@ export default function LivePage() {
                             }
                         </select>
                     )}
-                    {/* Connection status */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
                         <span style={{
                             width: 8, height: 8, borderRadius: '50%',
@@ -176,98 +225,83 @@ export default function LivePage() {
                 </div>
             </div>
 
-            {/* No data state */}
             {!liveState && (
                 <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '50vh',
-                    gap: 16,
-                    color: '#444',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    height: '50vh', gap: 16, color: '#444',
                 }}>
                     <div style={{ fontSize: 64 }}>📡</div>
                     <p style={{ fontSize: 14 }}>Waiting for telemetry data...</p>
-                    <p style={{ fontSize: 11 }}>Start F1 25 and enable UDP telemetry, then start the router.</p>
                 </div>
             )}
 
-            {/* Main dashboard layout */}
             {liveState && (
-                <>
-                    {/* Driver header bar */}
-                    <div style={{
-                        background: 'rgba(255,255,255,0.04)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: 10,
-                        padding: '0.6rem 1rem',
-                        display: 'flex',
-                        gap: 24,
-                        alignItems: 'center',
-                        marginBottom: 16,
-                        flexWrap: 'wrap',
-                    }}>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>
-                            P{driver.position} — {driver.gameName}
-                        </span>
-                        <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#888', flexWrap: 'wrap' }}>
-                            <span>Lap <b style={{ color: '#fff' }}>{driver.currentLapNum}</b></span>
-                            <span>Time <b style={{ color: '#fff' }}>{formatMs(driver.currentLapTimeInMS)}</b></span>
-                            <span>Best <b style={{ color: '#fff' }}>{formatMs(driver.lastLapTimeInMS)}</b></span>
-                            <span>Pits <b style={{ color: '#fff' }}>{driver.pitStops}</b></span>
-                            {driver.pitStatus > 0 && (
-                                <span style={{
-                                    color: '#f97316',
-                                    fontWeight: 700,
-                                    background: 'rgba(249,115,22,0.15)',
-                                    padding: '1px 8px',
-                                    borderRadius: 4,
-                                }}>
-                                    {driver.pitStatus === 1 ? '🔧 PITTING' : '🅿 PIT AREA'}
-                                </span>
-                            )}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <div style={{
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: 10,
+                            padding: '0.8rem 1.2rem',
+                            display: 'flex', gap: 24, alignItems: 'center',
+                        }}>
+                            <span style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>
+                                P{driver.position} — {driver.gameName}
+                            </span>
+                            <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#888' }}>
+                                <span>Lap <b style={{ color: '#fff' }}>{driver.currentLapNum}</b></span>
+                                <span>Gap Front <b style={{ color: '#fff' }}>+{(driver.deltaToCarInFrontMs / 1000).toFixed(3)}s</b></span>
+                                <span>Gap Lead <b style={{ color: '#fff' }}>+{(driver.deltaToRaceLeaderMs / 1000).toFixed(3)}s</b></span>
+                            </div>
                         </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12 }}>
+                            <InputTrace
+                                throttle={driver.throttle} brake={driver.brake} steer={driver.steer} clutch={driver.clutch}
+                                gear={driver.gear} engineRPM={driver.engineRPM} drs={driver.drs}
+                                ersDeployMode={driver.ersDeployMode} speedKmh={driver.speedKmh}
+                            />
+                            <GForceCrosshair
+                                lateral={driver.gForceLateral} longitudinal={driver.gForceLongitudinal} vertical={driver.gForceVertical}
+                            />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 12 }}>
+                            <TyreWidget
+                                surfaceTemp={driver.tyresSurfaceTemperature} innerTemp={driver.tyresInnerTemperature}
+                                pressure={driver.tyresPressure} tyreWear={driver.tyresWear}
+                                tyreDamage={driver.tyresDamage} tyreBlisters={driver.tyreBlisters}
+                                visualCompound={driver.visualTyreCompound} tyresAgeLaps={driver.tyresAgeLaps}
+                            />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <BrakeWidget
+                                    brakesTemperature={driver.brakesTemperature} brakesDamage={driver.brakesDamage}
+                                />
+                                <FuelTracker 
+                                    fuelMix={driver.fuelMix} fuelRemainingLaps={driver.fuelRemainingLaps}
+                                    currentLapNum={driver.currentLapNum} totalLaps={liveState.totalLaps || 50}
+                                />
+                            </div>
+                        </div>
+                        
+                        <PitAdvisor 
+                            idealLap={driver.pitStopWindowIdealLap} latestLap={driver.pitStopWindowLatestLap}
+                            rejoinPos={driver.pitStopRejoinPosition} currentLap={driver.currentLapNum}
+                            tyreSets={driver.tyreSets}
+                        />
                     </div>
 
-                    {/* Row 1: Input Trace + G-Force */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 12 }}>
-                        <InputTrace
-                            throttle={driver.throttle}
-                            brake={driver.brake}
-                            steer={driver.steer}
-                            clutch={driver.clutch}
-                            gear={driver.gear}
-                            engineRPM={driver.engineRPM}
-                            drs={driver.drs}
-                            ersDeployMode={driver.ersDeployMode}
-                            speedKmh={driver.speedKmh}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <IncidentLog 
+                            incidents={liveState.incidentLog || []} 
+                            trackFlags={liveState.trackFlags || 0} 
                         />
-                        <GForceCrosshair
-                            lateral={driver.gForceLateral}
-                            longitudinal={driver.gForceLongitudinal}
-                            vertical={driver.gForceVertical}
+                        <GapMatrix 
+                            players={liveState.players} 
+                            selectedDriver={selectedDriver}
                         />
                     </div>
-
-                    {/* Row 2: Tyre Widget + Brake Widget */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <TyreWidget
-                            surfaceTemp={driver.tyresSurfaceTemperature}
-                            innerTemp={driver.tyresInnerTemperature}
-                            pressure={driver.tyresPressure}
-                            tyreWear={driver.tyresWear}
-                            tyreDamage={driver.tyresDamage}
-                            tyreBlisters={driver.tyreBlisters}
-                            visualCompound={driver.visualTyreCompound}
-                            tyresAgeLaps={driver.tyresAgeLaps}
-                        />
-                        <BrakeWidget
-                            brakesTemperature={driver.brakesTemperature}
-                            brakesDamage={driver.brakesDamage}
-                        />
-                    </div>
-                </>
+                </div>
             )}
 
             <style>{`

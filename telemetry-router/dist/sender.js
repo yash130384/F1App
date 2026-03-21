@@ -59,7 +59,8 @@ function startSender(config, state) {
                     console.error(`Failed to send chunk, HTTP status: ${res.status}`);
                 }
                 else {
-                    console.log(`Successfully sent ${payload.participants.length} participants telemetry`);
+                    const modeLabel = config.transmissionMode || 'Default';
+                    console.log(`[${modeLabel}] Successfully sent ${payload.participants.length} participants telemetry`);
                 }
             }
             catch (e) {
@@ -69,7 +70,8 @@ function startSender(config, state) {
         }
         else {
             skipCount++;
-            if (skipCount % 5 === 0) {
+            const logThreshold = config.intervalMs >= 5000 ? 1 : 10;
+            if (skipCount % logThreshold === 0) {
                 console.log(`[!] Skipping send: sessionType=${payload.sessionType}, participants=${payload.participants.length}`);
             }
         }

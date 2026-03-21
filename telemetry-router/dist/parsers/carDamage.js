@@ -6,7 +6,7 @@ exports.parseCarDamage = parseCarDamage;
 //  tyresWear[4]:           4 * float = 16 bytes  (offset 0)
 //  tyresDamage[4]:         4 * uint8 = 4 bytes   (offset 16)
 //  brakesDamage[4]:        4 * uint8 = 4 bytes   (offset 20)
-//  tyreBlisters[4]:        4 * uint8 = 4 bytes   (offset 24)
+//  tyreBlisters[4]:        4 * uint8 = 4 bytes   (offset 24)  ← NEU F1 25
 //  frontLeftWingDamage:    uint8                 (offset 28)
 //  frontRightWingDamage:   uint8                 (offset 29)
 //  rearWingDamage:         uint8                 (offset 30)
@@ -49,10 +49,17 @@ function parseCarDamage(buffer) {
             buffer.readUInt8(base + 22),
             buffer.readUInt8(base + 23),
         ];
+        const tyreBlisters = [
+            buffer.readUInt8(base + 24),
+            buffer.readUInt8(base + 25),
+            buffer.readUInt8(base + 26),
+            buffer.readUInt8(base + 27),
+        ];
         damages.push({
             tyresWear,
             tyresDamage,
             brakesDamage,
+            tyreBlisters,
             frontLeftWingDamage: buffer.readUInt8(base + 28),
             frontRightWingDamage: buffer.readUInt8(base + 29),
             rearWingDamage: buffer.readUInt8(base + 30),

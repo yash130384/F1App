@@ -1174,3 +1174,43 @@ export async function getAllDriversRaceTelemetry(raceId: string) {
         return { success: false, error: error.message };
     }
 }
+
+/**
+ * Fetches complete race analysis data (stints, position history, incidents).
+ */
+export async function getRaceAnalysis(raceId: string) {
+    try {
+        const session = await query<any>(`SELECT id FROM telemetry_sessions WHERE race_id = ? LIMIT 1`, [raceId]);
+        if (session.length === 0) return { success: false, error: 'No telemetry session found' };
+        const sessionId = session[0].id;
+
+        const participants = await query<any>(`
+            SELECT tp.id, tp.game_name, tp.driver_id, d.name as driver_name, tp.position
+            FROM telemetry_participants tp
+            LEFT JOIN drivers d ON d.id = tp.driver_id
+            WHERE tp.session_id = ?
+            ORDER BY tp.position ASC
+        `, [sessionId]);
+
+        for (const p of participants) {
+            p.stints = await query<any>(
+                `SELECT stint_number, tyre_compound, visual_compound, start_lap, end_lap FROM telemetry_stints WHERE participant_id = ? ORDER BY stint_number ASC`,
+                [p.id]
+            );
+        }
+
+        const positionHistory = await query<any>(
+            `SELECT car_index, lap_number, position FROM telemetry_position_history WHERE session_id = ? ORDER BY lap_number ASC`,
+            [sessionId]
+        );
+
+        const incidents = await query<any>(
+            `SELECT type, details, lap_num FROM telemetry_incidents WHERE session_id = ? ORDER BY timestamp ASC`,
+            [sessionId]
+        );
+
+        return { success: true, participants, positionHistory, incidents };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}

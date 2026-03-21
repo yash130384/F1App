@@ -9,11 +9,14 @@ import {
     getDriverPositionHistory,
     getSessionSafetyCarEvents,
     getAllDriversRaceTelemetry,
+    getRaceAnalysis,
 } from '@/lib/actions';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, ReferenceLine
 } from 'recharts';
+import { TyreStrategyChart } from '@/components/race/TyreStrategyChart';
+import { LapPositionChart } from '@/components/race/LapPositionChart';
 
 // ── Hilfsfunktionen ────────────────────────────────────────────────────────────
 
@@ -162,6 +165,7 @@ function RaceDetailContent() {
     const [graphDrivers, setGraphDrivers] = useState<any[]>([]);
     const [scEvents, setScEvents] = useState<any[]>([]);
     const [loadingGraph, setLoadingGraph] = useState(false);
+    const [analysisData, setAnalysisData] = useState<any>(null);
 
     // Fahrer-Detail-Panel
     const [selectedDriver, setSelectedDriver] = useState<any | null>(null);
@@ -182,9 +186,10 @@ function RaceDetailContent() {
 
             // Alle-Fahrer-Graph laden
             setLoadingGraph(true);
-            const [graphRes, scRes] = await Promise.all([
+            const [graphRes, scRes, analysisRes] = await Promise.all([
                 getAllDriversRaceTelemetry(raceId),
                 sid ? getSessionSafetyCarEvents(sid) : Promise.resolve({ success: false, events: [] }),
+                getRaceAnalysis(raceId)
             ]);
             if (graphRes.success) {
                 setGraphData(graphRes.laps || []);
@@ -192,6 +197,9 @@ function RaceDetailContent() {
             }
             if (scRes.success && (scRes as any).events) {
                 setScEvents((scRes as any).events.filter((e: any) => e.event_type === 0));
+            }
+            if (analysisRes.success) {
+                setAnalysisData(analysisRes);
             }
             setLoadingGraph(false);
         }
@@ -467,6 +475,27 @@ function RaceDetailContent() {
                                 ))}
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* ── SESSION ANALYSIS (PHASE 4) ── */}
+                {analysisData && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', marginBottom: '2rem' }}>
+                        <div style={{ padding: '0 0.5rem' }}>
+                            <div className="text-f1" style={{ fontSize: '1.2rem', color: '#fff', marginBottom: '4px', letterSpacing: '1px' }}>SESSION ANALYSIS</div>
+                            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>Detailed telemetry breakdown including tyre stints and position evolution.</div>
+                        </div>
+
+                        <TyreStrategyChart 
+                            participants={analysisData.participants} 
+                            totalLaps={graphData.length > 0 ? graphData[graphData.length - 1].lap_number : 50} 
+                        />
+                        
+                        <LapPositionChart 
+                            participants={analysisData.participants}
+                            history={analysisData.positionHistory}
+                            totalLaps={graphData.length > 0 ? graphData[graphData.length - 1].lap_number : 50}
+                        />
                     </div>
                 )}
 

@@ -33,6 +33,16 @@ async function main() {
                 initial: process.env.TARGET_URL || 'https://f1-app-lknx.vercel.app/api/telemetry'
             });
             appConfig.url = urlRes.url;
+            if (appConfig.mode === 'Live Routing') {
+                const transRes = await (0, enquirer_1.prompt)({
+                    type: 'select',
+                    name: 'transmissionMode',
+                    message: 'Select Transmission Mode:',
+                    choices: ['Live (60Hz)', 'Results Only (60s)']
+                });
+                appConfig.transmissionMode = transRes.transmissionMode;
+                appConfig.intervalMs = transRes.transmissionMode === 'Live (60Hz)' ? 16 : 60000;
+            }
         }
         if (appConfig.mode === 'Live Routing' || appConfig.mode === 'Local Recording') {
             const portRes = await (0, enquirer_1.prompt)({
@@ -43,13 +53,15 @@ async function main() {
             });
             appConfig.port = portRes.port;
         }
-        const intervalRes = await (0, enquirer_1.prompt)({
-            type: 'numeral',
-            name: 'interval',
-            message: 'Enter dispatch interval in (ms):',
-            initial: parseInt(process.env.DISPATCH_INTERVAL || '1000')
-        });
-        appConfig.intervalMs = intervalRes.interval;
+        if (appConfig.mode !== 'Live Routing') {
+            const intervalRes = await (0, enquirer_1.prompt)({
+                type: 'numeral',
+                name: 'interval',
+                message: 'Enter dispatch interval in (ms):',
+                initial: parseInt(process.env.DISPATCH_INTERVAL || '1000')
+            });
+            appConfig.intervalMs = intervalRes.interval;
+        }
     }
     catch (e) {
         console.log('Setup cancelled.');

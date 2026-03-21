@@ -13,6 +13,8 @@ const telemetry_1 = require("./parsers/telemetry");
 const carStatus_1 = require("./parsers/carStatus");
 const eventData_1 = require("./parsers/eventData");
 const carDamage_1 = require("./parsers/carDamage");
+const motionData_1 = require("./parsers/motionData");
+const tyreSets_1 = require("./parsers/tyreSets");
 const state_1 = require("./state");
 const sender_1 = require("./sender");
 function startUdpListener(config) {
@@ -39,13 +41,14 @@ function startUdpListener(config) {
         try {
             const header = (0, header_1.parseHeader)(msg);
             switch (header.packetId) {
+                case 0: { // Motion-Daten (G-Kräfte, Weltpositionen)
+                    const motionArray = (0, motionData_1.parseMotionData)(msg);
+                    motionArray.forEach((m, i) => state.updateMotion(i, m));
+                    break;
+                }
                 case 1: { // Session-Daten
                     const sessionData = (0, session_1.parseSession)(msg);
-                    state.sessionType = sessionData.sessionTypeMapped;
-                    state.trackId = sessionData.trackId;
-                    state.trackLength = sessionData.trackLength;
-                    state.sessionData = sessionData;
-                    state.isActive = true;
+                    state.updateSession(sessionData);
                     break;
                 }
                 case 2: { // Rundendaten
@@ -60,8 +63,10 @@ function startUdpListener(config) {
                         state.handleSessionEnd();
                     }
                     else if (eventData.eventStringCode === 'SCAR') {
-                        // Safety Car Event (safetyCarType und eventType aus dem Paket)
                         state.addSafetyCarEvent(eventData.safetyCarType ?? 0, eventData.eventType ?? 0);
+                    }
+                    else {
+                        state.handleEvent(eventData);
                     }
                     break;
                 }
@@ -77,7 +82,13 @@ function startUdpListener(config) {
                 }
                 case 7: { // Fahrzeug-Status
                     const carStatusArray = (0, carStatus_1.parseCarStatus)(msg);
-                    carStatusArray.forEach((cs, i) => state.updateCarStatus(i, cs));
+                    carStatusArray.forEach((cs, i) => {
+                        state.updateCarStatus(i, cs);
+                        // Global flag tracken (vom Spieler oder erstem Auto)
+                        if (i === header.playerCarIndex || (i === 0 && !state.trackFlags)) {
+                            state.trackFlags = cs.vehicleFIAFlags;
+                        }
+                    });
                     break;
                 }
                 case 10: { // Fahrzeug-Schäden (CarDamage)
@@ -87,6 +98,11 @@ function startUdpListener(config) {
                 }
                 case 15: { // Rundenpositionen (LapPositions) – alle Fahrzeuge pro Runde
                     state.updateLapPositions(msg);
+                    break;
+                }
+                case 20: { // Reifensätze (TyreSets)
+                    const tyreData = (0, tyreSets_1.parseTyreSets)(msg);
+                    state.updateTyreSets(tyreData.carIdx, tyreData.tyreSetData);
                     break;
                 }
             }
