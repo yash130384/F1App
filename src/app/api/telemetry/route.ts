@@ -131,10 +131,11 @@ export async function POST(req: Request) {
 
                     const upsertQuery = `
                         INSERT INTO telemetry_participants 
-                        (session_id, game_name, driver_id, team_id, start_position, position, lap_distance, top_speed, is_human, pit_stops, warnings, penalties_time)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        (session_id, game_name, driver_id, team_id, start_position, position, lap_distance, top_speed, is_human, pit_stops, warnings, penalties_time, car_index)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(session_id, game_name) DO UPDATE SET
                             position = EXCLUDED.position,
+                            car_index = EXCLUDED.car_index,
                             lap_distance = EXCLUDED.lap_distance,
                             driver_id = COALESCE(telemetry_participants.driver_id, EXCLUDED.driver_id),
                             top_speed = CASE WHEN EXCLUDED.top_speed > telemetry_participants.top_speed THEN EXCLUDED.top_speed ELSE telemetry_participants.top_speed END,
@@ -146,7 +147,7 @@ export async function POST(req: Request) {
 
                     try {
                         const partRow = await query<any>(upsertQuery,
-                            [sessionId, p.gameName, assignedDriverId, p.teamId, p.startPosition, p.position, p.lapDistance, p.topSpeedKmh, p.isHuman, p.pitStops || 0, p.warnings || 0, p.penaltiesTime || 0]
+                            [sessionId, p.gameName, assignedDriverId, p.teamId, p.startPosition, p.position, p.lapDistance, p.topSpeedKmh, p.isHuman, p.pitStops || 0, p.warnings || 0, p.penaltiesTime || 0, p.carIndex]
                         );
 
                         if (partRow.length > 0 && p.isHuman) {

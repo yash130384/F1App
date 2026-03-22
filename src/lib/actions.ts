@@ -1152,14 +1152,8 @@ export async function getSessionSafetyCarEvents(sessionId: string) {
 /**
  * Fetches organized telemetry laps for all drivers in a race (for the race overview chart).
  */
-export async function getAllDriversRaceTelemetry(id: string) {
+export async function getAllDriversRaceTelemetry(sessionId: string) {
     try {
-        let sessionId = id;
-        if (!id.includes('-')) {
-            const session = await query<any>(`SELECT id FROM telemetry_sessions WHERE race_id = ? LIMIT 1`, [id]);
-            if (session.length === 0) return { success: true, laps: [], drivers: [] };
-            sessionId = session[0].id;
-        }
 
         const participants = await query<any>(`
             SELECT tp.id, tp.driver_id, d.name as driver_name, d.color as driver_color
@@ -1222,14 +1216,8 @@ export async function getAllDriversRaceTelemetry(id: string) {
 /**
  * Fetches complete race analysis data (stints, position history, incidents).
  */
-export async function getRaceAnalysis(id: string) {
+export async function getRaceAnalysis(sessionId: string) {
     try {
-        let sessionId = id;
-        if (!id.includes('-')) {
-            const session = await query<any>(`SELECT id FROM telemetry_sessions WHERE race_id = ? LIMIT 1`, [id]);
-            if (session.length === 0) return { success: false, error: 'No telemetry session found' };
-            sessionId = session[0].id;
-        }
 
         const participants = await query<any>(`
             SELECT tp.id, tp.game_name, tp.driver_id, tp.car_index, d.name as driver_name, d.color as driver_color, tp.position

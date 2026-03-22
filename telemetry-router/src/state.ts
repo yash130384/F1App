@@ -172,27 +172,8 @@ export class SessionState {
 
     // Verarbeite das LapPositions-Paket (ID 15): m_positionForVehicleIdx[50][22]
     public updateLapPositions(buffer: Buffer) {
-        if (buffer.length < 31) return;
-        const numLaps = buffer.readUInt8(29);
-        const lapStart = buffer.readUInt8(30);
-
-        // Daten beginnen bei Byte 31: [numLaps][22] uint8
-        for (let lap = 0; lap < numLaps && lap < 50; lap++) {
-            const actualLapNum = lapStart + lap + 1;
-            for (let car = 0; car < 22; car++) {
-                const offset = 31 + lap * 22 + car;
-                if (offset >= buffer.length) break;
-                const pos = buffer.readUInt8(offset);
-                if (pos === 0) continue; // 0 = kein Eintrag
-                // Duplikate vermeiden
-                const existing = this.lapPositions.find(
-                    e => e.carIndex === car && e.lapNumber === actualLapNum
-                );
-                if (!existing) {
-                    this.lapPositions.push({ carIndex: car, lapNumber: actualLapNum, position: pos });
-                }
-            }
-        }
+        // Disabled: Packet 15 is unreliable/non-standard in F1 2025.
+        // Positions are now recorded per-lap directly in updateLapData.
     }
 
     // Map: Fahrzeug-Index (0-21) → PlayerState
@@ -243,8 +224,22 @@ export class SessionState {
         p.warnings = data.totalWarnings + data.cornerCuttingWarnings;
         p.penaltiesTime = data.penalties;
 
-        // Nur für menschliche Fahrer Runden speichern
-        if (p.isHuman && data.currentLapNum > p.currentLapNum && p.currentLapNum > 0) {
+        // Rundenübergang erkennen (für Positionshistorie und Rundenzeiten)
+        if (data.currentLapNum > p.currentLapNum && p.currentLapNum > 0) {
+            // Rundenposition speichern (Position beim Überqueren der Ziellinie)
+            const existingPos = this.lapPositions.find(
+                e => e.carIndex === carIdx && e.lapNumber === p.currentLapNum
+            );
+            if (!existingPos && p.position > 0) {
+                this.lapPositions.push({
+                    carIndex: carIdx,
+                    lapNumber: p.currentLapNum,
+                    position: p.position
+                });
+            }
+
+            // Nur für menschliche Fahrer Rundenzeiten speichern (Optimierung der DB)
+            if (p.isHuman) {
             if (data.lastLapTimeInMS > 0) {
                 // Sektorzeiten berechnen (Minuten-Teil * 60000 + Millisekunden-Teil)
                 const s1Ms = data.sector1TimeMinutesPart * 60000 + data.sector1TimeMSPart;
@@ -293,8 +288,9 @@ export class SessionState {
                 // Buffer für neue Runde leeren
                 p.currentLapSamples = [];
             }
-        }
-        
+            } // End of isHuman
+        } // End of currentLapNum > p.currentLapNum
+
         // Sample mit voller Frequenz aufzeichnen (z.B. 60Hz) für präzise Analysen
         if (p.isHuman && data.currentLapNum > 0) {
             this.maybeRecordSample(p, data);

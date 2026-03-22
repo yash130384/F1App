@@ -17,6 +17,7 @@ import {
 import { TyreStrategyChart } from '@/components/race/TyreStrategyChart';
 import { LapPositionChart } from '@/components/race/LapPositionChart';
 import GapToLeaderChart from '@/components/analysis/GapToLeaderChart';
+import RacePaceChart from '@/components/analysis/RacePaceChart';
 import { useRouter } from 'next/navigation';
 
 // ── Hilfsfunktionen ────────────────────────────────────────────────────────────
@@ -124,9 +125,9 @@ function RaceDetailContent() {
             // Alle-Fahrer-Graph laden
             setLoadingGraph(true);
             const [graphRes, scRes, analysisRes, lapsRes] = await Promise.all([
-                sid ? getAllDriversRaceTelemetry(sid) : getAllDriversRaceTelemetry(raceId.toString()),
+                sid ? getAllDriversRaceTelemetry(sid) : Promise.resolve({ success: false, laps: [], drivers: [] }),
                 sid ? getSessionSafetyCarEvents(sid) : Promise.resolve({ success: false, events: [] }),
-                sid ? getRaceAnalysis(sid) : getRaceAnalysis(raceId.toString()),
+                sid ? getRaceAnalysis(sid) : Promise.resolve({ success: false, error: 'No session' }),
                 sid ? getSessionLaps(sid) : Promise.resolve({ success: false, laps: [] })
             ]);
             if (graphRes.success) {
@@ -180,9 +181,13 @@ function RaceDetailContent() {
             {/* ── HEADER ── */}
             <div style={{ background: 'linear-gradient(180deg, rgba(225,6,0,0.18) 0%, transparent 100%)', borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '1.5rem clamp(1rem, 4vw, 3rem) 1rem' }}>
                 <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-                    <Link href={leagueUrl} style={{ fontSize: '0.65rem', color: 'var(--silver)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '1rem', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
-                        ← {backLabel}
-                    </Link>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                        <Link href={leagueUrl} className="text-f1 hover-f1" style={{ color: 'var(--silver)', fontSize: '0.85rem', textDecoration: 'none' }}>
+                            {backLabel}
+                        </Link>
+                        <span style={{ color: 'rgba(255,255,255,0.2)' }}>/</span>
+                        <span className="text-f1" style={{ color: 'var(--white)', fontSize: '0.85rem' }}>Rennen</span>
+                    </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem' }}>
                         <div>
                             <h1 className="text-f1 text-gradient" style={{ fontSize: 'clamp(1.8rem, 5vw, 3rem)', letterSpacing: '-2px', marginBottom: '0.25rem' }}>
@@ -273,105 +278,9 @@ function RaceDetailContent() {
                 </div>
 
                 {/* ── ALLE-FAHRER-GRAPH ── */}
-                {(graphData.length > 0 || loadingGraph) && (
-                    <div className="f1-card" style={{ marginBottom: '2rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                            <div>
-                                <div style={{ fontSize: '0.65rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '4px' }}>Rundenzeitverlauf</div>
-                                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)' }}>Alle Fahrer im Vergleich · Reifenfarbe ändert sich bei Pit · {scEvents.length > 0 ? `${scEvents.length} SC/VSC-Phase${scEvents.length > 1 ? 'n' : ''}` : 'keine SC-Phase'}</div>
-                            </div>
-                            {/* Legende Reifen */}
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                                {[16, 17, 18, 7, 8].filter(id => {
-                                    return graphData.some((d: any) => graphDrivers.some((dr: any) => d[`${dr.id}_current_tyre`] === id));
-                                }).map(id => {
-                                    const info = getTyreInfo(id);
-                                    return (
-                                        <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', color: 'var(--silver)' }}>
-                                            <TyreBadge compoundId={id} /> {info.name}
-                                        </span>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {loadingGraph ? (
-                            <div style={{ height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <div className="animate-pulse" style={{ color: 'var(--silver)', fontSize: '0.85rem' }}>Lade Telemetrie...</div>
-                            </div>
-                        ) : (
-                            <div style={{ width: '100%', height: 'clamp(200px, 35vw, 320px)' }}>
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={graphData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                                        <defs>
-                                            {graphDrivers.map(driver => {
-                                                const driverLapData = graphData.filter(d => d[driver.id] !== undefined);
-                                                if (driverLapData.length === 0) return null;
-                                                const minLap = Math.min(...driverLapData.map(d => d.lap_number));
-                                                const maxLap = Math.max(...driverLapData.map(d => d.lap_number));
-                                                const range = maxLap - minLap || 1;
-                                                let stops: any[] = [];
-                                                let currentTyreId = driverLapData[0]?.[`${driver.id}_current_tyre`];
-                                                stops.push(<stop key="s0" offset="0%" stopColor={getTyreInfo(currentTyreId).color} />);
-                                                driverLapData.forEach(lap => {
-                                                    const t = lap[`${driver.id}_current_tyre`];
-                                                    if (t !== currentTyreId && t !== undefined) {
-                                                        const pct = `${((lap.lap_number - minLap) / range) * 100}%`;
-                                                        stops.push(<stop key={`e${lap.lap_number}`} offset={pct} stopColor={getTyreInfo(currentTyreId).color} />);
-                                                        stops.push(<stop key={`s${lap.lap_number}`} offset={pct} stopColor={getTyreInfo(t).color} />);
-                                                        currentTyreId = t;
-                                                    }
-                                                });
-                                                stops.push(<stop key="send" offset="100%" stopColor={getTyreInfo(currentTyreId).color} />);
-                                                return (
-                                                    <linearGradient key={`tg-${driver.id}`} id={`tyre-${driver.id}`} x1="0" y1="0" x2="1" y2="0">
-                                                        {stops}
-                                                    </linearGradient>
-                                                );
-                                            })}
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-                                        <XAxis dataKey="lap_number" stroke="var(--silver)" tick={{ fill: 'var(--silver)', fontSize: 10 }} label={{ value: 'Runde', position: 'insideBottomRight', fill: 'var(--silver)', fontSize: 9, offset: -4 }} />
-                                        <YAxis stroke="var(--silver)" tick={{ fill: 'var(--silver)', fontSize: 10 }} domain={['auto', 'auto']} tickFormatter={formatLapTime} width={65} />
-                                        <Tooltip content={<AllDriversTooltip drivers={graphDrivers} graphData={graphData} />} />
-                                        {/* Safety Car Referenzlinien */}
-                                        {scEvents.map((e: any, i: number) => (
-                                            <ReferenceLine key={`sc-${i}`} x={e.lap_number} stroke="#ffc107"
-                                                strokeDasharray="5 3" strokeWidth={1.5}
-                                                label={{ value: e.safety_car_type === 1 ? 'SC' : 'VSC', position: 'top', fill: '#ffc107', fontSize: 9 }}
-                                            />
-                                        ))}
-                                        {/* Highlight-Linie für ausgewählten Fahrer */}
-                                        {graphDrivers.map((driver) => (
-                                            <Line
-                                                key={driver.id}
-                                                type="monotone"
-                                                dataKey={driver.id}
-                                                stroke={`url(#tyre-${driver.id})`}
-                                                strokeWidth={2}
-                                                dot={false}
-                                                connectNulls={false}
-                                                opacity={1}
-                                                isAnimationActive={false}
-                                            />
-                                        ))}
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </div>
-                        )}
-
-                        {/* Graph-Legende Fahrer */}
-                        {graphDrivers.length > 0 && (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                                {graphDrivers.map(d => (
-                                    <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem', color: 'var(--silver)', cursor: 'pointer' }}
-                                        onClick={() => handleDriverClick(results.find((r: any) => r.driver_id === d.id) || { driver_id: d.id, driver_name: d.name, driver_color: d.color })}>
-                                        <div style={{ width: '20px', height: '2px', background: d.color || 'var(--silver)', borderRadius: '1px' }} />
-                                        {d.name}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                {sessionLaps.length > 0 && (
+                    <div style={{ marginBottom: '2rem' }}>
+                        <RacePaceChart laps={sessionLaps} />
                     </div>
                 )}
 
