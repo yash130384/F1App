@@ -478,6 +478,7 @@ export class SessionState {
             trackName: this.trackName,
             trackLength: this.trackLength,
             isActive: this.isActive,
+            isSessionEnded: false,
             sessionData: this.sessionData,
             participants: participantsList,
             safetyCarEvents,

@@ -91,8 +91,8 @@ async function processFile(filePath: string, config: AppConfig) {
         }
     }
 
-    // Finale Übermittlung falls Session noch aktiv
-    await sendChunk(state, config);
+    // Finale Übermittlung falls Session noch aktiv (und Sitzungsende signalisieren)
+    await sendChunk(state, config, true);
     fs.closeSync(fd);
     console.log(`\nFertig: ${packetCount} Pakete verarbeitet.`);
 }
@@ -165,11 +165,16 @@ function handlePacket(msg: Buffer, state: SessionState) {
     } catch (e) {}
 }
 
-async function sendChunk(state: SessionState, config: AppConfig) {
+async function sendChunk(state: SessionState, config: AppConfig, isFinal = false) {
     const payload = state.buildPayloadAndClear();
     
     // Nur senden, wenn relevante Daten da sind (Sitzung aktiv & Teilnehmer)
-    if (!payload.isActive || payload.participants.length === 0) return;
+    if (!payload.isActive && !isFinal) return;
+    if (payload.participants.length === 0 && !isFinal) return;
+
+    if (isFinal) {
+        payload.isSessionEnded = true;
+    }
 
     const body = {
         leagueId: config.leagueId,
@@ -178,13 +183,18 @@ async function sendChunk(state: SessionState, config: AppConfig) {
     };
 
     try {
-        await fetch(config.url!, {
+        const res = await fetch(config.url!, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
-            timeout: 10000
+            timeout: 30000 // Mehr Zeit für finale Session-Promotion
         });
-    } catch (e) {
-        // Still schlucken oder loggen bei schwerem Fehler
+
+        if (!res.ok) {
+            const errText = await res.text();
+            console.error(`\n❌ API Fehler (${res.status}): ${errText.substring(0, 100)}`);
+        }
+    } catch (e: any) {
+        console.error(`\n❌ Netzwerkfehler beim Senden: ${e.message}`);
     }
 }

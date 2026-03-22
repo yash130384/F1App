@@ -40,7 +40,7 @@ export async function POST(req: Request) {
             `SELECT id, is_active FROM telemetry_sessions 
              WHERE league_id = ? 
              AND is_active = true 
-             AND updated_at > datetime('now', '-2 minutes')
+             AND updated_at > NOW() - INTERVAL '2 minutes'
              ORDER BY created_at DESC LIMIT 1`,
             [leagueId]
         );
