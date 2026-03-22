@@ -1308,6 +1308,27 @@ export async function getSessionLaps(sessionId: string) {
 }
 
 /**
+ * Fetches the fastest valid sectors across all participants in a session.
+ */
+export async function getSessionFastestSectors(sessionId: string) {
+    try {
+        const result = await query<any>(`
+            SELECT 
+                MIN(NULLIF(sector1_ms, 0)) as min_s1,
+                MIN(NULLIF(sector2_ms, 0)) as min_s2,
+                MIN(NULLIF(sector3_ms, 0)) as min_s3
+            FROM telemetry_laps tl
+            JOIN telemetry_participants tp ON tl.participant_id = tp.id
+            WHERE tp.session_id = ? AND tl.is_valid = true
+        `, [sessionId]);
+
+        return { success: true, fastestSectors: result[0] || null };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
  * Fetches the high-frequency samples for a specific lap.
  */
 export async function getLapSamples(lapId: string) {
