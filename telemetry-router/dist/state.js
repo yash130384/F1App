@@ -9,6 +9,12 @@ class SessionState {
     isActive = false;
     isSessionEnded = false;
     sessionData;
+    packetCount = 0;
+    lastPacketTime = 0;
+    incrementPackets() {
+        this.packetCount++;
+        this.lastPacketTime = Date.now();
+    }
     trackFlags = 0; // 0=none, 1=green, 2=blue, 3=yellow
     safetyCarEvents = [];
     incidentLog = [];
@@ -76,27 +82,8 @@ class SessionState {
     }
     // Verarbeite das LapPositions-Paket (ID 15): m_positionForVehicleIdx[50][22]
     updateLapPositions(buffer) {
-        if (buffer.length < 31)
-            return;
-        const numLaps = buffer.readUInt8(29);
-        const lapStart = buffer.readUInt8(30);
-        // Daten beginnen bei Byte 31: [numLaps][22] uint8
-        for (let lap = 0; lap < numLaps && lap < 50; lap++) {
-            const actualLapNum = lapStart + lap + 1;
-            for (let car = 0; car < 22; car++) {
-                const offset = 31 + lap * 22 + car;
-                if (offset >= buffer.length)
-                    break;
-                const pos = buffer.readUInt8(offset);
-                if (pos === 0)
-                    continue; // 0 = kein Eintrag
-                // Duplikate vermeiden
-                const existing = this.lapPositions.find(e => e.carIndex === car && e.lapNumber === actualLapNum);
-                if (!existing) {
-                    this.lapPositions.push({ carIndex: car, lapNumber: actualLapNum, position: pos });
-                }
-            }
-        }
+        // Disabled: Packet 15 is unreliable/non-standard in F1 2025.
+        // Positions are now recorded per-lap directly in updateLapData.
     }
     // Map: Fahrzeug-Index (0-21) → PlayerState
     players = new Map();
@@ -115,7 +102,9 @@ class SessionState {
                 warnings: 0,
                 penaltiesTime: 0,
                 laps: [],
-                currentLapNum: 0
+                currentLapNum: 0,
+                currentLapSamples: [],
+                bestLapSamples: []
             });
         }
         return this.players.get(carIdx);
@@ -138,51 +127,91 @@ class SessionState {
         p.pitStops = data.numPitStops;
         p.warnings = data.totalWarnings + data.cornerCuttingWarnings;
         p.penaltiesTime = data.penalties;
-        // Nur für menschliche Fahrer Runden speichern
-        if (p.isHuman && data.currentLapNum > p.currentLapNum && p.currentLapNum > 0) {
-            if (data.lastLapTimeInMS > 0) {
-                // Sektorzeiten berechnen (Minuten-Teil * 60000 + Millisekunden-Teil)
-                const s1Ms = data.sector1TimeMinutesPart * 60000 + data.sector1TimeMSPart;
-                const s2Ms = data.sector2TimeMinutesPart * 60000 + data.sector2TimeMSPart;
-                const s3Ms = s1Ms > 0 && s2Ms > 0
-                    ? Math.max(0, data.lastLapTimeInMS - s1Ms - s2Ms)
-                    : 0;
-                // Aktuellen Schadensstand erfassen
-                let damageSnapshot;
-                if (p.carDamageData) {
-                    damageSnapshot = {
-                        frontLeftWingDamage: p.carDamageData.frontLeftWingDamage,
-                        frontRightWingDamage: p.carDamageData.frontRightWingDamage,
-                        rearWingDamage: p.carDamageData.rearWingDamage,
-                        floorDamage: p.carDamageData.floorDamage,
-                        diffuserDamage: p.carDamageData.diffuserDamage,
-                        sidepodDamage: p.carDamageData.sidepodDamage,
-                        gearBoxDamage: p.carDamageData.gearBoxDamage,
-                        engineDamage: p.carDamageData.engineDamage,
-                        engineBlown: p.carDamageData.engineBlown,
-                        engineSeized: p.carDamageData.engineSeized,
-                    };
-                }
-                p.laps.push({
+        // Rundenübergang erkennen (für Positionshistorie und Rundenzeiten)
+        if (data.currentLapNum > p.currentLapNum && p.currentLapNum > 0) {
+            // Rundenposition speichern (Position beim Überqueren der Ziellinie)
+            const existingPos = this.lapPositions.find(e => e.carIndex === carIdx && e.lapNumber === p.currentLapNum);
+            if (!existingPos && p.position > 0) {
+                this.lapPositions.push({
+                    carIndex: carIdx,
                     lapNumber: p.currentLapNum,
-                    lapTimeMs: data.lastLapTimeInMS,
-                    isValid: !data.currentLapInvalid,
-                    tyreCompound: p.carStatusData?.visualTyreCompound,
-                    isPitLap: data.pitStatus > 0,
-                    sector1Ms: s1Ms > 0 ? s1Ms : undefined,
-                    sector2Ms: s2Ms > 0 ? s2Ms : undefined,
-                    sector3Ms: s3Ms > 0 ? s3Ms : undefined,
-                    carDamage: damageSnapshot,
+                    position: p.position
                 });
-                if (!data.currentLapInvalid && (p.fastestLapMs === null || data.lastLapTimeInMS < p.fastestLapMs)) {
-                    p.fastestLapMs = data.lastLapTimeInMS;
-                }
             }
+            // Nur für menschliche Fahrer Rundenzeiten speichern (Optimierung der DB)
+            if (p.isHuman) {
+                if (data.lastLapTimeInMS > 0) {
+                    // Sektorzeiten berechnen (Minuten-Teil * 60000 + Millisekunden-Teil)
+                    const s1Ms = data.sector1TimeMinutesPart * 60000 + data.sector1TimeMSPart;
+                    const s2Ms = data.sector2TimeMinutesPart * 60000 + data.sector2TimeMSPart;
+                    const s3Ms = s1Ms > 0 && s2Ms > 0
+                        ? Math.max(0, data.lastLapTimeInMS - s1Ms - s2Ms)
+                        : 0;
+                    // Aktuellen Schadensstand erfassen
+                    let damageSnapshot;
+                    if (p.carDamageData) {
+                        damageSnapshot = {
+                            frontLeftWingDamage: p.carDamageData.frontLeftWingDamage,
+                            frontRightWingDamage: p.carDamageData.frontRightWingDamage,
+                            rearWingDamage: p.carDamageData.rearWingDamage,
+                            floorDamage: p.carDamageData.floorDamage,
+                            diffuserDamage: p.carDamageData.diffuserDamage,
+                            sidepodDamage: p.carDamageData.sidepodDamage,
+                            gearBoxDamage: p.carDamageData.gearBoxDamage,
+                            engineDamage: p.carDamageData.engineDamage,
+                            engineBlown: p.carDamageData.engineBlown,
+                            engineSeized: p.carDamageData.engineSeized,
+                        };
+                    }
+                    // Best Lap Logik
+                    if (!data.currentLapInvalid && (p.fastestLapMs === null || data.lastLapTimeInMS < p.fastestLapMs)) {
+                        p.fastestLapMs = data.lastLapTimeInMS;
+                        p.bestLapSamples = [...p.currentLapSamples];
+                    }
+                    p.laps.push({
+                        lapNumber: p.currentLapNum,
+                        lapTimeMs: data.lastLapTimeInMS,
+                        isValid: !data.currentLapInvalid,
+                        tyreCompound: p.carStatusData?.visualTyreCompound,
+                        isPitLap: data.pitStatus > 0,
+                        sector1Ms: s1Ms > 0 ? s1Ms : undefined,
+                        sector2Ms: s2Ms > 0 ? s2Ms : undefined,
+                        sector3Ms: s3Ms > 0 ? s3Ms : undefined,
+                        carDamage: damageSnapshot,
+                        // Nur Samples mitsenden, wenn es die neue Bestzeit war
+                        samples: (!data.currentLapInvalid && data.lastLapTimeInMS === p.fastestLapMs) ? p.bestLapSamples : undefined
+                    });
+                    // Buffer für neue Runde leeren
+                    p.currentLapSamples = [];
+                }
+            } // End of isHuman
+        } // End of currentLapNum > p.currentLapNum
+        // Sample mit voller Frequenz aufzeichnen (z.B. 60Hz) für präzise Analysen
+        if (p.isHuman && data.currentLapNum > 0) {
+            this.maybeRecordSample(p, data);
         }
         p.currentLapNum = data.currentLapNum;
         p.lapData = data;
     }
+    maybeRecordSample(p, lap) {
+        if (!p.telemetryData || !p.motionData)
+            return;
+        p.currentLapSamples.push({
+            d: lap.lapDistance,
+            s: p.telemetryData.speedKmh,
+            t: p.telemetryData.throttle,
+            b: p.telemetryData.brake,
+            st: p.telemetryData.steer,
+            gLat: p.motionData.gForceLateral,
+            gLon: p.motionData.gForceLongitudinal,
+            gVert: p.motionData.gForceVertical,
+            tSurf: p.telemetryData.tyresSurfaceTemperature,
+            tInner: p.telemetryData.tyresInnerTemperature,
+            rHeight: p.motionExData ? [p.motionExData.frontAeroHeight, p.motionExData.rearAeroHeight] : [0, 0]
+        });
+    }
     updateSession(data) {
+        this.incrementPackets();
         this.sessionType = data.sessionTypeMapped;
         this.trackId = data.trackId;
         this.trackName = data.trackName;
@@ -191,10 +220,12 @@ class SessionState {
         this.isActive = true;
     }
     updateCarStatus(carIdx, data) {
+        this.incrementPackets();
         const p = this.getPlayer(carIdx);
         p.carStatusData = data;
     }
     updateTelemetry(carIdx, data) {
+        this.incrementPackets();
         const p = this.getPlayer(carIdx);
         if (data.speedKmh > p.topSpeedKmh) {
             p.topSpeedKmh = data.speedKmh;
@@ -202,14 +233,60 @@ class SessionState {
         p.telemetryData = data;
     }
     updateCarDamage(carIdx, data) {
+        this.incrementPackets();
         const p = this.getPlayer(carIdx);
         p.carDamageData = data;
     }
     updateMotion(carIdx, data) {
+        this.incrementPackets();
         const p = this.getPlayer(carIdx);
         p.motionData = data;
     }
+    updateMotionEx(carIdx, data) {
+        this.incrementPackets();
+        const p = this.getPlayer(carIdx);
+        p.motionExData = data;
+    }
+    updateSessionHistory(data) {
+        this.incrementPackets();
+        const p = this.getPlayer(data.carIdx);
+        if (!p.isHuman)
+            return; // Opt: Onyl store full lap detailed sectors for human players
+        // data.lapHistoryData holds sector times for ALL completed laps
+        // data.numLaps is the number of fully completed laps
+        for (let i = 0; i < data.numLaps; i++) {
+            const hLap = data.lapHistoryData[i];
+            const lapNumber = i + 1; // Array is 0-indexed, laps 1-indexed
+            const s1Ms = hLap.sector1TimeMinutes * 60000 + hLap.sector1TimeInMS;
+            const s2Ms = hLap.sector2TimeMinutes * 60000 + hLap.sector2TimeInMS;
+            const s3Ms = hLap.sector3TimeMinutes * 60000 + hLap.sector3TimeInMS;
+            // Find or create corresponding lap in our state buffer
+            let stateLap = p.laps.find(l => l.lapNumber === lapNumber);
+            if (!stateLap) {
+                // Create a temporary lap entry for these sectors
+                stateLap = {
+                    lapNumber: lapNumber,
+                    lapTimeMs: hLap.lapTimeInMS, // Use history lap time
+                    isValid: (hLap.lapValidFlags & 0x01) !== 0, // 0x01 = lap valid flag
+                    sector1Ms: s1Ms > 0 ? s1Ms : undefined,
+                    sector2Ms: s2Ms > 0 ? s2Ms : undefined,
+                    sector3Ms: s3Ms > 0 ? s3Ms : undefined
+                };
+                p.laps.push(stateLap);
+            }
+            else {
+                // Update sector times if they are valid (> 0)
+                if (s1Ms > 0)
+                    stateLap.sector1Ms = s1Ms;
+                if (s2Ms > 0)
+                    stateLap.sector2Ms = s2Ms;
+                if (s3Ms > 0)
+                    stateLap.sector3Ms = s3Ms;
+            }
+        }
+    }
     updateTyreSets(carIdx, tyreSets) {
+        this.incrementPackets();
         const p = this.getPlayer(carIdx);
         p.tyreSets = tyreSets;
     }
@@ -230,6 +307,7 @@ class SessionState {
                 : 0;
             return {
                 gameName: p.gameName,
+                carIndex: _,
                 position: p.position,
                 lapDistance: p.lapDistance,
                 fastestLapMs: p.fastestLapMs,
@@ -287,7 +365,13 @@ class SessionState {
                     currentLapNum: lapData.currentLapNum,
                     currentLapTimeInMS: lapData.currentLapTimeInMS,
                     lastLapTimeInMS: lapData.lastLapTimeInMS,
+                    sector1Ms: lapData.sector1TimeMinutesPart * 60000 + lapData.sector1TimeMSPart,
+                    sector2Ms: lapData.sector2TimeMinutesPart * 60000 + lapData.sector2TimeMSPart,
                     pitStatus: lapData.pitStatus,
+                    driverStatus: lapData.driverStatus,
+                    resultStatus: lapData.resultStatus,
+                    pitLaneTimeInLaneInMS: lapData.pitLaneTimeInLaneInMS,
+                    pitStopTimerInMS: lapData.pitStopTimerInMS,
                     deltaToCarInFrontMs: deltaToFront,
                     deltaToRaceLeaderMs: deltaToLeader,
                 } : undefined,
@@ -309,12 +393,23 @@ class SessionState {
             trackName: this.trackName,
             trackLength: this.trackLength,
             isActive: this.isActive,
+            isSessionEnded: false,
             sessionData: this.sessionData,
             participants: participantsList,
             safetyCarEvents,
             incidentLog: this.incidentLog,
             trackFlags: this.trackFlags,
             lapPositions,
+        };
+    }
+    getDashboardState() {
+        return {
+            sessionId: 'current',
+            trackName: this.trackName,
+            sessionType: this.sessionType,
+            isActive: this.isActive,
+            packetCount: this.packetCount,
+            lastPacketTime: this.lastPacketTime
         };
     }
 }

@@ -32,14 +32,13 @@ function startSender(config, state) {
         });
         return;
     }
-    console.log(`Starting Live Routing to ${config.url} every ${config.intervalMs}ms`);
+    console.log(`Starting Live Routing to ${config.url} with ${config.transmissionMode} (Interval: ${config.intervalMs}ms)`);
     let skipCount = 0;
     setInterval(async () => {
         const payload = state.buildPayloadAndClear();
-        // Only send if it's a Race session (Type 15) and there are human participants
+        // Send if there are human participants (regardless of session type)
         const hasHumans = payload.participants.some(p => p.isHuman);
-        const isSession15 = payload.sessionData?.sessionTypeRaw === 15;
-        if (isSession15 && hasHumans) {
+        if (hasHumans) {
             skipCount = 0; // reset
             const body = {
                 leagueId: config.leagueId,
@@ -58,10 +57,6 @@ function startSender(config, state) {
                 if (!res.ok) {
                     console.error(`Failed to send chunk, HTTP status: ${res.status}`);
                 }
-                else {
-                    const modeLabel = config.transmissionMode || 'Default';
-                    console.log(`[${modeLabel}] Successfully sent ${payload.participants.length} participants telemetry`);
-                }
             }
             catch (e) {
                 clearTimeout(timeoutId);
@@ -69,11 +64,8 @@ function startSender(config, state) {
             }
         }
         else {
-            skipCount++;
-            const logThreshold = config.intervalMs >= 5000 ? 1 : 10;
-            if (skipCount % logThreshold === 0) {
-                console.log(`[!] Skipping send: sessionType=${payload.sessionType}, participants=${payload.participants.length}`);
-            }
+            // Silently skip if no humans or wrong session type
+            // (Dashboard handles status display)
         }
     }, config.intervalMs);
 }

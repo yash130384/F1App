@@ -14,9 +14,12 @@ const carStatus_1 = require("./parsers/carStatus");
 const eventData_1 = require("./parsers/eventData");
 const carDamage_1 = require("./parsers/carDamage");
 const motionData_1 = require("./parsers/motionData");
+const sessionHistory_1 = require("./parsers/sessionHistory");
+const motionEx_1 = require("./parsers/motionEx");
 const tyreSets_1 = require("./parsers/tyreSets");
 const state_1 = require("./state");
 const sender_1 = require("./sender");
+const dashboard_1 = require("./dashboard");
 function startUdpListener(config) {
     if (!config.port) {
         console.error('Kein UDP-Port angegeben.');
@@ -26,16 +29,15 @@ function startUdpListener(config) {
     const state = new state_1.SessionState();
     // Aggregationsschleife starten
     (0, sender_1.startSender)(config, state);
+    // Dashboard alle 500ms aktualisieren
+    setInterval(() => {
+        (0, dashboard_1.renderDashboard)(config, state.getDashboardState());
+    }, 500);
     server.on('error', (err) => {
         console.error(`UDP-Serverfehler:\n${err.stack}`);
         server.close();
     });
-    let packetCount = 0;
     server.on('message', (msg, rinfo) => {
-        packetCount++;
-        if (packetCount % 600 === 0) {
-            console.log(`600 Pakete empfangen... letztes von ${rinfo.address}:${rinfo.port} (${msg.length} Bytes)`);
-        }
         if (msg.length < 29)
             return;
         try {
@@ -94,6 +96,16 @@ function startUdpListener(config) {
                 case 10: { // Fahrzeug-Schäden (CarDamage)
                     const carDamageArray = (0, carDamage_1.parseCarDamage)(msg);
                     carDamageArray.forEach((cd, i) => state.updateCarDamage(i, cd));
+                    break;
+                }
+                case 11: { // Session History
+                    const sessionHistory = (0, sessionHistory_1.parseSessionHistoryData)(msg, header);
+                    state.updateSessionHistory(sessionHistory);
+                    break;
+                }
+                case 13: { // Motion Ex - Player Only
+                    const motionEx = (0, motionEx_1.parseMotionExData)(msg);
+                    state.updateMotionEx(header.playerCarIndex, motionEx);
                     break;
                 }
                 case 15: { // Rundenpositionen (LapPositions) – alle Fahrzeuge pro Runde

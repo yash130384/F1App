@@ -11,6 +11,7 @@ import { parseTelemetry } from './parsers/telemetry';
 import { parseCarStatus } from './parsers/carStatus';
 import { parseEventData } from './parsers/eventData';
 import { parseCarDamage } from './parsers/carDamage';
+import { parseSessionHistoryData } from './parsers/sessionHistory';
 import { parseMotionData } from './parsers/motionData';
 import { parseMotionExData } from './parsers/motionEx';
 import { parseTyreSets } from './parsers/tyreSets';
@@ -148,6 +149,11 @@ function handlePacket(msg: Buffer, state: SessionState) {
                 break;
             }
             case 11: { 
+                const sessionHistory = parseSessionHistoryData(msg, header);
+                state.updateSessionHistory(sessionHistory);
+                break;
+            }
+            case 13: { 
                 const motionEx = parseMotionExData(msg);
                 state.updateMotionEx(header.playerCarIndex, motionEx);
                 break;

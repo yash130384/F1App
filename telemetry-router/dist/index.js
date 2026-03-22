@@ -1,79 +1,109 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 const dotenv_1 = require("dotenv");
 const enquirer_1 = require("enquirer");
-const udpListener_1 = require("./udpListener");
-const playback_1 = require("./playback");
 (0, dotenv_1.config)(); // Load .env if exists
 async function main() {
-    console.log('--- F1 2025 Telemetry Router ---');
-    let appConfig = {};
-    try {
-        const responses = await (0, enquirer_1.prompt)([
-            {
-                type: 'input',
-                name: 'leagueId',
-                message: 'Enter your League ID/Name:',
-                initial: process.env.LEAGUE_ID || 'MyLeague'
-            },
-            {
+    console.log('\n--- F1 25 Telemetry Router ---');
+    let appConfig = {
+        leagueId: process.env.LEAGUE_ID || 'MyLeague',
+        mode: 'Live Telemetry',
+        url: process.env.TARGET_URL || 'http://localhost:3000/api/telemetry',
+        port: parseInt(process.env.UDP_PORT || '20888'),
+        intervalMs: 5000
+    };
+    if (process.env.NON_INTERACTIVE === 'true') {
+        appConfig.transmissionMode = process.env.TRANSMISSION_MODE || 'Balanced (5s)';
+        appConfig.intervalMs = appConfig.transmissionMode === 'Results Only (60s)' ? 60000 :
+            appConfig.transmissionMode === 'Live (60Hz)' ? 16 : 5000;
+        const { startUdpListener } = await Promise.resolve().then(() => __importStar(require('./udpListener')));
+        startUdpListener(appConfig);
+        return;
+    }
+    while (true) {
+        const response = await (0, enquirer_1.prompt)({
+            type: 'select',
+            name: 'mode',
+            message: 'Main Menu:',
+            choices: [
+                'Live Telemetry',
+                'Fast Process Recordings',
+                'Playback Recording (Legacy)',
+                'Settings',
+                'Exit'
+            ]
+        });
+        if (response.mode === 'Exit')
+            process.exit(0);
+        appConfig.mode = response.mode;
+        if (appConfig.mode === 'Settings') {
+            const settings = await (0, enquirer_1.prompt)([
+                { type: 'input', name: 'leagueId', message: 'League ID:', initial: appConfig.leagueId },
+                { type: 'input', name: 'url', message: 'Target URL:', initial: appConfig.url },
+                { type: 'numeral', name: 'port', message: 'UDP Port:', initial: appConfig.port }
+            ]);
+            appConfig = { ...appConfig, ...settings };
+            continue;
+        }
+        if (appConfig.mode === 'Live Telemetry') {
+            const transRes = await (0, enquirer_1.prompt)({
                 type: 'select',
-                name: 'mode',
-                message: 'Select Operation Mode:',
-                choices: ['Live Routing', 'Local Recording', 'Playback']
-            }
-        ]);
-        appConfig.leagueId = responses.leagueId;
-        appConfig.mode = responses.mode;
-        if (appConfig.mode === 'Live Routing' || appConfig.mode === 'Playback') {
-            const urlRes = await (0, enquirer_1.prompt)({
-                type: 'input',
-                name: 'url',
-                message: 'Enter destination Web App URL:',
-                initial: process.env.TARGET_URL || 'https://f1-app-lknx.vercel.app/api/telemetry'
+                name: 'transmissionMode',
+                message: 'Select Transmission Mode:',
+                choices: ['Live (60Hz)', 'Balanced (5s)', 'Results Only (60s)']
             });
-            appConfig.url = urlRes.url;
-            if (appConfig.mode === 'Live Routing') {
-                const transRes = await (0, enquirer_1.prompt)({
-                    type: 'select',
-                    name: 'transmissionMode',
-                    message: 'Select Transmission Mode:',
-                    choices: ['Live (60Hz)', 'Results Only (60s)']
-                });
-                appConfig.transmissionMode = transRes.transmissionMode;
-                appConfig.intervalMs = transRes.transmissionMode === 'Live (60Hz)' ? 16 : 60000;
-            }
+            appConfig.transmissionMode = transRes.transmissionMode;
+            appConfig.intervalMs =
+                transRes.transmissionMode === 'Live (60Hz)' ? 16 :
+                    transRes.transmissionMode === 'Balanced (5s)' ? 5000 : 60000;
+            const { startUdpListener } = await Promise.resolve().then(() => __importStar(require('./udpListener')));
+            startUdpListener(appConfig);
+            return;
         }
-        if (appConfig.mode === 'Live Routing' || appConfig.mode === 'Local Recording') {
-            const portRes = await (0, enquirer_1.prompt)({
-                type: 'numeral',
-                name: 'port',
-                message: 'Enter UDP Port to listen on:',
-                initial: parseInt(process.env.UDP_PORT || '20888')
-            });
-            appConfig.port = portRes.port;
+        if (appConfig.mode === 'Fast Process Recordings') {
+            const { fastProcessRecordings } = await Promise.resolve().then(() => __importStar(require('./fastProcess')));
+            await fastProcessRecordings(appConfig);
         }
-        if (appConfig.mode !== 'Live Routing') {
-            const intervalRes = await (0, enquirer_1.prompt)({
-                type: 'numeral',
-                name: 'interval',
-                message: 'Enter dispatch interval in (ms):',
-                initial: parseInt(process.env.DISPATCH_INTERVAL || '1000')
-            });
-            appConfig.intervalMs = intervalRes.interval;
+        if (appConfig.mode === 'Playback Recording (Legacy)') {
+            const { startPlayback } = await Promise.resolve().then(() => __importStar(require('./playback')));
+            await startPlayback(appConfig);
         }
-    }
-    catch (e) {
-        console.log('Setup cancelled.');
-        process.exit(0);
-    }
-    console.log('\nStarting Router with configuration:');
-    console.log(appConfig);
-    if (appConfig.mode === 'Live Routing' || appConfig.mode === 'Local Recording') {
-        (0, udpListener_1.startUdpListener)(appConfig);
-    }
-    else {
-        (0, playback_1.startPlayback)(appConfig);
     }
 }
-main();
+main().catch(err => {
+    console.error('Fatal Error:', err);
+    process.exit(1);
+});

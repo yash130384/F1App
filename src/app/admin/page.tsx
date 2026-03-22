@@ -28,7 +28,7 @@ import {
     claimSession
 } from '@/lib/actions';
 import { DEFAULT_CONFIG, PointsConfig, calculatePoints, formatPoints } from '@/lib/scoring';
-import { F1_TRACKS_2025 } from '@/lib/constants';
+import { F1_TRACKS_2025, getTrackNameById } from '@/lib/constants';
 
 export default function AdminHub() {
     // Auth State
@@ -1025,6 +1025,7 @@ export default function AdminHub() {
                                                     {s.is_active && <span className="status-badge badge-red animate-pulse">LIVE</span>}
                                                 </div>
                                                 <div style={{ fontSize: '0.8rem', color: 'var(--silver)', marginTop: '4px' }}>
+                                                    Track: <strong style={{ color: 'white' }}>{getTrackNameById(s.track_id)}</strong> | 
                                                     Date: {new Date(s.created_at).toLocaleString()} | Participants: <strong style={{ color: 'white' }}>{s.participants_count}</strong> | Status: {s.race_id ? <span style={{ color: 'var(--f1-red)' }}>Promoted</span> : <span style={{ color: 'yellow' }}>Unassigned</span>}
                                                 </div>
                                             </div>
@@ -1061,7 +1062,7 @@ export default function AdminHub() {
                                                         </div>
                                                         <div style={{ fontSize: '0.8rem', color: 'var(--silver)', marginTop: '4px' }}>
                                                             Original Name: <strong style={{ color: '#ffc107' }}>{s.original_league_name}</strong> | 
-                                                            Track: <strong style={{ color: 'white' }}>{s.track_id}</strong> | 
+                                                            Track: <strong style={{ color: 'white' }}>{getTrackNameById(s.track_id)}</strong> | 
                                                             Humans: <strong style={{ color: 'white' }}>{s.human_count}</strong> | 
                                                             {new Date(s.created_at).toLocaleString()}
                                                         </div>

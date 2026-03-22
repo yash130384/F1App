@@ -9,6 +9,7 @@ import { parseCarStatus } from './parsers/carStatus';
 import { parseEventData } from './parsers/eventData';
 import { parseCarDamage } from './parsers/carDamage';
 import { parseMotionData } from './parsers/motionData';
+import { parseSessionHistoryData } from './parsers/sessionHistory';
 import { parseMotionExData } from './parsers/motionEx';
 import { parseTyreSets } from './parsers/tyreSets';
 import { SessionState } from './state';
@@ -100,7 +101,12 @@ export function startUdpListener(config: AppConfig) {
                     carDamageArray.forEach((cd, i) => state.updateCarDamage(i, cd));
                     break;
                 }
-                case 11: { // Session History (Motion Ex - Player Only)
+                case 11: { // Session History
+                    const sessionHistory = parseSessionHistoryData(msg, header);
+                    state.updateSessionHistory(sessionHistory);
+                    break;
+                }
+                case 13: { // Motion Ex - Player Only
                     const motionEx = parseMotionExData(msg);
                     state.updateMotionEx(header.playerCarIndex, motionEx);
                     break;

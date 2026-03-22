@@ -7,6 +7,7 @@ import { MotionData } from './parsers/motionData';
 import { TyreSetData } from './parsers/tyreSets';
 import { EventData } from './parsers/eventData';
 import { MotionExData } from './parsers/motionEx';
+import { PacketSessionHistoryData } from './parsers/sessionHistory';
 
 export interface LapEntry {
     lapNumber: number;
@@ -361,6 +362,43 @@ export class SessionState {
         p.motionExData = data;
     }
 
+    public updateSessionHistory(data: PacketSessionHistoryData) {
+        this.incrementPackets();
+        const p = this.getPlayer(data.carIdx);
+        if (!p.isHuman) return; // Opt: Onyl store full lap detailed sectors for human players
+
+        // data.lapHistoryData holds sector times for ALL completed laps
+        // data.numLaps is the number of fully completed laps
+        for (let i = 0; i < data.numLaps; i++) {
+            const hLap = data.lapHistoryData[i];
+            const lapNumber = i + 1; // Array is 0-indexed, laps 1-indexed
+            
+            const s1Ms = hLap.sector1TimeMinutes * 60000 + hLap.sector1TimeInMS;
+            const s2Ms = hLap.sector2TimeMinutes * 60000 + hLap.sector2TimeInMS;
+            const s3Ms = hLap.sector3TimeMinutes * 60000 + hLap.sector3TimeInMS;
+
+            // Find or create corresponding lap in our state buffer
+            let stateLap = p.laps.find(l => l.lapNumber === lapNumber);
+            if (!stateLap) {
+                // Create a temporary lap entry for these sectors
+                stateLap = {
+                    lapNumber: lapNumber,
+                    lapTimeMs: hLap.lapTimeInMS, // Use history lap time
+                    isValid: (hLap.lapValidFlags & 0x01) !== 0, // 0x01 = lap valid flag
+                    sector1Ms: s1Ms > 0 ? s1Ms : undefined,
+                    sector2Ms: s2Ms > 0 ? s2Ms : undefined,
+                    sector3Ms: s3Ms > 0 ? s3Ms : undefined
+                };
+                p.laps.push(stateLap);
+            } else {
+                // Update sector times if they are valid (> 0)
+                if (s1Ms > 0) stateLap.sector1Ms = s1Ms;
+                if (s2Ms > 0) stateLap.sector2Ms = s2Ms;
+                if (s3Ms > 0) stateLap.sector3Ms = s3Ms;
+            }
+        }
+    }
+
     public updateTyreSets(carIdx: number, tyreSets: TyreSetData[]) {
         this.incrementPackets();
         const p = this.getPlayer(carIdx);
@@ -386,6 +424,7 @@ export class SessionState {
 
                 return {
                     gameName: p.gameName,
+                    carIndex: _,
                     position: p.position,
                     lapDistance: p.lapDistance,
                     fastestLapMs: p.fastestLapMs,
