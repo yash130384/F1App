@@ -5,7 +5,7 @@ config(); // Load .env if exists
 
 export interface AppConfig {
     leagueId: string;
-    mode: 'Live Telemetry' | 'Fast Process Recordings' | 'Playback Recording (Legacy)' | 'Settings';
+    mode: 'Live Telemetry' | 'Fast Process Recordings' | 'Playback Recording (Legacy)' | 'Settings' | 'Local Recording';
     transmissionMode?: 'Live (60Hz)' | 'Balanced (5s)' | 'Results Only (60s)';
     url?: string;
     port?: number;
