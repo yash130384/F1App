@@ -20,7 +20,6 @@ interface RacePaceChartProps {
 }
 
 export default function RacePaceChart({ laps }: RacePaceChartProps) {
-    const [showOutliers, setShowOutliers] = useState(false);
 
     // Group by lap
     const dataByLap: Record<number, any> = {};
@@ -38,8 +37,8 @@ export default function RacePaceChart({ laps }: RacePaceChartProps) {
         let time: number | null = l.lap_time_ms / 1000;
         
         // Basic outlier filter (e.g. pit stops or crashes)
-        // If > 180s, it's likely not representative for "pace" comparison unless showOutliers is on
-        if (!showOutliers && (time > 180 || !l.is_valid)) {
+        // If > 180s, it's likely not representative for "pace" comparison
+        if (time > 180 || !l.is_valid) {
             time = null; // Don't show in chart
         }
 
@@ -58,23 +57,9 @@ export default function RacePaceChart({ laps }: RacePaceChartProps) {
 
     return (
         <div className="p-6 f1-card" style={{ height: 500 }}>
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <div>
-                    <h3 className="text-white font-bold text-lg">Race Pace Comparison</h3>
-                    <p className="text-slate-500 text-xs uppercase font-bold">Rundenzeiten im Vergleich (Sekunden)</p>
-                </div>
-                <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-white/5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">Ausreißer zeigen</span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                        <input 
-                            type="checkbox" 
-                            checked={showOutliers} 
-                            onChange={e => setShowOutliers(e.target.checked)}
-                            className="sr-only peer"
-                        />
-                        <div className="w-8 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-f1-red"></div>
-                    </label>
-                </div>
+            <div className="flex flex-col justify-start items-start mb-6">
+                <h3 className="text-white font-bold text-lg">Race Pace Comparison</h3>
+                <p className="text-slate-500 text-xs uppercase font-bold">Rundenzeiten im Vergleich (Sekunden)</p>
             </div>
 
             <ResponsiveContainer width="100%" height="80%">

@@ -36,15 +36,10 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
     const sorted = [...participants].sort((a, b) => a.position - b.position);
 
     return (
-        <div style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 12,
-            padding: '1.5rem',
-            overflowX: 'auto',
-        }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginBottom: 20 }}>
-                Race Tyre Strategy Overview
+        <div className="p-6 f1-card" style={{ height: 'auto', overflowX: 'auto' }}>
+            <div className="flex flex-col justify-start items-start mb-6">
+                <h3 className="text-white font-bold text-lg">Race Tyre Strategy</h3>
+                <p className="text-slate-500 text-xs uppercase font-bold">Reifenstrategie Übersicht</p>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 600 }}>

@@ -52,15 +52,10 @@ export function LapPositionChart({ participants, history, totalLaps }: LapPositi
     const chartData = Object.values(dataByLap).sort((a, b) => a.lap - b.lap);
 
     return (
-        <div style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 12,
-            padding: '1.5rem',
-            height: 450,
-        }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginBottom: 20 }}>
-                Race Position Evolution (Top 10)
+        <div className="p-6 f1-card" style={{ height: 500 }}>
+            <div className="flex flex-col justify-start items-start mb-6">
+                <h3 className="text-white font-bold text-lg">Race Position Evolution</h3>
+                <p className="text-slate-500 text-xs uppercase font-bold">Positionsverlauf (Top 10)</p>
             </div>
 
             <ResponsiveContainer width="100%" height="85%">

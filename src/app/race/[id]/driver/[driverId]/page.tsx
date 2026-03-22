@@ -14,6 +14,7 @@ import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, ReferenceLine
 } from 'recharts';
+import { TyreStrategyChart } from '@/components/race/TyreStrategyChart';
 
 function formatLapTime(ms: number): string {
     if (!ms || ms <= 0) return '-';
@@ -406,22 +407,50 @@ function DriverDetailContent() {
                                         </div>
                                     </div>
                                 </div>
+                                {driverLaps.length > 0 && (
+                                    <div style={{ marginTop: '0.5rem' }}>
+                                        {(() => {
+                                            const computedStints: any[] = [];
+                                            let currentStint: any = null;
+                                            let stintNum = 1;
+                                            let lastLapWasPit = false;
 
-                                {driverPosData.length > 0 && (
-                                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '1rem' }}>
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--silver)', textTransform: 'uppercase', marginBottom: '10px' }}>Positionsverlauf</div>
-                                        <div style={{ height: '180px' }}>
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <LineChart data={driverPosData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                                                    <XAxis dataKey="lap" fontSize={9} stroke="var(--silver)" tickLine={false} />
-                                                    <YAxis reversed fontSize={9} stroke="var(--silver)" tickLine={false} domain={[1, 'dataMax']} />
-                                                    <Tooltip contentStyle={{ background: '#111', border: 'none', borderRadius: '4px', fontSize: '0.85rem' }} />
-                                                    <Line type="stepAfter" dataKey="position" stroke="var(--white)" strokeWidth={2} dot={false} isAnimationActive={false} />
-                                                </LineChart>
-                                            </ResponsiveContainer>
-                                        </div>
+                                            for (const lap of driverLaps) {
+                                                if (!currentStint || lastLapWasPit || lap.tyre_compound !== currentStint.tyre_compound) {
+                                                    if (currentStint) {
+                                                        currentStint.end_lap = lap.lap_number - 1;
+                                                        computedStints.push(currentStint);
+                                                    }
+                                                    currentStint = {
+                                                        stint_number: stintNum++,
+                                                        tyre_compound: lap.tyre_compound || 0,
+                                                        visual_compound: lap.tyre_compound || 0,
+                                                        start_lap: lap.lap_number,
+                                                        end_lap: lap.lap_number
+                                                    };
+                                                } else {
+                                                    currentStint.end_lap = lap.lap_number;
+                                                }
+                                                lastLapWasPit = lap.is_pit_lap ? true : false;
+                                            }
+                                            if (currentStint) {
+                                                computedStints.push(currentStint);
+                                            }
+
+                                            return (
+                                                <TyreStrategyChart 
+                                                    participants={[{
+                                                        game_name: driverRes.driver_name || 'Driver',
+                                                        position: driverRes.position,
+                                                        stints: computedStints
+                                                    }]}
+                                                    totalLaps={driverLaps[driverLaps.length - 1].lap_number}
+                                                />
+                                            );
+                                        })()}
                                     </div>
                                 )}
+
                             </div>
 
                             <div style={{ border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', overflow: 'hidden', background: 'rgba(255,255,255,0.01)', display: 'flex', flexDirection: 'column' }}>

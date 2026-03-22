@@ -1223,15 +1223,45 @@ export async function getRaceAnalysis(sessionId: string) {
             SELECT tp.id, tp.game_name, tp.driver_id, tp.car_index, d.name as driver_name, d.color as driver_color, tp.position
             FROM telemetry_participants tp
             LEFT JOIN drivers d ON d.id = tp.driver_id
-            WHERE tp.session_id = ?
+            WHERE tp.session_id = ? AND (tp.is_human = true OR tp.driver_id IS NOT NULL)
             ORDER BY tp.position ASC
         `, [sessionId]);
 
         for (const p of participants) {
-            p.stints = await query<any>(
-                `SELECT stint_number, tyre_compound, visual_compound, start_lap, end_lap FROM telemetry_stints WHERE participant_id = ? ORDER BY stint_number ASC`,
-                [p.id]
-            );
+            const laps = await query<any>(`
+                SELECT lap_number, tyre_compound, is_pit_lap 
+                FROM telemetry_laps 
+                WHERE participant_id = ? 
+                ORDER BY lap_number ASC
+            `, [p.id]);
+
+            const computedStints: any[] = [];
+            let currentStint: any = null;
+            let stintNum = 1;
+            let lastLapWasPit = false;
+
+            for (const lap of laps) {
+                if (!currentStint || lastLapWasPit || lap.tyre_compound !== currentStint.tyre_compound) {
+                    if (currentStint) {
+                        currentStint.end_lap = lap.lap_number - 1;
+                        computedStints.push(currentStint);
+                    }
+                    currentStint = {
+                        stint_number: stintNum++,
+                        tyre_compound: lap.tyre_compound || 0,
+                        visual_compound: lap.tyre_compound || 0,
+                        start_lap: lap.lap_number,
+                        end_lap: lap.lap_number
+                    };
+                } else {
+                    currentStint.end_lap = lap.lap_number;
+                }
+                lastLapWasPit = lap.is_pit_lap ? true : false;
+            }
+            if (currentStint) {
+                computedStints.push(currentStint);
+            }
+            p.stints = computedStints;
         }
 
         const positionHistory = await query<any>(
@@ -1291,7 +1321,7 @@ export async function getSessionLaps(sessionId: string) {
             FROM telemetry_laps tl
             JOIN telemetry_participants tp ON tl.participant_id = tp.id
             LEFT JOIN drivers d ON tp.driver_id = d.id
-            WHERE tp.session_id = ?
+            WHERE tp.session_id = ? AND (tp.is_human = true OR tp.driver_id IS NOT NULL)
             ORDER BY tl.lap_number ASC, tl.participant_id ASC
         `, [sessionId]);
 
