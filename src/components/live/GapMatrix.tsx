@@ -8,10 +8,17 @@ interface GapPlayer {
     deltaToCarInFrontMs: number;
     deltaToRaceLeaderMs: number;
     lastLapTimeInMS: number;
+    sector1Ms?: number;
+    sector2Ms?: number;
     visualTyreCompound: number;
     tyresAgeLaps: number;
     penaltiesTime: number;
     isHuman: boolean;
+    pitStatus: number;
+    driverStatus?: number;
+    resultStatus?: number;
+    pitLaneTimerActive?: number;
+    pitStopTimerInMS?: number;
 }
 
 interface GapMatrixProps {
@@ -44,6 +51,21 @@ const COMPOUND_LABELS: Record<number, string> = {
     16: 'S', 17: 'M', 18: 'H', 7: 'I', 8: 'W'
 };
 
+const STATUS_CONFIG: Record<number, { label: string; color: string; bg: string }> = {
+    0: { label: 'GARAGE', color: '#666', bg: 'rgba(102,102,102,0.1)' },
+    1: { label: 'FLYING', color: '#a855f7', bg: 'rgba(168,85,247,0.1)' },
+    2: { label: 'IN LAP', color: '#eab308', bg: 'rgba(234,179,8,0.1)' },
+    3: { label: 'OUT LAP', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+    4: { label: 'TRACK', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
+};
+
+const RESULT_CONFIG: Record<number, { label: string; color: string; bg: string }> = {
+    3: { label: 'FIN', color: '#22c55e', bg: 'rgba(34,197,94,0.2)' },
+    4: { label: 'DNF', color: '#ef4444', bg: 'rgba(239,68,68,0.2)' },
+    5: { label: 'DSQ', color: '#991b1b', bg: 'rgba(153,27,27,0.2)' },
+    7: { label: 'RET', color: '#ef4444', bg: 'rgba(239,68,68,0.2)' },
+};
+
 export function GapMatrix({ players, selectedDriver }: GapMatrixProps) {
     const sorted = [...players].sort((a, b) => a.position - b.position);
 
@@ -59,13 +81,16 @@ export function GapMatrix({ players, selectedDriver }: GapMatrixProps) {
                 Tactical Gap Matrix
             </div>
 
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
                 <thead>
                     <tr style={{ color: '#666', textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                         <th style={{ padding: '8px 4px' }}>POS</th>
                         <th style={{ padding: '8px 4px' }}>DRIVER</th>
+                        <th style={{ padding: '8px 4px' }}>STATUS</th>
                         <th style={{ padding: '8px 4px' }}>DELTA FRONT</th>
-                        <th style={{ padding: '8px 4px' }}>DELTA LEADER</th>
+                        <th style={{ padding: '8px 4px' }}>DELTA LEAD</th>
+                        <th style={{ padding: '8px 4px' }}>S1</th>
+                        <th style={{ padding: '8px 4px' }}>S2</th>
                         <th style={{ padding: '8px 4px' }}>LAST LAP</th>
                         <th style={{ padding: '8px 4px' }}>TYRE (AGE)</th>
                         <th style={{ padding: '8px 4px' }}>PEN</th>
@@ -74,6 +99,10 @@ export function GapMatrix({ players, selectedDriver }: GapMatrixProps) {
                 <tbody>
                     {sorted.map((p, i) => {
                         const isSelected = p.gameName === selectedDriver;
+                        const status = (p.resultStatus && p.resultStatus > 2) 
+                            ? RESULT_CONFIG[p.resultStatus] 
+                            : (p.pitStatus > 0 ? { label: 'PIT', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' } : STATUS_CONFIG[p.driverStatus || 0]);
+
                         return (
                             <tr key={p.gameName} style={{
                                 background: isSelected ? 'rgba(255,255,255,0.08)' : 'transparent',
@@ -82,14 +111,35 @@ export function GapMatrix({ players, selectedDriver }: GapMatrixProps) {
                                 transition: 'background 0.2s',
                             }}>
                                 <td style={{ padding: '8px 4px', fontWeight: 700 }}>{p.position}</td>
-                                <td style={{ padding: '8px 4px', fontWeight: isSelected ? 800 : 500 }}>
+                                <td style={{ padding: '8px 4px', fontWeight: isSelected ? 800 : 500, whiteSpace: 'nowrap' }}>
                                     {p.gameName} {p.isHuman ? '👤' : ''}
+                                </td>
+                                <td style={{ padding: '8px 4px' }}>
+                                    {status && (
+                                        <span style={{
+                                            fontSize: 8,
+                                            fontWeight: 900,
+                                            padding: '1px 4px',
+                                            borderRadius: 3,
+                                            background: status.bg,
+                                            color: status.color,
+                                            border: `1px solid ${status.color}33`,
+                                        }}>
+                                            {status.label}
+                                        </span>
+                                    )}
                                 </td>
                                 <td style={{ padding: '8px 4px', fontVariantNumeric: 'tabular-nums' }}>
                                     {formatGap(p.deltaToCarInFrontMs)}
                                 </td>
                                 <td style={{ padding: '8px 4px', fontVariantNumeric: 'tabular-nums' }}>
                                     {formatGap(p.deltaToRaceLeaderMs)}
+                                </td>
+                                <td style={{ padding: '8px 4px', fontVariantNumeric: 'tabular-nums', color: p.sector1Ms ? '#fff' : '#444' }}>
+                                    {p.sector1Ms ? (p.sector1Ms / 1000).toFixed(3) : '--.---'}
+                                </td>
+                                <td style={{ padding: '8px 4px', fontVariantNumeric: 'tabular-nums', color: p.sector2Ms ? '#fff' : '#444' }}>
+                                    {p.sector2Ms ? (p.sector2Ms / 1000).toFixed(3) : '--.---'}
                                 </td>
                                 <td style={{ padding: '8px 4px', fontVariantNumeric: 'tabular-nums' }}>
                                     {formatLapTime(p.lastLapTimeInMS)}

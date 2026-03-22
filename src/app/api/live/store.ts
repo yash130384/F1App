@@ -63,6 +63,7 @@ export interface LivePlayerState {
     gearBoxDamage: number;
     engineDamage: number;
     // Lap Data
+    lapDistance: number;
     currentLapTimeInMS: number;
     lastLapTimeInMS: number;
     currentLapNum: number;

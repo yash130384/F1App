@@ -1,10 +1,14 @@
-import { neon, neonConfig } from '@neondatabase/serverless';
+import { neon } from '@neondatabase/serverless';
 import dotenv from 'dotenv';
+import Database from 'better-sqlite3';
 
 dotenv.config();
 
+const USE_SQLITE = process.env.USE_SQLITE === 'true';
+const sqlite = USE_SQLITE ? new Database('league.db') : null;
+
 // Standard PostgreSQL driver behavior: return result object with .rows
-const sql = neon(process.env.DATABASE_URL!, { fullResults: true });
+const sql = !USE_SQLITE ? neon(process.env.DATABASE_URL!, { fullResults: true }) : null;
 
 // --- Schema Initialization ---
 const SCHEMA = [
@@ -137,27 +141,104 @@ const SCHEMA = [
     end_lap INTEGER,
     tyre_age_at_start INTEGER DEFAULT 0
   )`,
-  `ALTER TABLE telemetry_sessions ADD COLUMN IF NOT EXISTS track_flags INTEGER DEFAULT 0`
+  `ALTER TABLE telemetry_sessions ADD COLUMN IF NOT EXISTS track_flags INTEGER DEFAULT 0`,
+  `ALTER TABLE drivers ADD COLUMN IF NOT EXISTS game_name TEXT`,
+  `ALTER TABLE drivers ADD COLUMN IF NOT EXISTS color TEXT DEFAULT '#ffffff'`,
+  `ALTER TABLE drivers ADD COLUMN IF NOT EXISTS raw_points INTEGER DEFAULT 0`
 ];
 
-const initSchema = async () => {
-  console.log('Synchronizing Schema with Neon...');
+const initSchema = async (retries = 3) => {
+  if (USE_SQLITE) {
+    console.log('Initializing SQLite Schema (Synchronous)...');
+    for (const cmd of SCHEMA) {
+      try {
+        // Simple conversion for SQLite
+        let sCmd = cmd.replace(/DEFAULT gen_random_uuid\(\)/g, "DEFAULT (lower(hex(randomblob(16))))");
+        sCmd = sCmd.replace(/gen_random_uuid\(\)/g, "lower(hex(randomblob(16)))");
+        sCmd = sCmd.replace(/TIMESTAMP DEFAULT CURRENT_TIMESTAMP/g, "DATETIME DEFAULT CURRENT_TIMESTAMP");
+        sCmd = sCmd.replace(/SERIAL PRIMARY KEY/g, "INTEGER PRIMARY KEY AUTOINCREMENT");
+        sCmd = sCmd.replace(/VARCHAR\(\d+\)/g, "TEXT");
+        sCmd = sCmd.replace(/BOOLEAN/g, "INTEGER");
+        sCmd = sCmd.replace(/ILIKE/g, "LIKE");
+        sCmd = sCmd.replace(/ALTER TABLE (\w+) ADD COLUMN IF NOT EXISTS (\w+) (\w+)( DEFAULT .*)?/g, (match, table, col, type, def) => {
+          try {
+            const info = sqlite?.prepare(`PRAGMA table_info(${table})`).all();
+            const exists = (info as any[]).some(c => c.name === col);
+            if (!exists) {
+              return `ALTER TABLE ${table} ADD COLUMN ${col} ${type}${def || ''}`;
+            }
+          } catch (e) {}
+          return '-- column exists';
+        });
+        
+        if (sCmd.startsWith('--')) continue;
+        sqlite?.exec(sCmd);
+      } catch (err: any) {
+        if (!err.message.includes('already exists') && !err.message.includes('duplicate column')) {
+           console.warn('SQLite Schema Command Error:', err.message, 'in', cmd.substring(0, 50));
+        }
+      }
+    }
+    console.log('SQLite Schema Initialized.');
+    return;
+  }
+
+  console.log(`Synchronizing Schema with Neon (Attempt ${4 - retries}/3)...`);
   try {
     for (const cmd of SCHEMA) {
-      await sql.query(cmd);
+      await sql!.query(cmd);
     }
-  } catch (err) {
+    console.log('Schema Sync Successful.');
+  } catch (err: any) {
+    if (retries > 1 && (err.message?.includes('ETIMEDOUT') || err.message?.includes('fetch failed'))) {
+      console.warn('Schema Sync Timeout, retrying...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return initSchema(retries - 1);
+    }
     console.error('Schema Sync Error:', err);
   }
 };
 
-// Auto-init schema (Vercel will run this on first usage)
-initSchema().catch(console.error);
+// Auto-init schema
+if (process.env.NODE_ENV !== 'test') {
+    // For SQLite we start synchronously to avoid race conditions
+    if (USE_SQLITE) {
+        initSchema();
+    } else {
+        initSchema().catch(console.error);
+    }
+}
 
 /**
  * Runs a query and returns results as an array.
  */
-export async function query<T>(sqlStr: string, params: any[] = []): Promise<T[]> {
+export async function query<T>(sqlStr: string, params: any[] = [], retries = 2): Promise<T[]> {
+  if (USE_SQLITE) {
+    try {
+      let sSql = sqlStr.replace(/ILIKE/g, 'LIKE');
+      sSql = sSql.replace(/gen_random_uuid\(\)/g, "lower(hex(randomblob(16)))");
+      sSql = sSql.replace(/NOW\(\) - INTERVAL '(\d+) minutes'/g, "datetime('now', '-$1 minutes')");
+      // basic RETURNING id support for some SQLite versions
+      if (!sSql.toLowerCase().includes('returning') && sSql.toLowerCase().includes('insert into')) {
+          // If we need ID back and it's not there, it might be tricky, 
+          // but usually it's there in the SCHEMA for these tables.
+      }
+
+      // Sanitize params
+      const sParams = params.map(p => {
+          if (p === undefined) return null;
+          if (typeof p === 'boolean') return p ? 1 : 0;
+          return p;
+      });
+      
+      const stmt = sqlite?.prepare(sSql);
+      return stmt?.all(...sParams) as T[];
+    } catch (err) {
+      console.error('SQLite Query Error for:', sqlStr, err);
+      throw err;
+    }
+  }
+
   // Convert ? to $1, $2, etc.
   let pSql = sqlStr;
   const pParams = [...params];
@@ -170,14 +251,43 @@ export async function query<T>(sqlStr: string, params: any[] = []): Promise<T[]>
   pSql = pSql.replace('lower(hex(randomblob(16)))', 'gen_random_uuid()');
   pSql = pSql.replace(/INSERT OR REPLACE/gi, 'INSERT');
 
-  const results = await sql.query(pSql, pParams);
-  return results.rows as T[];
+  try {
+    const results = await sql!.query(pSql, pParams);
+    return results.rows as T[];
+  } catch (err: any) {
+    if (retries > 0 && (err.message?.includes('ETIMEDOUT') || err.message?.includes('fetch failed'))) {
+      console.warn(`Query timeout, retrying... (${retries} left)`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return query(sqlStr, params, retries - 1);
+    }
+    throw err;
+  }
 }
 
 /**
  * Runs a command (INSERT/UPDATE/DELETE).
  */
-export async function run(sqlStr: string, params: any[] = []): Promise<void> {
+export async function run(sqlStr: string, params: any[] = [], retries = 2): Promise<void> {
+  if (USE_SQLITE) {
+    try {
+      let sSql = sqlStr.replace(/ILIKE/g, 'LIKE');
+      sSql = sSql.replace(/gen_random_uuid\(\)/g, "lower(hex(randomblob(16)))");
+      
+      const sParams = params.map(p => {
+          if (p === undefined) return null;
+          if (typeof p === 'boolean') return p ? 1 : 0;
+          return p;
+      });
+
+      const stmt = sqlite?.prepare(sSql);
+      stmt?.run(...sParams);
+      return;
+    } catch (err) {
+      console.error('SQLite Run Error for:', sqlStr, err);
+      throw err;
+    }
+  }
+
   let pSql = sqlStr;
   const pParams = [...params];
 
@@ -192,5 +302,14 @@ export async function run(sqlStr: string, params: any[] = []): Promise<void> {
     pSql += ' ON CONFLICT (league_id) DO UPDATE SET points_json = EXCLUDED.points_json, fastest_lap_bonus = EXCLUDED.fastest_lap_bonus, clean_driver_bonus = EXCLUDED.clean_driver_bonus, total_races = EXCLUDED.total_races, track_pool = EXCLUDED.track_pool, drop_results_count = EXCLUDED.drop_results_count';
   }
 
-  await sql.query(pSql, pParams);
+  try {
+    await sql!.query(pSql, pParams);
+  } catch (err: any) {
+    if (retries > 0 && (err.message?.includes('ETIMEDOUT') || err.message?.includes('fetch failed'))) {
+      console.warn(`Run timeout, retrying... (${retries} left)`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return run(sqlStr, params, retries - 1);
+    }
+    throw err;
+  }
 }

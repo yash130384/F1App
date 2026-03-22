@@ -5,7 +5,6 @@ import React from 'react';
 interface InputTraceProps {
     throttle: number;      // 0.0–1.0
     brake: number;         // 0.0–1.0
-    steer: number;         // -1.0 (links) bis 1.0 (rechts)
     clutch: number;        // 0.0–1.0
     gear: number;
     engineRPM: number;
@@ -52,59 +51,10 @@ function PedalBar({ value, label, color, vertical = true }: { value: number; lab
     );
 }
 
-function SteeringArc({ value }: { value: number }) {
-    // value: -1 (left) to +1 (right)
-    const clamped = Math.min(1, Math.max(-1, value));
-    const angle = clamped * 180; // ±180°
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontSize: 9, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>Steer</span>
-            <div style={{ position: 'relative', width: 80, height: 44 }}>
-                <svg width="80" height="44" viewBox="0 0 80 44">
-                    {/* Background arc */}
-                    <path
-                        d="M 5 42 A 35 35 0 0 1 75 42"
-                        fill="none"
-                        stroke="rgba(255,255,255,0.1)"
-                        strokeWidth="6"
-                        strokeLinecap="round"
-                    />
-                    {/* Colored arc segment */}
-                    <path
-                        d="M 5 42 A 35 35 0 0 1 75 42"
-                        fill="none"
-                        stroke="rgba(255,255,255,0.08)"
-                        strokeWidth="6"
-                        strokeLinecap="round"
-                    />
-                    {/* Center line */}
-                    <line x1="40" y1="8" x2="40" y2="42"
-                        stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="3,3" />
-                    {/* Needle */}
-                    <line
-                        x1="40" y1="42"
-                        x2={40 + Math.sin((angle * Math.PI) / 180) * 32}
-                        y2={42 - Math.cos(((90 + angle) * Math.PI) / 180) * 32 - 10}
-                        stroke={clamped < -0.1 ? '#3b82f6' : clamped > 0.1 ? '#ef4444' : '#22c55e'}
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        style={{ transition: 'all 0.05s ease' }}
-                    />
-                    {/* Center dot */}
-                    <circle cx="40" cy="42" r="4"
-                        fill={clamped < -0.1 ? '#3b82f6' : clamped > 0.1 ? '#ef4444' : '#22c55e'}
-                        style={{ transition: 'fill 0.1s' }} />
-                </svg>
-            </div>
-            <span style={{ fontSize: 10, color: '#ddd', fontVariantNumeric: 'tabular-nums' }}>
-                {clamped < 0 ? `${Math.abs(Math.round(clamped * 100))}% L` : clamped > 0 ? `${Math.round(clamped * 100)}% R` : 'CTR'}
-            </span>
-        </div>
-    );
-}
+// steering-arc removed
 
 export function InputTrace({
-    throttle, brake, steer, clutch, gear, engineRPM, drs, ersDeployMode, speedKmh
+    throttle, brake, clutch, gear, engineRPM, drs, ersDeployMode, speedKmh
 }: InputTraceProps) {
     const ers = ERS_CONFIG[Math.min(3, Math.max(0, ersDeployMode))] ?? ERS_CONFIG[0];
 
@@ -155,14 +105,7 @@ export function InputTrace({
                 <PedalBar value={brake} label="Brake" color="#ef4444" />
                 <PedalBar value={clutch / 100} label="Clutch" color="#a855f7" />
 
-                {/* Spacer */}
-                <div style={{ width: 1, height: 100, background: 'rgba(255,255,255,0.08)', alignSelf: 'center' }} />
-
-                {/* Steering arc */}
-                <SteeringArc value={steer} />
-
-                {/* Spacer */}
-                <div style={{ width: 1, height: 100, background: 'rgba(255,255,255,0.08)', alignSelf: 'center' }} />
+                {/* Spacer removed */}
 
                 {/* Gear / Speed / RPM */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
