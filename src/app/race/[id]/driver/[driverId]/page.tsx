@@ -149,7 +149,7 @@ function DriverDetailContent() {
                 const dRes = results.find((r: any) => r.driver_id === driverId);
                 setDriverRes(dRes || { driver_name: 'Unknown', driver_id: driverId, position: '-', points_earned: 0, quali_position: 0 });
 
-                const sid = rRes.race.telemetry_session_id;
+                const sid = rRes.telemetrySessionId || null;
 
                 const [telRes, posRes, scRes, sectRes] = await Promise.all([
                     getDriverRaceTelemetry(raceId.toString(), driverId.toString()),
@@ -179,11 +179,11 @@ function DriverDetailContent() {
         }
     }, [raceId, driverId]);
 
-    const leagueUrl = leagueName
-        ? `/dashboard?league=${encodeURIComponent(leagueName)}`
-        : (race?.league_name ? `/dashboard?league=${encodeURIComponent(race.league_name)}` : '/dashboard');
+    const leagueUrl = race?.league_id 
+        ? `/dashboard?league=${race.league_id}` 
+        : '/dashboard';
     const backLabel = race?.league_name || leagueName || 'Dashboard';
-    const raceUrl = `/race/${raceId}?league=${encodeURIComponent(leagueName)}`;
+    const raceUrl = `/race/${raceId}?league=${race?.league_id || ''}`;
 
     const fastestLapMs = driverLaps.length > 0
         ? Math.min(...driverLaps.filter((l: any) => l.is_valid && l.lap_time_ms > 0).map((l: any) => l.lap_time_ms))

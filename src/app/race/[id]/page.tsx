@@ -119,7 +119,7 @@ function RaceDetailContent() {
         if (res.success) {
             setRace(res.race);
             setResults(res.results || []);
-            const sid = res.race?.telemetry_session_id || null;
+            const sid = res.telemetrySessionId || null;
             setTelemetrySessionId(sid);
 
             // Alle-Fahrer-Graph laden
@@ -154,9 +154,9 @@ function RaceDetailContent() {
     }
 
     // Liga-Back-URL bestimmen: falls league param, zurück zur Liga; sonst einfach Dashboard
-    const leagueUrl = leagueName
-        ? `/dashboard?league=${encodeURIComponent(leagueName)}`
-        : (race?.league_name ? `/dashboard?league=${encodeURIComponent(race.league_name)}` : '/dashboard');
+    const leagueUrl = race?.league_id 
+        ? `/dashboard?league=${race.league_id}` 
+        : '/dashboard';
     const backLabel = race?.league_name || leagueName || 'Dashboard';
 
     if (loading) {
