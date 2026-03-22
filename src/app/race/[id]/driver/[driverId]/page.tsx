@@ -124,7 +124,7 @@ function DriverDetailContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
 
-    const raceId = parseInt(params.id, 10);
+    const raceId = params.id;
     const driverId = params.driverId; // It's a UUID string!
     const leagueName = searchParams.get('league') || '';
 
@@ -142,7 +142,7 @@ function DriverDetailContent() {
     useEffect(() => {
         async function loadData() {
             setLoading(true);
-            const rRes = await getRaceDetails(raceId.toString());
+            const rRes = await getRaceDetails(raceId);
             if (rRes.success && rRes.race) {
                 setRace(rRes.race);
                 const results = rRes.results || [];
@@ -172,7 +172,7 @@ function DriverDetailContent() {
             setLoading(false);
         }
 
-        if (!isNaN(raceId) && driverId) {
+        if (raceId && driverId) {
             loadData();
         } else {
             setLoading(false);

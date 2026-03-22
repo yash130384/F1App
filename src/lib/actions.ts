@@ -1258,6 +1258,7 @@ export async function getRaceAnalysis(id: string) {
 
         return { success: true, participants, positionHistory, incidents };
     } catch (error: any) {
+        console.error('getRaceAnalysis Error:', error);
         return { success: false, error: error.message };
     }
 }
