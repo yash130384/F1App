@@ -21,6 +21,7 @@ export default function RootLayout({
           </Link>
           <div className="flex gap-2 items-center">
             <Link href="/dashboard" className="text-f1" style={{ fontSize: '0.8rem', opacity: 0.8 }}>Standings</Link>
+            <Link href="/dashboard/analysis" className="text-f1" style={{ fontSize: '0.8rem', opacity: 0.8 }}>Analyse</Link>
             <Link href="/admin" className="text-f1" style={{ fontSize: '0.8rem', opacity: 0.8 }}>Admin</Link>
             <Link href="/join" className="btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }}>Join</Link>
           </div>

@@ -6,6 +6,7 @@ import { CarStatusData } from './parsers/carStatus';
 import { MotionData } from './parsers/motionData';
 import { TyreSetData } from './parsers/tyreSets';
 import { EventData } from './parsers/eventData';
+import { MotionExData } from './parsers/motionEx';
 
 export interface LapEntry {
     lapNumber: number;
@@ -17,6 +18,7 @@ export interface LapEntry {
     sector2Ms?: number;
     sector3Ms?: number;
     carDamage?: CarDamageSnapshot;
+    samples?: any[];
 }
 
 export interface CarDamageSnapshot {
@@ -76,7 +78,10 @@ export interface PlayerState {
     carStatusData?: CarStatusData;
     carDamageData?: CarDamageData;
     motionData?: MotionData;
+    motionExData?: MotionExData;
     tyreSets?: TyreSetData[];
+    currentLapSamples: any[];
+    bestLapSamples: any[];
 }
 
 export class SessionState {
@@ -208,7 +213,9 @@ export class SessionState {
                 warnings: 0,
                 penaltiesTime: 0,
                 laps: [],
-                currentLapNum: 0
+                currentLapNum: 0,
+                currentLapSamples: [],
+                bestLapSamples: []
             });
         }
         return this.players.get(carIdx)!;
@@ -263,6 +270,12 @@ export class SessionState {
                     };
                 }
 
+                // Best Lap Logik
+                if (!data.currentLapInvalid && (p.fastestLapMs === null || data.lastLapTimeInMS < p.fastestLapMs)) {
+                    p.fastestLapMs = data.lastLapTimeInMS;
+                    p.bestLapSamples = [...p.currentLapSamples];
+                }
+
                 p.laps.push({
                     lapNumber: p.currentLapNum,
                     lapTimeMs: data.lastLapTimeInMS,
@@ -273,15 +286,49 @@ export class SessionState {
                     sector2Ms: s2Ms > 0 ? s2Ms : undefined,
                     sector3Ms: s3Ms > 0 ? s3Ms : undefined,
                     carDamage: damageSnapshot,
+                    // Nur Samples mitsenden, wenn es die neue Bestzeit war
+                    samples: (!data.currentLapInvalid && data.lastLapTimeInMS === p.fastestLapMs) ? p.bestLapSamples : undefined
                 });
 
-                if (!data.currentLapInvalid && (p.fastestLapMs === null || data.lastLapTimeInMS < p.fastestLapMs)) {
-                    p.fastestLapMs = data.lastLapTimeInMS;
-                }
+                // Buffer für neue Runde leeren
+                p.currentLapSamples = [];
             }
         }
+        
+        // Sample aufzeichnen (ca. 10Hz oder bei signifikanter Distanzänderung)
+        if (p.isHuman && data.currentLapNum > 0) {
+            this.maybeRecordSample(p, data);
+        }
+
         p.currentLapNum = data.currentLapNum;
         p.lapData = data;
+    }
+
+    private lastSampleTime = new Map<string, number>();
+
+    private maybeRecordSample(p: PlayerState, lap: LapData) {
+        const now = Date.now();
+        const lastTime = this.lastSampleTime.get(p.gameName) || 0;
+        
+        // Max 10 Hz recording to avoid bloating
+        if (now - lastTime < 100) return;
+        this.lastSampleTime.set(p.gameName, now);
+
+        if (!p.telemetryData || !p.motionData) return;
+
+        p.currentLapSamples.push({
+            d: lap.lapDistance,
+            s: p.telemetryData.speedKmh,
+            t: p.telemetryData.throttle,
+            b: p.telemetryData.brake,
+            st: p.telemetryData.steer,
+            gLat: p.motionData.gForceLateral,
+            gLon: p.motionData.gForceLongitudinal,
+            gVert: p.motionData.gForceVertical,
+            tSurf: p.telemetryData.tyresSurfaceTemperature,
+            tInner: p.telemetryData.tyresInnerTemperature,
+            rHeight: p.motionExData ? [p.motionExData.frontAeroHeight, p.motionExData.rearAeroHeight] : [0, 0]
+        });
     }
 
     public updateSession(data: any) {
@@ -319,6 +366,12 @@ export class SessionState {
         this.incrementPackets();
         const p = this.getPlayer(carIdx);
         p.motionData = data;
+    }
+
+    public updateMotionEx(carIdx: number, data: MotionExData) {
+        this.incrementPackets();
+        const p = this.getPlayer(carIdx);
+        p.motionExData = data;
     }
 
     public updateTyreSets(carIdx: number, tyreSets: TyreSetData[]) {

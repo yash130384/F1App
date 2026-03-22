@@ -1256,3 +1256,94 @@ export async function getRaceAnalysis(raceId: string) {
         return { success: false, error: error.message };
     }
 }
+
+/**
+ * Fetches all participants with their best lap for a session.
+ */
+export async function getBestLapsPerSession(sessionId: string) {
+    try {
+        const laps = await query<any>(`
+            SELECT tl.id as lap_id, tl.lap_number, tl.lap_time_ms, tl.is_valid, tl.tyre_compound,
+                   tp.game_name, d.name as driver_name, d.color as driver_color
+            FROM telemetry_laps tl
+            JOIN telemetry_participants tp ON tl.participant_id = tp.id
+            LEFT JOIN drivers d ON tp.driver_id = d.id
+            WHERE tp.session_id = ? AND tl.is_valid = true
+            ORDER BY tl.lap_time_ms ASC
+        `, [sessionId]);
+
+        // Group by game_name and pick only the best valid lap for each
+        const seen = new Set();
+        const bestLaps = laps.filter((l: any) => {
+            if (seen.has(l.game_name)) return false;
+            seen.add(l.game_name);
+            return true;
+        });
+
+        return { success: true, bestLaps };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Fetches the high-frequency samples for a specific lap.
+ */
+export async function getLapSamples(lapId: string) {
+    try {
+        const rows = await query<any>(
+            `SELECT samples_json FROM telemetry_lap_samples WHERE lap_id = ?`,
+            [lapId]
+        );
+        if (rows.length === 0) return { success: true, samples: [] };
+        
+        return { success: true, samples: JSON.parse(rows[0].samples_json) };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Fetches all telemetry sessions for a league.
+ */
+export async function getTelemetrySessionsForLeague(leagueId: string) {
+    try {
+        const sessions = await query<any>(`
+            SELECT id, track_id, session_type, created_at
+            FROM telemetry_sessions
+            WHERE league_id = ?
+            ORDER BY created_at DESC
+        `, [leagueId]);
+        return { success: true, sessions };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Fetches the absolute best lap for a specific track in a league.
+ */
+export async function getBestLapForTrack(leagueId: string, trackId: number) {
+    try {
+        const row = await query<any>(`
+            SELECT tl.id as lap_id, tl.lap_number, tl.lap_time_ms, tl.tyre_compound,
+                   tp.game_name, d.name as driver_name, d.color as driver_color,
+                   ts.id as session_id
+            FROM telemetry_laps tl
+            JOIN telemetry_participants tp ON tl.participant_id = tp.id
+            JOIN telemetry_sessions ts ON tp.session_id = ts.id
+            LEFT JOIN drivers d ON tp.driver_id = d.id
+            WHERE ts.league_id = ? AND ts.track_id = ? AND tl.is_valid = true
+            ORDER BY tl.lap_time_ms ASC
+            LIMIT 1
+        `, [leagueId, trackId]);
+
+        if (row.length === 0) return { success: true, lap: null };
+        return { success: true, lap: row[0] };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+
+

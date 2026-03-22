@@ -172,11 +172,19 @@ export async function POST(req: Request) {
                                             lap.carDamage.engineSeized > 0
                                         ) ? JSON.stringify(lap.carDamage) : null;
 
-                                        await run(
+                                        const lapRow = await query<any>(
                                             `INSERT INTO telemetry_laps (participant_id, lap_number, lap_time_ms, is_valid, tyre_compound, is_pit_lap, sector1_ms, sector2_ms, sector3_ms, car_damage_json)
-                                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
                                             [participantId, lap.lapNumber, lap.lapTimeMs, lap.isValid, lap.tyreCompound || null, lap.isPitLap ? true : false, lap.sector1Ms || null, lap.sector2Ms || null, lap.sector3Ms || null, damageJson]
                                         );
+
+                                        if (lapRow.length > 0 && lap.samples) {
+                                            const lapId = lapRow[0].id;
+                                            await run(
+                                                `INSERT OR REPLACE INTO telemetry_lap_samples (lap_id, samples_json) VALUES (?, ?)`,
+                                                [lapId, JSON.stringify(lap.samples)]
+                                            );
+                                        }
                                     }
                                 }
                             }

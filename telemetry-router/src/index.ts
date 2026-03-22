@@ -23,8 +23,9 @@ async function main() {
         appConfig.leagueId = process.env.LEAGUE_ID || 'MyLeague';
         appConfig.mode = (process.env.MODE as any) || 'Live Routing';
         appConfig.url = process.env.TARGET_URL || 'http://localhost:3000/api/telemetry';
-        appConfig.transmissionMode = (process.env.TRANSMISSION_MODE as any) || 'Live (60Hz)';
-        appConfig.intervalMs = appConfig.transmissionMode === 'Results Only (60s)' ? 60000 : 16;
+        appConfig.transmissionMode = (process.env.TRANSMISSION_MODE as any) || 'Balanced (5s)';
+        appConfig.intervalMs = appConfig.transmissionMode === 'Results Only (60s)' ? 60000 : 
+                               appConfig.transmissionMode === 'Live (60Hz)' ? 16 : 5000;
         appConfig.port = parseInt(process.env.UDP_PORT || '20888');
     } else {
         try {
@@ -60,10 +61,12 @@ async function main() {
                         type: 'select',
                         name: 'transmissionMode',
                         message: 'Select Transmission Mode:',
-                        choices: ['Live (60Hz)', 'Results Only (60s)']
+                        choices: ['Live (60Hz)', 'Balanced (5s)', 'Results Only (60s)']
                     });
                     appConfig.transmissionMode = transRes.transmissionMode;
-                    appConfig.intervalMs = transRes.transmissionMode === 'Live (60Hz)' ? 16 : 60000;
+                    appConfig.intervalMs = 
+                        transRes.transmissionMode === 'Live (60Hz)' ? 16 : 
+                        transRes.transmissionMode === 'Balanced (5s)' ? 5000 : 60000;
                 }
             }
 

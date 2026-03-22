@@ -9,6 +9,7 @@ import { parseCarStatus } from './parsers/carStatus';
 import { parseEventData } from './parsers/eventData';
 import { parseCarDamage } from './parsers/carDamage';
 import { parseMotionData } from './parsers/motionData';
+import { parseMotionExData } from './parsers/motionEx';
 import { parseTyreSets } from './parsers/tyreSets';
 import { SessionState } from './state';
 import { startSender } from './sender';
@@ -97,6 +98,11 @@ export function startUdpListener(config: AppConfig) {
                 case 10: { // Fahrzeug-Schäden (CarDamage)
                     const carDamageArray = parseCarDamage(msg);
                     carDamageArray.forEach((cd, i) => state.updateCarDamage(i, cd));
+                    break;
+                }
+                case 11: { // Session History (Motion Ex - Player Only)
+                    const motionEx = parseMotionExData(msg);
+                    state.updateMotionEx(header.playerCarIndex, motionEx);
                     break;
                 }
                 case 15: { // Rundenpositionen (LapPositions) – alle Fahrzeuge pro Runde

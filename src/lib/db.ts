@@ -144,7 +144,13 @@ const SCHEMA = [
   `ALTER TABLE telemetry_sessions ADD COLUMN IF NOT EXISTS track_flags INTEGER DEFAULT 0`,
   `ALTER TABLE drivers ADD COLUMN IF NOT EXISTS game_name TEXT`,
   `ALTER TABLE drivers ADD COLUMN IF NOT EXISTS color TEXT DEFAULT '#ffffff'`,
-  `ALTER TABLE drivers ADD COLUMN IF NOT EXISTS raw_points INTEGER DEFAULT 0`
+  `ALTER TABLE drivers ADD COLUMN IF NOT EXISTS raw_points INTEGER DEFAULT 0`,
+  `CREATE TABLE IF NOT EXISTS telemetry_lap_samples (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+    lap_id TEXT UNIQUE NOT NULL,
+    samples_json TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`
 ];
 
 const initSchema = async (retries = 3) => {
