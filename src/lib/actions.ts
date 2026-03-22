@@ -1227,7 +1227,7 @@ export async function getRaceAnalysis(raceId: string) {
         const sessionId = session[0].id;
 
         const participants = await query<any>(`
-            SELECT tp.id, tp.game_name, tp.driver_id, d.name as driver_name, tp.position
+            SELECT tp.id, tp.game_name, tp.driver_id, tp.car_index, d.name as driver_name, d.color as driver_color, tp.position
             FROM telemetry_participants tp
             LEFT JOIN drivers d ON d.id = tp.driver_id
             WHERE tp.session_id = ?

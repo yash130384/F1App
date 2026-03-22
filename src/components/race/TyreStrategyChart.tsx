@@ -23,11 +23,13 @@ interface TyreStrategyChartProps {
 }
 
 const COMPOUND_COLORS: Record<number, string> = {
-    16: '#ef4444', 17: '#eab308', 18: '#e5e7eb', 7: '#22c55e', 8: '#3b82f6'
+    16: '#ef4444', 17: '#eab308', 18: '#e5e7eb', 7: '#22c55e', 8: '#3b82f6',
+    19: '#ec4899', 20: '#ef4444', 21: '#eab308', 22: '#e5e7eb'
 };
 
 const COMPOUND_LABELS: Record<number, string> = {
-    16: 'S', 17: 'M', 18: 'H', 7: 'I', 8: 'W'
+    16: 'S', 17: 'M', 18: 'H', 7: 'I', 8: 'W',
+    19: 'SS', 20: 'S', 21: 'M', 22: 'H'
 };
 
 export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChartProps) {

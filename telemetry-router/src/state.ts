@@ -295,7 +295,7 @@ export class SessionState {
             }
         }
         
-        // Sample aufzeichnen (ca. 10Hz oder bei signifikanter Distanzänderung)
+        // Sample mit voller Frequenz aufzeichnen (z.B. 60Hz) für präzise Analysen
         if (p.isHuman && data.currentLapNum > 0) {
             this.maybeRecordSample(p, data);
         }
@@ -304,16 +304,7 @@ export class SessionState {
         p.lapData = data;
     }
 
-    private lastSampleTime = new Map<string, number>();
-
     private maybeRecordSample(p: PlayerState, lap: LapData) {
-        const now = Date.now();
-        const lastTime = this.lastSampleTime.get(p.gameName) || 0;
-        
-        // Max 10 Hz recording to avoid bloating
-        if (now - lastTime < 100) return;
-        this.lastSampleTime.set(p.gameName, now);
-
         if (!p.telemetryData || !p.motionData) return;
 
         p.currentLapSamples.push({

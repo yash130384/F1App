@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { getAllLeagues, getTelemetrySessionsForLeague } from '@/lib/actions';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AnalysisDashboard from '@/components/analysis/AnalysisDashboard';
 
-export default function AnalysisPage() {
+function AnalysisContent() {
     const [leagues, setLeagues] = useState<any[]>([]);
     const [selectedLeagueId, setSelectedLeagueId] = useState<string>('');
     const [sessions, setSessions] = useState<any[]>([]);
@@ -115,3 +115,12 @@ export default function AnalysisPage() {
         </div>
     );
 }
+
+export default function AnalysisPage() {
+    return (
+        <Suspense fallback={<div className="p-20 text-center text-f1">Lade Analyse...</div>}>
+            <AnalysisContent />
+        </Suspense>
+    );
+}
+

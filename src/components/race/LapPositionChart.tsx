@@ -14,6 +14,8 @@ interface PositionEntry {
 interface Participant {
     game_name: string;
     driver_name?: string;
+    driver_color?: string;
+    car_index: number;
     position: number;
 }
 
@@ -24,28 +26,30 @@ interface LapPositionChartProps {
 }
 
 export function LapPositionChart({ participants, history, totalLaps }: LapPositionChartProps) {
+    // Mapping von car_index auf Teilnehmer erstellen
+    const carIndexMap: Record<number, Participant> = {};
+    participants.forEach(p => {
+        carIndexMap[p.car_index] = p;
+    });
+
+    // Top-Fahrer nach finaler Position für die Legende (Top 10)
+    const topDrivers = [...participants].sort((a, b) => a.position - b.position).slice(0, 10);
+    
     // Transform history into Recharts format: { lap: 1, driver1: 1, driver2: 2, ... }
     const dataByLap: Record<number, any> = {};
     
-    // Only track top 10 or selected drivers for clarity
-    const topDrivers = participants.sort((a, b) => a.position - b.position).slice(0, 8);
-    const driverIds = topDrivers.map((p, i) => i); // Using car_index or index here
-
     history.forEach(entry => {
         if (!dataByLap[entry.lap_number]) {
             dataByLap[entry.lap_number] = { lap: entry.lap_number };
         }
-        // Find driver name for this car index
-        // Note: entry.car_index is 0-21. participants order might match or we need a mapping.
-        // For now, let's assume index matches or just show based on car_index
-        const driver = participants[entry.car_index];
+        
+        const driver = carIndexMap[entry.car_index];
         if (driver) {
             dataByLap[entry.lap_number][driver.game_name] = entry.position;
         }
     });
 
     const chartData = Object.values(dataByLap).sort((a, b) => a.lap - b.lap);
-    const colors = ['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#ec4899', '#8b5cf6', '#06b6d4', '#f97316'];
 
     return (
         <div style={{
@@ -53,46 +57,47 @@ export function LapPositionChart({ participants, history, totalLaps }: LapPositi
             border: '1px solid rgba(255,255,255,0.1)',
             borderRadius: 12,
             padding: '1.5rem',
-            height: 400,
+            height: 450,
         }}>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginBottom: 20 }}>
-                Position Change History (Top 8)
+                Race Position Evolution (Top 10)
             </div>
 
             <ResponsiveContainer width="100%" height="85%">
-                <LineChart data={chartData}>
+                <LineChart data={chartData} margin={{ top: 5, right: 30, left: -20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                     <XAxis 
                         dataKey="lap" 
-                        stroke="#444" 
+                        stroke="#666" 
                         fontSize={10} 
                         tickLine={false}
-                        label={{ value: 'LAP', position: 'insideBottomRight', offset: -5, fontSize: 9, fill: '#444' }}
+                        label={{ value: 'LAP', position: 'insideBottomRight', offset: -5, fontSize: 9, fill: '#666' }}
                     />
                     <YAxis 
                         reversed 
-                        domain={[1, 22]} 
-                        stroke="#444" 
+                        domain={[1, 20]} 
+                        stroke="#666" 
                         fontSize={10} 
                         tickLine={false}
                         ticks={[1, 5, 10, 15, 20]}
-                        label={{ value: 'POS', angle: -90, position: 'insideLeft', fontSize: 9, fill: '#444' }}
+                        label={{ value: 'POSITION', angle: -90, position: 'insideLeft', fontSize: 9, fill: '#666', offset: 10 }}
                     />
                     <Tooltip 
-                        contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11 }}
+                        contentStyle={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11 }}
                         itemStyle={{ padding: '2px 0' }}
                     />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: 10, paddingTop: 10 }} />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: 10, paddingTop: 15 }} />
                     {topDrivers.map((p, i) => (
                         <Line
                             key={p.game_name}
-                            type="stepAfter"
+                            type="monotone"
                             dataKey={p.game_name}
                             name={p.driver_name || p.game_name}
-                            stroke={colors[i % colors.length]}
-                            strokeWidth={2}
+                            stroke={p.driver_color || '#888'}
+                            strokeWidth={2.5}
                             dot={false}
                             activeDot={{ r: 4 }}
+                            isAnimationActive={false}
                         />
                     ))}
                 </LineChart>

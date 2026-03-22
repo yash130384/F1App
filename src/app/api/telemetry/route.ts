@@ -62,7 +62,7 @@ export async function POST(req: Request) {
         // --- Throttling Logic ---
         const now = Date.now();
         const lastWriteTime = lastDbWrite.get(sessionId) || 0;
-        const shouldWriteToDb = isSessionEnded || isNewSession || (now - lastWriteTime > 5000);
+        const shouldWriteToDb = body.force || isSessionEnded || isNewSession || (now - lastWriteTime > 5000);
 
         if (shouldWriteToDb) {
             lastDbWrite.set(sessionId, now);
