@@ -1287,6 +1287,27 @@ export async function getBestLapsPerSession(sessionId: string) {
 }
 
 /**
+ * Fetches all laps for all participants in a session.
+ */
+export async function getSessionLaps(sessionId: string) {
+    try {
+        const laps = await query<any>(`
+            SELECT tl.participant_id, tl.lap_number, tl.lap_time_ms, tl.is_valid, tl.tyre_compound,
+                   tp.game_name, d.name as driver_name, d.color as driver_color, tp.position
+            FROM telemetry_laps tl
+            JOIN telemetry_participants tp ON tl.participant_id = tp.id
+            LEFT JOIN drivers d ON tp.driver_id = d.id
+            WHERE tp.session_id = ?
+            ORDER BY tl.lap_number ASC, tl.participant_id ASC
+        `, [sessionId]);
+
+        return { success: true, laps };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
  * Fetches the high-frequency samples for a specific lap.
  */
 export async function getLapSamples(lapId: string) {

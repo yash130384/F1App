@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getBestLapsPerSession, getLapSamples, getBestLapForTrack } from '@/lib/actions';
+import { getBestLapsPerSession, getLapSamples, getBestLapForTrack, getSessionLaps } from '@/lib/actions';
 import DriverTrace from './DriverTrace';
 import TyreAnalysis from './TyreAnalysis';
 import GGCircle from './GGCircle';
+import RacePaceChart from './RacePaceChart';
+import GapToLeaderChart from './GapToLeaderChart';
 
 interface AnalysisDashboardProps {
     sessionId: string;
@@ -19,16 +21,18 @@ export default function AnalysisDashboard({ sessionId, leagueId, trackId }: Anal
     const [selectedLap2, setSelectedLap2] = useState<string>('');
     const [samples1, setSamples1] = useState<any[]>([]);
     const [samples2, setSamples2] = useState<any[]>([]);
+    const [allSessionLaps, setAllSessionLaps] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingSamples, setLoadingSamples] = useState(false);
-    const [activeTab, setActiveTab] = useState<'trace' | 'tyres' | 'gg'>('trace');
+    const [activeTab, setActiveTab] = useState<'trace' | 'tyres' | 'gg' | 'pace' | 'gap'>('trace');
 
     useEffect(() => {
-        async function loadLaps() {
+        async function loadData() {
             setLoading(true);
-            const [sessionRes, trackRes] = await Promise.all([
+            const [sessionRes, trackRes, allLapsRes] = await Promise.all([
                 getBestLapsPerSession(sessionId),
-                getBestLapForTrack(leagueId, trackId)
+                getBestLapForTrack(leagueId, trackId),
+                getSessionLaps(sessionId)
             ]);
 
             if (sessionRes.success) {
@@ -40,15 +44,18 @@ export default function AnalysisDashboard({ sessionId, leagueId, trackId }: Anal
 
             if (trackRes.success && trackRes.lap) {
                 setGoldenLap(trackRes.lap);
-                // Default to Golden Copy as comparison if possible
                 setSelectedLap2(trackRes.lap.lap_id);
             } else if (sessionRes.success && sessionRes.bestLaps && sessionRes.bestLaps.length > 1) {
                 setSelectedLap2(sessionRes.bestLaps[1].lap_id);
             }
 
+            if (allLapsRes.success) {
+                setAllSessionLaps(allLapsRes.laps || []);
+            }
+
             setLoading(false);
         }
-        loadLaps();
+        loadData();
     }, [sessionId, leagueId, trackId]);
 
     useEffect(() => {
@@ -121,22 +128,34 @@ export default function AnalysisDashboard({ sessionId, leagueId, trackId }: Anal
                     </div>
                 </div>
 
-                <div className="flex bg-slate-800 p-1 rounded-xl border border-white/5">
+                <div className="flex bg-slate-800 p-1 rounded-xl border border-white/5 overflow-x-auto">
                     <button 
                         onClick={() => setActiveTab('trace')}
-                        className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'trace' ? 'bg-f1-red text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                        className={`px-6 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'trace' ? 'bg-f1-red text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
                     >
                         Driver Trace
                     </button>
                     <button 
+                        onClick={() => setActiveTab('pace')}
+                        className={`px-6 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'pace' ? 'bg-f1-red text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                    >
+                        Race Pace
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('gap')}
+                        className={`px-6 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'gap' ? 'bg-f1-red text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                    >
+                        Gap Analysis
+                    </button>
+                    <button 
                         onClick={() => setActiveTab('tyres')}
-                        className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'tyres' ? 'bg-f1-red text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                        className={`px-6 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'tyres' ? 'bg-f1-red text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
                     >
                         Reifen
                     </button>
                     <button 
                         onClick={() => setActiveTab('gg')}
-                        className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'gg' ? 'bg-f1-red text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                        className={`px-6 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'gg' ? 'bg-f1-red text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
                     >
                         G-G Diagramm
                     </button>
@@ -153,11 +172,19 @@ export default function AnalysisDashboard({ sessionId, leagueId, trackId }: Anal
                         <DriverTrace 
                             data1={samples1} 
                             data2={samples2} 
-                            label1={lap1Info?.driver_name || (lap1Info?.lap_id === goldenLap?.lap_id ? '🌟 Golden Copy' : 'Fahrer 1')} 
-                            label2={lap2Info?.driver_name || (lap2Info?.lap_id === goldenLap?.lap_id ? '🌟 Golden Copy' : 'Fahrer 2')} 
+                            label1={lap1Info?.driver_name || (lap1Info?.lap_id === goldenLap?.lap_id ? '🌟 Golden Copy' : (lap1Info?.game_name || 'Fahrer 1'))} 
+                            label2={lap2Info?.driver_name || (lap2Info?.lap_id === goldenLap?.lap_id ? '🌟 Golden Copy' : (lap2Info?.game_name || 'Fahrer 2'))} 
                             color1={lap1Info?.lap_id === goldenLap?.lap_id ? '#fbbf24' : (lap1Info?.driver_color || '#e10600')} 
                             color2={lap2Info?.lap_id === goldenLap?.lap_id ? '#fbbf24' : (lap2Info?.driver_color || '#3b82f6')} 
                         />
+                    )}
+
+                    {activeTab === 'pace' && (
+                        <RacePaceChart laps={allSessionLaps} />
+                    )}
+
+                    {activeTab === 'gap' && (
+                        <GapToLeaderChart laps={allSessionLaps} />
                     )}
 
                     {activeTab === 'tyres' && (

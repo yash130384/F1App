@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getDashboardData, getAllLeagues, getRaceDetails, deleteRace, getActiveTelemetrySession } from '@/lib/actions';
+import { getDashboardData, getAllLeagues, getRaceDetails, deleteRace, getActiveTelemetrySession, getTelemetrySessionsForLeague } from '@/lib/actions';
+import AnalysisDashboard from '@/components/analysis/AnalysisDashboard';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 import RaceCountdown from './RaceCountdown';
 import LiveTrackMap from './LiveTrackMap';
@@ -195,6 +196,7 @@ function RaceResultsTable({ raceResults, handleDriverClick, compact = false }: R
 }
 
 export default function Dashboard() {
+    const [activeTab, setActiveTab] = useState<'overview' | 'analysis'>('overview');
     const [leaguesList, setLeaguesList] = useState<any[]>([]);
     const [selectedLeagueName, setSelectedLeagueName] = useState<string | null>(null);
     const [league, setLeague] = useState<any | null>(null);
@@ -219,6 +221,8 @@ export default function Dashboard() {
     const [driverPositionHistory, setDriverPositionHistory] = useState<any[]>([]);
     const [safetyCarEvents, setSafetyCarEvents] = useState<any[]>([]);
     const [sessionIdForDriver, setSessionIdForDriver] = useState<string | null>(null);
+    const [analysisSessions, setAnalysisSessions] = useState<any[]>([]);
+    const [selectedAnalysisSessionId, setSelectedAnalysisSessionId] = useState<string>('');
 
     const [loading, setLoading] = useState(false);
     const [fetchingLeagues, setFetchingLeagues] = useState(true);
@@ -257,6 +261,15 @@ export default function Dashboard() {
             setUpcomingRaces(res.upcoming || []);
             setGraphData(res.graphData || []);
             setLeagueStats(res.stats);
+
+            // Fetch telemetry sessions for analysis
+            const sessRes = await getTelemetrySessionsForLeague(res.league.id);
+            if (sessRes.success) {
+                setAnalysisSessions(sessRes.sessions || []);
+                if (sessRes.sessions && sessRes.sessions.length > 0) {
+                    setSelectedAnalysisSessionId(sessRes.sessions[0].id);
+                }
+            }
 
             // Fetch live session
             const liveRes = await getActiveTelemetrySession(res.league.id);
@@ -367,6 +380,23 @@ export default function Dashboard() {
                         </div>
                     ) : league && (
                         <div className="dashboard-content">
+                            <nav className="flex gap-4 border-b border-white/5 mb-8">
+                                <button
+                                    onClick={() => setActiveTab('overview')}
+                                    className={`pb-2 px-1 text-sm font-bold transition-all border-b-2 ${activeTab === 'overview' ? 'border-f1-red text-white' : 'border-transparent text-slate-500 hover:text-white'}`}
+                                >
+                                    OVERVIEW
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('analysis')}
+                                    className={`pb-2 px-1 text-sm font-bold transition-all border-b-2 ${activeTab === 'analysis' ? 'border-f1-red text-white' : 'border-transparent text-slate-500 hover:text-white'}`}
+                                >
+                                    ANALYSIS
+                                </button>
+                            </nav>
+
+                            {activeTab === 'overview' ? (
+                                <>
 
                             {liveSession && (
                                 <div className="f1-card animate-pulse" style={{ marginBottom: '2rem', border: '2px solid var(--f1-red)', background: 'rgba(225, 6, 0, 0.1)' }}>
@@ -645,6 +675,44 @@ export default function Dashboard() {
                                     )}
                                 </section>
                             </div>
+                                </>
+                            ) : (
+                                <div className="animate-in fade-in duration-700 flex flex-col gap-6">
+                                    <div className="f1-card flex flex-col md:flex-row justify-between items-center gap-4">
+                                        <div className="flex flex-col gap-1">
+                                            <h3 className="text-f1 text-xl">Session Analyse</h3>
+                                            <p className="text-slate-500 text-xs uppercase font-bold">Wähle eine Aufzeichnung für tiefe Einblicke</p>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-3 w-full md:w-auto">
+                                            <select 
+                                                value={selectedAnalysisSessionId}
+                                                onChange={(e) => setSelectedAnalysisSessionId(e.target.value)}
+                                                className="bg-slate-900 text-white p-3 rounded-xl border border-white/10 outline-none focus:border-f1-red transition-all flex-1 md:min-w-[300px] font-bold"
+                                            >
+                                                {analysisSessions.length === 0 && <option value="">Keine Sitzungen gefunden</option>}
+                                                {analysisSessions.map((s: any) => (
+                                                    <option key={s.id} value={s.id}>
+                                                        {s.session_type} - {new Date(s.created_at).toLocaleDateString()} {s.track_name ? `(${s.track_name})` : ''}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {selectedAnalysisSessionId ? (
+                                        <AnalysisDashboard 
+                                            sessionId={selectedAnalysisSessionId}
+                                            leagueId={league.id}
+                                            trackId={analysisSessions.find((s: any) => s.id === selectedAnalysisSessionId)?.track_id}
+                                        />
+                                    ) : (
+                                        <div className="f1-card text-center p-20 opacity-30">
+                                            <p className="text-xl">Keine Telemetrie-Sitzungen für diese Liga vorhanden.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* FULL SCREEN GRAPH MODAL */}
                             {showFullScreenGraph && (
