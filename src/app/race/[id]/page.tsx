@@ -118,15 +118,15 @@ function RaceDetailContent() {
         if (res.success) {
             setRace(res.race);
             setResults(res.results || []);
-            const sid = (res as any).telemetrySessionId || null;
+            const sid = res.race?.telemetry_session_id || null;
             setTelemetrySessionId(sid);
 
             // Alle-Fahrer-Graph laden
             setLoadingGraph(true);
             const [graphRes, scRes, analysisRes, lapsRes] = await Promise.all([
-                getAllDriversRaceTelemetry(raceId),
+                sid ? getAllDriversRaceTelemetry(sid) : getAllDriversRaceTelemetry(raceId.toString()),
                 sid ? getSessionSafetyCarEvents(sid) : Promise.resolve({ success: false, events: [] }),
-                getRaceAnalysis(raceId),
+                sid ? getRaceAnalysis(sid) : getRaceAnalysis(raceId.toString()),
                 sid ? getSessionLaps(sid) : Promise.resolve({ success: false, laps: [] })
             ]);
             if (graphRes.success) {

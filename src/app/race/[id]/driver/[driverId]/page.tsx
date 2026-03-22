@@ -125,7 +125,7 @@ function DriverDetailContent() {
     const router = useRouter();
 
     const raceId = parseInt(params.id, 10);
-    const driverId = parseInt(params.driverId, 10);
+    const driverId = params.driverId; // It's a UUID string!
     const leagueName = searchParams.get('league') || '';
 
     const [loading, setLoading] = useState(true);
@@ -172,7 +172,7 @@ function DriverDetailContent() {
             setLoading(false);
         }
 
-        if (!isNaN(raceId) && !isNaN(driverId)) {
+        if (!isNaN(raceId) && driverId) {
             loadData();
         } else {
             setLoading(false);
