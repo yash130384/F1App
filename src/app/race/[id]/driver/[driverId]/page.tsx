@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
-import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
     getRaceDetails,
     getDriverRaceTelemetry,
     getDriverPositionHistory,
     getSessionSafetyCarEvents,
     getSessionFastestSectors,
+    getDriverIncidents,
 } from '@/lib/actions';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -136,6 +134,7 @@ function DriverDetailContent() {
     const [positionHistory, setPositionHistory] = useState<any[]>([]);
     const [scEvents, setScEvents] = useState<any[]>([]);
     const [fastestSectors, setFastestSectors] = useState<{min_s1: number, min_s2: number, min_s3: number} | null>(null);
+    const [incidents, setIncidents] = useState<any[]>([]);
     
     // Toggle state for engine/gearbox damage
     const [showHiddendamage, setShowHiddenDamage] = useState(false);
@@ -152,11 +151,12 @@ function DriverDetailContent() {
 
                 const sid = rRes.telemetrySessionId || null;
 
-                const [telRes, posRes, scRes, sectRes] = await Promise.all([
+                const [telRes, posRes, scRes, sectRes, incRes] = await Promise.all([
                     getDriverRaceTelemetry(raceId.toString(), driverId.toString()),
                     getDriverPositionHistory(raceId.toString(), driverId.toString()),
                     sid ? getSessionSafetyCarEvents(sid) : Promise.resolve({ success: false, events: [] }),
-                    sid ? getSessionFastestSectors(sid) : Promise.resolve({ success: false, fastestSectors: null })
+                    sid ? getSessionFastestSectors(sid) : Promise.resolve({ success: false, fastestSectors: null }),
+                    getDriverIncidents(raceId.toString(), driverId.toString())
                 ]);
 
                 if (telRes.success) setDriverLaps(telRes.laps || []);
@@ -168,6 +168,9 @@ function DriverDetailContent() {
                 }
                 if (sectRes.success && sectRes.fastestSectors) {
                     setFastestSectors(sectRes.fastestSectors);
+                }
+                if (incRes.success && incRes.incidents) {
+                    setIncidents(incRes.incidents);
                 }
             }
             setLoading(false);
@@ -312,6 +315,11 @@ function DriverDetailContent() {
                                         <ReferenceLine key={`pit-${l.lap_number}`} x={l.lap_number} stroke="#ff8700"
                                             strokeWidth={1} strokeDasharray="3 2"
                                             label={<ChartEventLabel value="PIT" color="#ff8700" bg="rgba(255,135,0,0.18)" />} />
+                                    ))}
+                                    {incidents.filter((i: any) => i.type === 'COLLISION' && i.lap_num > 0).map((inc: any, idx: number) => (
+                                        <ReferenceLine key={`coll-${idx}`} x={inc.lap_num} stroke="#ff0000"
+                                            strokeWidth={1.5} strokeDasharray="3 3"
+                                            label={<ChartEventLabel value="💥" color="#ff0000" bg="rgba(255,0,0,0.15)" />} />
                                     ))}
                                     {computeDamageEvents(driverLaps).map((ev, i) => {
                                         // Highlight specific damage rules
@@ -486,6 +494,7 @@ function DriverDetailContent() {
                                                     
                                                     const visibleDamages = dmgEv?.newDamages.filter(d => showHiddendamage || !['engineDamage', 'engineBlown', 'gearBoxDamage'].includes(d.key)) || [];
                                                     const visibleRepairs = dmgEv?.repairs.filter(d => showHiddendamage || !['engineDamage', 'engineBlown', 'gearBoxDamage'].includes(d.key)) || [];
+                                                    const lapCollisions = incidents.filter(i => i.type === 'COLLISION' && i.lap_num === lap.lap_number);
                                                     
                                                     const hasVisibleDmg = visibleDamages.length > 0;
                                                     
@@ -516,6 +525,12 @@ function DriverDetailContent() {
                                                                     {lap.is_pit_lap && <span style={{ background: '#ff8700', color: 'white', fontSize: '0.55rem', padding: '2px 4px', borderRadius: '3px', fontWeight: 900 }}>PIT</span>}
                                                                     {!lap.is_valid && <span style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.55rem', padding: '2px 4px', borderRadius: '3px', fontWeight: 900 }} title="Runde Ungültig">INV</span>}
                                                                     
+                                                                    {lapCollisions.length > 0 && (
+                                                                        <span title={lapCollisions.map((c: any) => `Kollision mit ${c.other_driver || 'Unbekannt'}`).join(' | ')}
+                                                                            style={{ background: 'rgba(255,0,0,0.8)', color: 'white', fontSize: '0.55rem', padding: '2px 4px', borderRadius: '3px', fontWeight: 900, cursor: 'help' }}
+                                                                        >💥 COLL</span>
+                                                                    )}
+
                                                                     {visibleDamages.length > 0 && (
                                                                         <span title={visibleDamages.map(d => `${d.label}: ${d.from}→${d.to}%`).join(', ')}
                                                                             style={{ background: 'rgba(225,6,0,0.8)', color: 'white', fontSize: '0.55rem', padding: '2px 4px', borderRadius: '3px', fontWeight: 900, cursor: 'help' }}

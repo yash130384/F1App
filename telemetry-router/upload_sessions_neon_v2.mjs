@@ -47,6 +47,7 @@ async function processFile(targetFile, raceId) {
     for (const old of oldSessions) {
         await sql`DELETE FROM telemetry_laps WHERE participant_id IN (SELECT id FROM telemetry_participants WHERE session_id = ${old.id})`;
         await sql`DELETE FROM telemetry_position_history WHERE session_id = ${old.id}`;
+        await sql`DELETE FROM telemetry_incidents WHERE session_id = ${old.id}`;
         await sql`DELETE FROM telemetry_participants WHERE session_id = ${old.id}`;
         await sql`DELETE FROM telemetry_sessions WHERE id = ${old.id}`;
     }
@@ -148,6 +149,7 @@ async function syncToNeon(state, sessionId, leagueId, isFinal = false) {
                     if (lap.sector3Ms && (!existing.sector3Ms || lap.sector3Ms > existing.sector3Ms)) existing.sector3Ms = lap.sector3Ms;
                     if (lap.tyreCompound !== null && lap.tyreCompound !== undefined) existing.tyreCompound = lap.tyreCompound;
                     if (lap.carDamage) existing.carDamage = { ...existing.carDamage, ...lap.carDamage };
+                    if (lap.isPitLap) existing.isPitLap = true;
                 }
             }
 
@@ -162,6 +164,7 @@ async function syncToNeon(state, sessionId, leagueId, isFinal = false) {
                     sector2_ms: lap.sector2Ms,
                     sector3_ms: lap.sector3Ms,
                     tyre_compound: lap.tyreCompound,
+                    is_pit_lap: lap.isPitLap || false,
                     car_damage_json: damageJson
                 });
             }
@@ -174,8 +177,8 @@ async function syncToNeon(state, sessionId, leagueId, isFinal = false) {
             const chunk = lapsToInsert.slice(i, i + 100);
             await Promise.all(chunk.map(lap => sql`
                 INSERT INTO telemetry_laps 
-                (participant_id, lap_number, lap_time_ms, is_valid, sector1_ms, sector2_ms, sector3_ms, tyre_compound, car_damage_json)
-                VALUES (${lap.participant_id}, ${lap.lap_number}, ${lap.lap_time_ms}, ${lap.is_valid}, ${lap.sector1_ms}, ${lap.sector2_ms}, ${lap.sector3_ms}, ${lap.tyre_compound}, ${lap.car_damage_json})
+                (participant_id, lap_number, lap_time_ms, is_valid, sector1_ms, sector2_ms, sector3_ms, tyre_compound, is_pit_lap, car_damage_json)
+                VALUES (${lap.participant_id}, ${lap.lap_number}, ${lap.lap_time_ms}, ${lap.is_valid}, ${lap.sector1_ms}, ${lap.sector2_ms}, ${lap.sector3_ms}, ${lap.tyre_compound}, ${lap.is_pit_lap}, ${lap.car_damage_json})
             `));
         }
     }
@@ -187,6 +190,16 @@ async function syncToNeon(state, sessionId, leagueId, isFinal = false) {
                 INSERT INTO telemetry_position_history (session_id, car_index, lap_number, position)
                 VALUES (${sessionId}, ${lp.carIndex}, ${lp.lapNumber}, ${lp.position})
                 ON CONFLICT DO NOTHING
+            `));
+        }
+    }
+
+    if (payload.incidentLog && payload.incidentLog.length > 0) {
+        for (let i = 0; i < payload.incidentLog.length; i += 100) {
+            const chunk = payload.incidentLog.slice(i, i + 100);
+            await Promise.all(chunk.map(inc => sql`
+                INSERT INTO telemetry_incidents (session_id, type, details, vehicle_idx, other_vehicle_idx, lap_num, timestamp)
+                VALUES (${sessionId}, ${inc.type}, ${inc.details}, ${inc.vehicleIdx ?? null}, ${inc.otherVehicleIdx ?? null}, ${inc.lapNum ?? null}, to_timestamp(${inc.timestamp} / 1000.0))
             `));
         }
     }

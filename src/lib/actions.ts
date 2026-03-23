@@ -1083,6 +1083,49 @@ export async function getDriverRaceTelemetry(raceId: string, driverId: string) {
 }
 
 /**
+ * Lädt die Kollisionen und Incidents für einen bestimmten Fahrer
+ */
+export async function getDriverIncidents(raceId: string, driverId: string) {
+    try {
+        const session = await query<any>(`SELECT id FROM telemetry_sessions WHERE race_id = ? LIMIT 1`, [raceId]);
+        if (session.length === 0) return { success: true, incidents: [] };
+        const sessionId = session[0].id;
+
+        const participant = await query<any>(`SELECT car_index FROM telemetry_participants WHERE session_id = ? AND driver_id = ? LIMIT 1`, [sessionId, driverId]);
+        if (participant.length === 0) return { success: true, incidents: [] };
+        const carIndex = participant[0].car_index;
+
+        const incidents = await query<any>(`
+            SELECT i.type, i.details, i.lap_num, i.vehicle_idx, i.other_vehicle_idx
+            FROM telemetry_incidents i
+            WHERE i.session_id = ? 
+            AND (i.vehicle_idx = ? OR i.other_vehicle_idx = ?)
+            ORDER BY i.timestamp ASC
+        `, [sessionId, carIndex, carIndex]);
+
+        const allParticipants = await query<any>(`SELECT car_index, game_name FROM telemetry_participants WHERE session_id = ?`, [sessionId]);
+        const nameMap = new Map();
+        allParticipants.forEach((p: any) => nameMap.set(p.car_index, p.game_name));
+
+        const formattedIncidents = incidents.map((inc: any) => {
+            const otherIdx = inc.vehicle_idx === carIndex ? inc.other_vehicle_idx : inc.vehicle_idx;
+            const otherName = otherIdx !== null ? nameMap.get(otherIdx) : null;
+            return {
+                type: inc.type,
+                details: inc.details,
+                lap_num: inc.lap_num,
+                other_driver: otherName
+            };
+        });
+
+        return { success: true, incidents: formattedIncidents };
+    } catch (error: any) {
+        console.error('Telemetrie-Kollisionen Fehler:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
  * Lädt den Positionsverlauf eines Fahrers für ein Rennen (aus telemetry_position_history).
  */
 export async function getDriverPositionHistory(raceId: string, driverId: string) {
