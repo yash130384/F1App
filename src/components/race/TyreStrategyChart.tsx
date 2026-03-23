@@ -42,7 +42,7 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
                 <p className="text-slate-500 text-xs uppercase font-bold">Reifenstrategie Übersicht</p>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 600 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
                 {sorted.map((p, i) => (
                     <div key={p.game_name} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <div style={{ width: 120, fontSize: 11, color: '#aaa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

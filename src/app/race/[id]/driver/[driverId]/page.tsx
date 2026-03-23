@@ -259,7 +259,7 @@ function DriverDetailContent() {
                         <div style={{ marginBottom: '0.5rem', fontSize: '0.7rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Rundenzeitverlauf</div>
                         <div style={{ width: '100%', height: 'clamp(200px, 35vw, 300px)', marginBottom: '2rem' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={driverLaps} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                                <LineChart data={driverLaps.map(l => ({ ...l, lap_time_ms: l.lap_time_ms > 0 ? l.lap_time_ms : null }))} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                                     <defs>
                                         {(() => {
                                             if (driverLaps.length === 0) return null;
@@ -475,6 +475,11 @@ function DriverDetailContent() {
                                                 const dmgEvents = computeDamageEvents(driverLaps);
                                                 const dmgByLap = new Map(dmgEvents.map(e => [e.lap, e]));
                                                 
+                                                const validLaps = driverLaps.filter(l => l.is_valid);
+                                                const pbS1 = validLaps.filter(l => l.sector1_ms > 0).length > 0 ? Math.min(...validLaps.filter(l => l.sector1_ms > 0).map(l => l.sector1_ms)) : Infinity;
+                                                const pbS2 = validLaps.filter(l => l.sector2_ms > 0).length > 0 ? Math.min(...validLaps.filter(l => l.sector2_ms > 0).map(l => l.sector2_ms)) : Infinity;
+                                                const pbS3 = validLaps.filter(l => l.sector3_ms > 0).length > 0 ? Math.min(...validLaps.filter(l => l.sector3_ms > 0).map(l => l.sector3_ms)) : Infinity;
+                                                
                                                 return driverLaps.map((lap) => {
                                                     const isFastest = lap.is_valid && lap.lap_time_ms === fastestLapMs;
                                                     const dmgEv = dmgByLap.get(lap.lap_number);
@@ -484,10 +489,13 @@ function DriverDetailContent() {
                                                     
                                                     const hasVisibleDmg = visibleDamages.length > 0;
                                                     
-                                                    // Sektor-Highlighting logic (Check if within 2ms of fastest)
                                                     const s1Purple = fastestSectors && fastestSectors.min_s1 && lap.sector1_ms && lap.sector1_ms <= (fastestSectors.min_s1 + 2) && lap.is_valid;
                                                     const s2Purple = fastestSectors && fastestSectors.min_s2 && lap.sector2_ms && lap.sector2_ms <= (fastestSectors.min_s2 + 2) && lap.is_valid;
                                                     const s3Purple = fastestSectors && fastestSectors.min_s3 && lap.sector3_ms && lap.sector3_ms <= (fastestSectors.min_s3 + 2) && lap.is_valid;
+
+                                                    const s1Green = !s1Purple && pbS1 !== Infinity && lap.sector1_ms && lap.sector1_ms <= (pbS1 + 2) && lap.is_valid;
+                                                    const s2Green = !s2Purple && pbS2 !== Infinity && lap.sector2_ms && lap.sector2_ms <= (pbS2 + 2) && lap.is_valid;
+                                                    const s3Green = !s3Purple && pbS3 !== Infinity && lap.sector3_ms && lap.sector3_ms <= (pbS3 + 2) && lap.is_valid;
 
                                                     return (
                                                         <tr key={lap.lap_number} style={{
@@ -499,9 +507,9 @@ function DriverDetailContent() {
                                                                 {formatLapTime(lap.lap_time_ms)}
                                                                 {isFastest && <span style={{ fontSize: '0.5rem', marginLeft: '6px', background: '#9c27b0', color: 'white', padding: '1px 3px', borderRadius: '3px' }}>FL</span>}
                                                             </td>
-                                                            <td style={{ padding: '0.5rem 0.75rem', color: s1Purple ? '#9c27b0' : 'var(--silver)', fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: s1Purple ? 900 : 400 }}>{formatSectorTime(lap.sector1_ms)}</td>
-                                                            <td style={{ padding: '0.5rem 0.75rem', color: s2Purple ? '#9c27b0' : 'var(--silver)', fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: s2Purple ? 900 : 400 }}>{formatSectorTime(lap.sector2_ms)}</td>
-                                                            <td style={{ padding: '0.5rem 0.75rem', color: s3Purple ? '#9c27b0' : 'var(--silver)', fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: s3Purple ? 900 : 400 }}>{formatSectorTime(lap.sector3_ms)}</td>
+                                                            <td style={{ padding: '0.5rem 0.75rem', color: s1Purple ? '#9c27b0' : s1Green ? '#34c38f' : 'var(--silver)', fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: s1Purple || s1Green ? 900 : 400 }}>{formatSectorTime(lap.sector1_ms)}</td>
+                                                            <td style={{ padding: '0.5rem 0.75rem', color: s2Purple ? '#9c27b0' : s2Green ? '#34c38f' : 'var(--silver)', fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: s2Purple || s2Green ? 900 : 400 }}>{formatSectorTime(lap.sector2_ms)}</td>
+                                                            <td style={{ padding: '0.5rem 0.75rem', color: s3Purple ? '#9c27b0' : s3Green ? '#34c38f' : 'var(--silver)', fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: s3Purple || s3Green ? 900 : 400 }}>{formatSectorTime(lap.sector3_ms)}</td>
                                                             <td style={{ padding: '0.5rem 0.75rem', textAlign: 'center' }}>
                                                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                                                                     {lap.tyre_compound != null && <TyreBadge compoundId={lap.tyre_compound} />}
