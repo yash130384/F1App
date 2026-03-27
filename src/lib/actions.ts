@@ -285,7 +285,7 @@ export async function recalculateStandings(leagueId: string) {
 /**
  * Schedules a future race.
  */
-export async function scheduleRace(leagueId: string, track: string, date: string, adminPass: string) {
+export async function scheduleRace(leagueId: string, track: string, date: string, adminPass: string, isRandom = false, revealHours = 0) {
     try {
         // Auth Check
         const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
@@ -293,10 +293,35 @@ export async function scheduleRace(leagueId: string, track: string, date: string
             throw new Error('Unauthorized.');
         }
 
+        let finalTrack = track;
+        if (isRandom) {
+            // Get track pool from config
+            const configRow = await query<any>(`SELECT track_pool FROM points_config WHERE league_id = ?`, [leagueId]);
+            let pool = [];
+            try {
+                if (configRow.length > 0 && configRow[0].track_pool) {
+                    pool = JSON.parse(configRow[0].track_pool);
+                }
+            } catch (e) {}
+            
+            if (pool.length === 0) {
+                const { F1_TRACKS_2025 } = require('./constants');
+                pool = F1_TRACKS_2025;
+            }
+
+            // Also exclude already used tracks if possible
+            const usedTracks = await query<any>(`SELECT track FROM races WHERE league_id = ?`, [leagueId]);
+            const usedSet = new Set(usedTracks.map((r: any) => r.track));
+            const available = pool.filter((t: any) => !usedSet.has(t));
+            
+            const selectionPool = available.length > 0 ? available : pool;
+            finalTrack = selectionPool[Math.floor(Math.random() * selectionPool.length)];
+        }
+
         const raceId = crypto.randomUUID();
         await run(
-            `INSERT INTO races (id, league_id, track, is_finished, scheduled_date) VALUES (?, ?, ?, false, ?)`,
-            [raceId, leagueId, track, date]
+            `INSERT INTO races (id, league_id, track, is_finished, scheduled_date, is_random, reveal_hours_before) VALUES (?, ?, ?, false, ?, ?, ?)`,
+            [raceId, leagueId, finalTrack, date, isRandom, revealHours]
         );
         return { success: true };
     } catch (error: any) {
@@ -338,10 +363,21 @@ export async function getDashboardData(leagueName: string) {
             [leagueId]
         );
 
-        const upcomingRaces = await query<any>(
+        const upcomingRacesRaw = await query<any>(
             `SELECT * FROM races WHERE league_id = ? AND is_finished = false ORDER BY scheduled_date ASC`,
             [leagueId]
         );
+
+        const now = new Date();
+        const upcomingRaces = upcomingRacesRaw.map((r: any) => {
+            if (r.is_random && r.reveal_hours_before > 0) {
+                const revealDate = new Date(new Date(r.scheduled_date).getTime() - r.reveal_hours_before * 60 * 60 * 1000);
+                if (now < revealDate) {
+                    return { ...r, track: '?? (Hidden)', is_hidden: true };
+                }
+            }
+            return { ...r, is_hidden: false };
+        });
 
         // Build Chronological Data for the Graph and Form Indicator
         // 1. Fetch all results for finished races in this league

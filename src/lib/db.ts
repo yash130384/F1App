@@ -51,8 +51,12 @@ const SCHEMA = [
     track TEXT,
     race_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_finished BOOLEAN DEFAULT true,
-    scheduled_date TIMESTAMP
+    scheduled_date TIMESTAMP,
+    is_random BOOLEAN DEFAULT false,
+    reveal_hours_before INTEGER DEFAULT 0
   )`,
+  `ALTER TABLE races ADD COLUMN IF NOT EXISTS is_random BOOLEAN DEFAULT false`,
+  `ALTER TABLE races ADD COLUMN IF NOT EXISTS reveal_hours_before INTEGER DEFAULT 0`,
   `CREATE TABLE IF NOT EXISTS race_results (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
     race_id TEXT,

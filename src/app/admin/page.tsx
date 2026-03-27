@@ -54,6 +54,8 @@ export default function AdminHub() {
     const [newDriverColor, setNewDriverColor] = useState('#ffffff');
     const [newDriverGameName, setNewDriverGameName] = useState('');
     const [scheduleTrack, setScheduleTrack] = useState(F1_TRACKS_2025[0]);
+    const [isRandomTrack, setIsRandomTrack] = useState(false);
+    const [revealHours, setRevealHours] = useState(24);
     const [scheduleDate, setScheduleDate] = useState('');
     const [upcomingRaces, setUpcomingRaces] = useState<any[]>([]);
     const [finishedRaces, setFinishedRaces] = useState<any[]>([]);
@@ -247,7 +249,7 @@ export default function AdminHub() {
         if (!leagueId || !scheduleDate) return;
         setSubmitting(true);
 
-        const res = await scheduleRace(leagueId, scheduleTrack, scheduleDate, adminPass);
+        const res = await scheduleRace(leagueId, scheduleTrack, scheduleDate, adminPass, isRandomTrack, revealHours);
         if (res.success) {
             alert('Race Scheduled!');
             setScheduleDate('');
@@ -666,30 +668,67 @@ export default function AdminHub() {
 
                                     <h2 className="text-f1 mb-4">RACE PLANNER</h2>
                                     <p className="mb-4" style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Schedule upcoming races for your league.</p>
-                                    <form onSubmit={handleScheduleRace} className="grid grid-3 gap-4 items-end mb-8">
-                                        <div className="input-group">
-                                            <label>SELECT TRACK</label>
-                                            <select
-                                                value={scheduleTrack}
-                                                onChange={e => setScheduleTrack(e.target.value)}
-                                                style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
-                                            >
-                                                {F1_TRACKS_2025.map(t => <option key={t} value={t}>{t}</option>)}
-                                            </select>
+                                    <form onSubmit={handleScheduleRace} className="flex flex-col gap-4 mb-8">
+                                        <div className="grid grid-3 gap-4 items-end">
+                                            <div className="input-group">
+                                                <label>SELECT TRACK</label>
+                                                <select
+                                                    value={scheduleTrack}
+                                                    onChange={e => {
+                                                        setScheduleTrack(e.target.value);
+                                                        if (e.target.value !== 'RANDOM') setIsRandomTrack(false);
+                                                    }}
+                                                    disabled={isRandomTrack}
+                                                    style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white', opacity: isRandomTrack ? 0.5 : 1 }}
+                                                >
+                                                    {F1_TRACKS_2025.map(t => <option key={t} value={t}>{t}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="input-group">
+                                                <label>DATE & TIME</label>
+                                                <input
+                                                    type="datetime-local"
+                                                    value={scheduleDate}
+                                                    onChange={e => setScheduleDate(e.target.value)}
+                                                    required
+                                                    style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
+                                                />
+                                            </div>
+                                            <button type="submit" disabled={submitting} className="btn-primary" style={{ height: '46px', justifyContent: 'center' }}>
+                                                {submitting ? 'SCHEDULING...' : 'SCHEDULE EVENT'}
+                                            </button>
                                         </div>
-                                        <div className="input-group">
-                                            <label>DATE & TIME</label>
-                                            <input
-                                                type="datetime-local"
-                                                value={scheduleDate}
-                                                onChange={e => setScheduleDate(e.target.value)}
-                                                required
-                                                style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
-                                            />
+
+                                        <div className="flex flex-wrap gap-6 items-center p-4 bg-white/5 rounded-lg border border-white/5">
+                                            <label className="checkbox-container flex items-center gap-3 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isRandomTrack}
+                                                    onChange={e => setIsRandomTrack(e.target.checked)}
+                                                />
+                                                <span className="checkmark"></span>
+                                                <span style={{ fontSize: '0.85rem', fontWeight: 900, color: isRandomTrack ? 'var(--f1-red)' : 'white' }}>
+                                                    🎲 RANDOM TRACK FROM POOL
+                                                </span>
+                                            </label>
+
+                                            {isRandomTrack && (
+                                                <div className="flex items-center gap-3 animate-fade-in">
+                                                    <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--silver)' }}>REVEAL TRACK</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            max="168"
+                                                            value={revealHours}
+                                                            onChange={e => setRevealHours(parseInt(e.target.value) || 0)}
+                                                            style={{ width: '60px', padding: '0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white', textAlign: 'center', fontWeight: 'bold' }}
+                                                        />
+                                                        <span style={{ fontSize: '0.8rem', color: 'var(--silver)' }}>Hours before race</span>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-                                        <button type="submit" disabled={submitting} className="btn-primary" style={{ height: '46px', justifyContent: 'center' }}>
-                                            {submitting ? 'SCHEDULING...' : 'SCHEDULE EVENT'}
-                                        </button>
                                     </form>
 
                                     <div className="grid grid-2 gap-8">
@@ -699,7 +738,12 @@ export default function AdminHub() {
                                                 {upcomingRaces.map(r => (
                                                     <div key={r.id} className="flex justify-between items-center p-3 bg-white/5 rounded border border-white/5">
                                                         <div>
-                                                            <div className="text-f1" style={{ fontSize: '0.8rem' }}>{r.track}</div>
+                                                            <div className="text-f1" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                {r.track}
+                                                                {r.is_random && (
+                                                                    <span title={`Random Choice (Reveals ${r.reveal_hours_before}h before)`} style={{ fontSize: '0.7rem', cursor: 'help' }}>🎲</span>
+                                                                )}
+                                                            </div>
                                                             <div style={{ fontSize: '0.7rem', color: 'var(--silver)' }}>{new Date(r.scheduled_date || '').toLocaleString()}</div>
                                                         </div>
                                                         <button onClick={() => handleDeleteScheduledRace(r.id, r.track)} className="btn-danger-text">CANCEL</button>

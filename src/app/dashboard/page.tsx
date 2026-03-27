@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getDashboardData, getAllLeagues, getRaceDetails, deleteRace, getActiveTelemetrySession } from '@/lib/actions';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
-import RaceCountdown from './RaceCountdown';
+import RaceCountdown, { RevealCountdown } from './RaceCountdown';
 import LiveTrackMap from './LiveTrackMap';
 
 // Props for our refactored Graph Component
@@ -276,6 +276,11 @@ export default function Dashboard() {
     };
 
     const selectRace = async (raceId: string) => {
+        const raceToSelect = races.find(r => r.id === raceId) || upcomingRaces.find(r => r.id === raceId);
+        if (raceToSelect?.is_hidden) {
+            alert('Track is not revealed yet!');
+            return;
+        }
         setFetchingRace(true);
         const res = await getRaceDetails(raceId);
         if (res.success) {
@@ -412,7 +417,10 @@ export default function Dashboard() {
                             )}
 
                             {upcomingRaces.length > 0 && (
-                                <RaceCountdown race={upcomingRaces[0]} />
+                                <>
+                                    <RevealCountdown race={upcomingRaces[0]} />
+                                    <RaceCountdown race={upcomingRaces[0]} />
+                                </>
                             )}
                             <section className="dashboard-standings" style={{ marginBottom: '3rem' }}>
                                 <h2 className="text-f1" style={{ borderLeft: '4px solid var(--f1-red)', paddingLeft: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -546,26 +554,35 @@ export default function Dashboard() {
 
                                     <h2 className="text-f1" style={{ marginBottom: '1rem', fontSize: '1.2rem', color: 'var(--f1-red)', opacity: 0.8 }}>RECENT RACES</h2>
                                     <div className="flex flex-col gap-2">
-                                        {races.map(race => (
-                                            <Link
-                                                key={race.id}
-                                                href={`/race/${race.id}?league=${encodeURIComponent(selectedLeagueName || '')}`}
-                                                style={{ textDecoration: 'none' }}
-                                            >
+                                        {races.map(race => {
+                                            const isHidden = (race as any).is_hidden;
+                                            return (
                                                 <div
-                                                    className="f1-card hover-f1 race-select-btn"
-                                                    style={{ width: '100%', textAlign: 'left' }}
+                                                    key={race.id}
+                                                    onClick={() => !isHidden && router.push(`/race/${race.id}?league=${encodeURIComponent(selectedLeagueName || '')}`)}
+                                                    style={{ textDecoration: 'none', cursor: isHidden ? 'not-allowed' : 'pointer' }}
                                                 >
-                                                    <div className="flex justify-between items-center">
-                                                        <div>
-                                                            <div style={{ fontSize: '0.6rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '1px' }} suppressHydrationWarning>{new Date(race.created_at).toLocaleDateString()}</div>
-                                                            <div className="text-f1" style={{ fontSize: '1rem', color: 'var(--white)' }}>{race.track || 'Unknown Track'}</div>
+                                                    <div
+                                                        className={`f1-card hover-f1 race-select-btn ${isHidden ? 'opacity-50' : ''}`}
+                                                        style={{ width: '100%', textAlign: 'left', position: 'relative', overflow: 'hidden' }}
+                                                    >
+                                                        {isHidden && (
+                                                            <div style={{ position: 'absolute', top: 0, right: 0, padding: '4px 8px', background: 'var(--f1-red)', color: 'white', fontSize: '0.6rem', fontWeight: 900 }}>HIDDEN</div>
+                                                        )}
+                                                        <div className="flex justify-between items-center">
+                                                            <div>
+                                                                <div style={{ fontSize: '0.6rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '1px' }} suppressHydrationWarning>{new Date(race.created_at).toLocaleDateString()}</div>
+                                                                <div className="text-f1" style={{ fontSize: '1rem', color: isHidden ? 'var(--silver)' : 'var(--white)' }}>
+                                                                    {isHidden ? '?? (Hidden Track)' : (race.track || 'Unknown Track')}
+                                                                </div>
+                                                            </div>
+                                                            {!isHidden && <div style={{ opacity: 0.4, color: 'var(--f1-red)', fontSize: '1.2rem' }}>&rarr;</div>}
+                                                            {isHidden && <div style={{ fontSize: '1.2rem', opacity: 0.2 }}>🎲</div>}
                                                         </div>
-                                                        <div style={{ opacity: 0.4, color: 'var(--f1-red)', fontSize: '1.2rem' }}>&rarr;</div>
                                                     </div>
                                                 </div>
-                                            </Link>
-                                        ))}
+                                            );
+                                        })}
                                         {races.length === 0 && <div className="f1-card" style={{ padding: '2rem', textAlign: 'center', opacity: 0.5 }}>No races recorded.</div>}
                                     </div>
                                 </section>
