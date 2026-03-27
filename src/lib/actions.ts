@@ -115,11 +115,97 @@ export async function adminLogin(leagueName: string, adminPass: string) {
         }
 
         const drivers = await query<any>(
-            `SELECT id, name, team, color, game_name FROM drivers WHERE league_id = ?`,
+            `SELECT id, name, team, color, game_name, team_id FROM drivers WHERE league_id = ?`,
             [leagues[0].id]
         );
 
         return { success: true, leagueId: leagues[0].id, drivers };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Adds a new team to a league.
+ */
+export async function adminAddTeam(leagueId: string, adminPass: string, name: string, color: string) {
+    try {
+        const leagues = await query<any>(`SELECT id FROM leagues WHERE id = ? AND admin_password = ?`, [leagueId, adminPass]);
+        if (leagues.length === 0) throw new Error('Unauthorized.');
+
+        const teamId = crypto.randomUUID();
+        await run(`INSERT INTO teams (id, league_id, name, color) VALUES (?, ?, ?, ?)`, [teamId, leagueId, name, color]);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Deletes a team from a league.
+ */
+export async function adminDeleteTeam(leagueId: string, adminPass: string, teamId: string) {
+    try {
+        const leagues = await query<any>(`SELECT id FROM leagues WHERE id = ? AND admin_password = ?`, [leagueId, adminPass]);
+        if (leagues.length === 0) throw new Error('Unauthorized.');
+
+        // Unlink drivers from this team
+        await run(`UPDATE drivers SET team_id = NULL WHERE team_id = ?`, [teamId]);
+        await run(`DELETE FROM teams WHERE id = ?`, [teamId]);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Assigns a driver to a team.
+ */
+export async function assignDriverToTeam(leagueId: string, adminPass: string, driverId: string, teamId: string | null) {
+    try {
+        const leagues = await query<any>(`SELECT id FROM leagues WHERE id = ? AND admin_password = ?`, [leagueId, adminPass]);
+        if (leagues.length === 0) throw new Error('Unauthorized.');
+
+        if (teamId) {
+            // Check count of drivers in team
+            const existing = await query<any>(`SELECT COUNT(*) as c FROM drivers WHERE team_id = ?`, [teamId]);
+            if (parseInt(existing[0].c) >= 4) {
+                throw new Error('A team cannot have more than 4 drivers.');
+            }
+        }
+
+        await run(`UPDATE drivers SET team_id = ? WHERE id = ?`, [teamId, driverId]);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Fetches all teams in a league.
+ */
+export async function getAllTeams(leagueId: string) {
+    try {
+        const teams = await query<any>(`SELECT * FROM teams WHERE league_id = ? ORDER BY name ASC`, [leagueId]);
+        return { success: true, teams };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Fetches drivers for admin with team info.
+ */
+export async function getAdminLeagueDrivers(leagueId: string, adminPass: string) {
+    try {
+        const leagues = await query<any>(`SELECT id FROM leagues WHERE id = ? AND admin_password = ?`, [leagueId, adminPass]);
+        if (leagues.length === 0) throw new Error('Unauthorized.');
+
+        const drivers = await query<any>(
+            `SELECT id, name, team, color, game_name, team_id FROM drivers WHERE league_id = ?`,
+            [leagueId]
+        );
+        return { success: true, drivers };
     } catch (error: any) {
         return { success: false, error: error.message };
     }
@@ -460,10 +546,26 @@ export async function getDashboardData(leagueName: string) {
         const maxDropsAllowed = Math.floor(referenceRaces * 0.25);
         const actualDrops = Math.min((config?.dropResultsCount || 0), maxDropsAllowed);
 
+        // Team Standings
+        let teamStandings = [];
+        if (config && config.teamCompetition) {
+            teamStandings = await query<any>(`
+                SELECT t.id, t.name, t.color,
+                    (SELECT COALESCE(SUM(d.total_points), 0) FROM drivers d WHERE d.team_id = t.id) as total_points,
+                    (SELECT COALESCE(SUM(d.raw_points), 0) FROM drivers d WHERE d.team_id = t.id) as raw_points,
+                    (SELECT COUNT(*) FROM race_results rr JOIN drivers dr ON rr.driver_id = dr.id WHERE dr.team_id = t.id AND rr.position = 1) as wins,
+                    (SELECT COUNT(*) FROM race_results rr JOIN drivers dr ON rr.driver_id = dr.id WHERE dr.team_id = t.id AND rr.position <= 3) as podiums
+                FROM teams t
+                WHERE t.league_id = ?
+                ORDER BY total_points DESC, wins DESC
+            `, [leagueId]);
+        }
+
         return {
             success: true,
             league: leagues[0],
             standings,
+            teamStandings,
             races: finishedRaces.slice().reverse().slice(0, 10), // Keep recent races descending
             upcoming: upcomingRaces,
             graphData,
@@ -651,7 +753,8 @@ export async function getPointsConfig(leagueId: string) {
             cleanDriverBonus: rows[0].clean_driver_bonus,
             totalRaces: rows[0].total_races || 0,
             trackPool: rows[0].track_pool ? JSON.parse(rows[0].track_pool) : [],
-            dropResultsCount: rows[0].drop_results_count || 0
+            dropResultsCount: rows[0].drop_results_count || 0,
+            teamCompetition: !!rows[0].team_competition
         };
 
         return { success: true, config };
@@ -684,15 +787,16 @@ export async function updatePointsConfig(leagueId: string, config: PointsConfig,
                     clean_driver_bonus = ?,
                     total_races = ?,
                     track_pool = ?,
-                    drop_results_count = ?
+                    drop_results_count = ?,
+                    team_competition = ?
                  WHERE league_id = ?`,
-                [JSON.stringify(config.points), JSON.stringify(config.qualiPoints || {}), config.fastestLapBonus, config.cleanDriverBonus, config.totalRaces || 0, JSON.stringify(config.trackPool || []), config.dropResultsCount || 0, leagueId]
+                [JSON.stringify(config.points), JSON.stringify(config.qualiPoints || {}), config.fastestLapBonus, config.cleanDriverBonus, config.totalRaces || 0, JSON.stringify(config.trackPool || []), config.dropResultsCount || 0, config.teamCompetition ? 1 : 0, leagueId]
             );
         } else {
             await run(
-                `INSERT INTO points_config (league_id, points_json, quali_points_json, fastest_lap_bonus, clean_driver_bonus, total_races, track_pool, drop_results_count)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [leagueId, JSON.stringify(config.points), JSON.stringify(config.qualiPoints || {}), config.fastestLapBonus, config.cleanDriverBonus, config.totalRaces || 0, JSON.stringify(config.trackPool || []), config.dropResultsCount || 0]
+                `INSERT INTO points_config (league_id, points_json, quali_points_json, fastest_lap_bonus, clean_driver_bonus, total_races, track_pool, drop_results_count, team_competition)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [leagueId, JSON.stringify(config.points), JSON.stringify(config.qualiPoints || {}), config.fastestLapBonus, config.cleanDriverBonus, config.totalRaces || 0, JSON.stringify(config.trackPool || []), config.dropResultsCount || 0, config.teamCompetition ? 1 : 0]
             );
         }
 

@@ -25,7 +25,12 @@ import {
     getTelemetrySessionDetails,
     adminAddDriver,
     getDiscoverableSessions,
-    claimSession
+    claimSession,
+    adminAddTeam,
+    adminDeleteTeam,
+    getAllTeams,
+    assignDriverToTeam,
+    getAdminLeagueDrivers
 } from '@/lib/actions';
 import { DEFAULT_CONFIG, PointsConfig, calculatePoints, formatPoints } from '@/lib/scoring';
 import { F1_TRACKS_2025, getTrackNameById } from '@/lib/constants';
@@ -59,6 +64,9 @@ export default function AdminHub() {
     const [scheduleDate, setScheduleDate] = useState('');
     const [upcomingRaces, setUpcomingRaces] = useState<any[]>([]);
     const [finishedRaces, setFinishedRaces] = useState<any[]>([]);
+    const [teams, setTeams] = useState<any[]>([]);
+    const [newTeamName, setNewTeamName] = useState('');
+    const [newTeamColor, setNewTeamColor] = useState('#ff0000');
 
     // Edit State
     const [editingRaceId, setEditingRaceId] = useState<string | null>(null);
@@ -95,14 +103,17 @@ export default function AdminHub() {
                         const pRes = await getPointsConfig(res.leagueId);
                         if (pRes.success && pRes.config) setPointsConfig(pRes.config);
 
+                        const teamsRes = await getAllTeams(res.leagueId);
+                        if (teamsRes.success) setTeams(teamsRes.teams || []);
+
                         refreshRaces(res.leagueId);
                         refreshTelemetry(res.leagueId, parsed.pass);
                     } else {
                         localStorage.removeItem('f1_admin_session');
                     }
                 }
-            } catch (e) {
-                console.error('Session parse error', e);
+            } catch (error: any) { // Changed 'e' to 'error: any'
+                console.error('Session parse error', error); // Changed 'e' to 'error'
                 localStorage.removeItem('f1_admin_session');
             }
         }
@@ -139,13 +150,20 @@ export default function AdminHub() {
             setIsLoggedIn(true);
             setAuthType('league');
             setLeagueId(res.leagueId);
-            setDrivers(res.drivers || []);
+            // Use getAdminLeagueDrivers to fetch drivers with team info
+            const driversRes = await getAdminLeagueDrivers(res.leagueId, adminPass);
+            if (driversRes.success) setDrivers(driversRes.drivers || []);
             setActiveTab('races');
             localStorage.setItem('f1_admin_session', JSON.stringify({ type: 'league', name: leagueName, pass: adminPass }));
 
             // Load points config
-            const pRes = await getPointsConfig(res.leagueId);
-            if (pRes.success && pRes.config) setPointsConfig(pRes.config);
+            const configRes = await getPointsConfig(res.leagueId);
+            if (configRes.success && configRes.config) {
+                setPointsConfig(configRes.config);
+            }
+
+            const teamsRes = await getAllTeams(res.leagueId);
+            if (teamsRes.success) setTeams(teamsRes.teams || []);
 
             refreshRaces(res.leagueId);
             refreshTelemetry(res.leagueId, adminPass);
@@ -164,16 +182,49 @@ export default function AdminHub() {
         localStorage.removeItem('f1_admin_session');
     }
 
-    const handleUpdatePoints = async () => {
-        if (!leagueId) return;
+    const handleUpdatePointsConfig = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!leagueId || !adminPass || !pointsConfig) return;
         setSubmitting(true);
         const res = await updatePointsConfig(leagueId, pointsConfig, adminPass);
-        if (res.success) {
-            alert('Points configuration updated!');
-        } else {
-            alert('Failed to update points: ' + res.error);
-        }
+        if (res.success) alert('Config Updated!');
+        else alert(res.error);
         setSubmitting(false);
+    };
+
+    const handleAddTeam = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!leagueId || !newTeamName) return;
+        setSubmitting(true);
+        const res = await adminAddTeam(leagueId, adminPass, newTeamName, newTeamColor);
+        if (res.success) {
+            setNewTeamName('');
+            const teamsRes = await getAllTeams(leagueId);
+            if (teamsRes.success) setTeams(teamsRes.teams || []);
+        } else alert(res.error);
+        setSubmitting(false);
+    };
+
+    const handleDeleteTeam = async (teamId: string) => {
+        if (!leagueId || !adminPass) return;
+        if (!confirm('Are you sure you want to delete this team? Drivers will be unassigned.')) return;
+        const res = await adminDeleteTeam(leagueId, adminPass, teamId);
+        if (res.success) {
+            const teamsRes = await getAllTeams(leagueId);
+            if (teamsRes.success) setTeams(teamsRes.teams || []);
+            // Refresh drivers to show updated team_id
+            const driversRes = await getAdminLeagueDrivers(leagueId, adminPass);
+            if (driversRes.success) setDrivers(driversRes.drivers || []);
+        } else alert(res.error);
+    };
+
+    const handleAssignTeam = async (driverId: string, teamId: string) => {
+        if (!leagueId || !adminPass) return;
+        const res = await assignDriverToTeam(leagueId, adminPass, driverId, teamId === 'NONE' ? null : teamId);
+        if (res.success) {
+            const driversRes = await getAdminLeagueDrivers(leagueId, adminPass);
+            if (driversRes.success) setDrivers(driversRes.drivers || []);
+        } else alert(res.error);
     };
 
     const handleAddDriver = async () => {
@@ -599,10 +650,10 @@ export default function AdminHub() {
                                     <Link href="/admin/results" className="btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>MANUAL INPUT</Link>
                                 </div>
 
-                                <div className="f1-card hover-f1" style={{ gridColumn: 'span 2' }}>
+                                <form onSubmit={handleUpdatePointsConfig} className="f1-card hover-f1" style={{ gridColumn: 'span 2' }}>
                                     <h2 className="text-f1 mb-4" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         LEAGUE SETTINGS
-                                        <button onClick={handleUpdatePoints} disabled={submitting} className="btn-primary" style={{ fontSize: '0.7rem', height: 'auto', padding: '0.5rem 1rem' }}>
+                                        <button type="submit" disabled={submitting} className="btn-primary" style={{ fontSize: '0.7rem', height: 'auto', padding: '0.5rem 1rem' }}>
                                             {submitting ? 'SAVING...' : 'SAVE CONFIG'}
                                         </button>
                                     </h2>
@@ -662,6 +713,24 @@ export default function AdminHub() {
                                         <div style={{ fontSize: '0.7rem', color: 'var(--silver)', marginTop: '0.5rem', textAlign: 'right' }}>
                                             {pointsConfig.trackPool?.length || 0} / {pointsConfig.totalRaces || 0} Tracks Selected
                                         </div>
+                                    </div>
+
+                                    <div className="flex flex-col gap-4 p-4 bg-white/5 rounded-lg border border-white/5 mb-8">
+                                        <h3 style={{ fontSize: '0.8rem', fontWeight: 900, color: 'var(--f1-red)', letterSpacing: '1px' }}>LEAGUE SETTINGS</h3>
+                                        <label className="checkbox-container flex items-center gap-3 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={pointsConfig.teamCompetition}
+                                                onChange={e => setPointsConfig({ ...pointsConfig, teamCompetition: e.target.checked })}
+                                            />
+                                            <span className="checkmark"></span>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: 900 }}>
+                                                ENABLE TEAM COMPETITION
+                                            </span>
+                                        </label>
+                                        <p style={{ fontSize: '0.75rem', color: 'var(--silver)' }}>
+                                            If enabled, you can create custom teams and assign drivers to them. Results will contribute to a Team Standings leaderboard.
+                                        </p>
                                     </div>
 
                                     <hr style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '2rem 0' }} />
@@ -771,7 +840,7 @@ export default function AdminHub() {
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                </form>
                             </div>
                         )}
                     </div>
@@ -835,6 +904,29 @@ export default function AdminHub() {
                                                     SAVE COLOR
                                                 </button>
                                             </div>
+                                            {pointsConfig.teamCompetition && (
+                                                <div className="flex items-center gap-2 mt-2 w-full md:w-auto">
+                                                    <span style={{ fontSize: '0.75rem', color: 'var(--silver)' }}>Team:</span>
+                                                    <select
+                                                        value={d.team_id || 'NONE'}
+                                                        onChange={(e) => handleAssignTeam(d.id, e.target.value)}
+                                                        style={{
+                                                            padding: '6px 10px',
+                                                            background: 'rgba(0,0,0,0.3)',
+                                                            border: '1px solid var(--glass-border)',
+                                                            color: 'white',
+                                                            borderRadius: '4px',
+                                                            outline: 'none',
+                                                            fontSize: '0.75rem'
+                                                        }}
+                                                    >
+                                                        <option value="NONE">No Team</option>
+                                                        {teams.map(team => (
+                                                            <option key={team.id} value={team.id}>{team.name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            )}
                                         </div>
                                         <button
                                             onClick={() => handleDeleteDriver(d.id)}
@@ -849,42 +941,88 @@ export default function AdminHub() {
                             </div>
                         </div>
 
-                        <div className="f1-card">
-                            <h2 className="text-f1 mb-4">ADD NEW DRIVER</h2>
-                            <div className="flex flex-col gap-3">
-                                <div className="input-group">
-                                    <label>FULL NAME</label>
-                                    <input value={newDriverName} onChange={e => setNewDriverName(e.target.value)} placeholder="Max Mustermann" />
+                        <div className="flex flex-col gap-8">
+                            <div className="f1-card">
+                                <h2 className="text-f1 mb-4">ADD NEW DRIVER</h2>
+                                <div className="flex flex-col gap-3">
+                                    <div className="input-group">
+                                        <label>FULL NAME</label>
+                                        <input value={newDriverName} onChange={e => setNewDriverName(e.target.value)} placeholder="Max Mustermann" />
+                                    </div>
+                                    <div className="input-group">
+                                        <label>TEAM CONSTRUCTOR</label>
+                                        <input value={newDriverTeam} onChange={e => setNewDriverTeam(e.target.value)} placeholder="Mercedes-AMG / Privateer" />
+                                    </div>
+                                    <div className="input-group">
+                                        <label>IN-GAME NAME (TELEMETRY)</label>
+                                        <input value={newDriverGameName} onChange={e => setNewDriverGameName(e.target.value)} placeholder="Steam/Xbox/PSN Name" />
+                                    </div>
+                                    <div className="input-group">
+                                        <label>DRIVER COLOR</label>
+                                        <input
+                                            type="color"
+                                            value={newDriverColor}
+                                            onChange={e => setNewDriverColor(e.target.value)}
+                                            style={{
+                                                padding: '2px',
+                                                cursor: 'pointer',
+                                                width: '40px',
+                                                height: '40px',
+                                                border: '1px solid var(--glass-border)',
+                                                borderRadius: '4px',
+                                                background: 'var(--f1-carbon-dark)'
+                                            }}
+                                        />
+                                    </div>
+                                    <button onClick={handleAddDriver} disabled={submitting || !newDriverName} className="btn-primary mt-2">
+                                        {submitting ? 'ADDING...' : 'ADD TO LEAGUE'}
+                                    </button>
                                 </div>
-                                <div className="input-group">
-                                    <label>TEAM CONSTRUCTOR</label>
-                                    <input value={newDriverTeam} onChange={e => setNewDriverTeam(e.target.value)} placeholder="Mercedes-AMG / Privateer" />
-                                </div>
-                                <div className="input-group">
-                                    <label>IN-GAME NAME (TELEMETRY)</label>
-                                    <input value={newDriverGameName} onChange={e => setNewDriverGameName(e.target.value)} placeholder="Steam/Xbox/PSN Name" />
-                                </div>
-                                <div className="input-group">
-                                    <label>DRIVER COLOR</label>
-                                    <input
-                                        type="color"
-                                        value={newDriverColor}
-                                        onChange={e => setNewDriverColor(e.target.value)}
-                                        style={{
-                                            padding: '2px',
-                                            cursor: 'pointer',
-                                            width: '40px',
-                                            height: '40px',
-                                            border: '1px solid var(--glass-border)',
-                                            borderRadius: '4px',
-                                            background: 'var(--f1-carbon-dark)'
-                                        }}
-                                    />
-                                </div>
-                                <button onClick={handleAddDriver} disabled={submitting || !newDriverName} className="btn-primary mt-2">
-                                    {submitting ? 'ADDING...' : 'ADD TO LEAGUE'}
-                                </button>
                             </div>
+
+                            {pointsConfig.teamCompetition && (
+                                <div className="f1-card animate-fade-in">
+                                    <h2 className="text-f1 mb-4">TEAMS</h2>
+                                    <div className="flex flex-col gap-3 mb-6">
+                                        {teams.map(team => (
+                                            <div key={team.id} className="flex justify-between items-center p-3 bg-white/5 rounded border border-white/5">
+                                                <div className="flex items-center gap-3">
+                                                    <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: team.color, border: '1px solid rgba(255,255,255,0.2)' }}></div>
+                                                    <span className="text-f1" style={{ fontSize: '0.9rem' }}>{team.name}</span>
+                                                </div>
+                                                <button onClick={() => handleDeleteTeam(team.id)} className="btn-danger-text">DELETE</button>
+                                            </div>
+                                        ))}
+                                        {teams.length === 0 && <p style={{ fontSize: '0.8rem', color: 'var(--silver)' }}>No teams created yet.</p>}
+                                    </div>
+                                    <form onSubmit={handleAddTeam} className="flex flex-col gap-3">
+                                        <div className="input-group">
+                                            <label>NEW TEAM NAME</label>
+                                            <input value={newTeamName} onChange={e => setNewTeamName(e.target.value)} placeholder="Scuderia Ferrari" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label>TEAM COLOR</label>
+                                            <input
+                                                type="color"
+                                                value={newTeamColor}
+                                                onChange={e => setNewTeamColor(e.target.value)}
+                                                style={{
+                                                    padding: '2px',
+                                                    cursor: 'pointer',
+                                                    width: '40px',
+                                                    height: '40px',
+                                                    border: '1px solid var(--glass-border)',
+                                                    borderRadius: '4px',
+                                                    background: 'var(--f1-carbon-dark)'
+                                                }}
+                                            />
+                                        </div>
+                                        <button type="submit" disabled={submitting || !newTeamName} className="btn-primary mt-2">
+                                            {submitting ? 'ADDING...' : 'ADD TEAM'}
+                                        </button>
+                                    </form>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -949,7 +1087,7 @@ export default function AdminHub() {
                             ))}
                         </div>
 
-                        <button onClick={handleUpdatePoints} disabled={submitting} className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
+                        <button onClick={handleUpdatePointsConfig} disabled={submitting} className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
                             {submitting ? 'SAVING CONFIG...' : 'SAVE POINTS SETTINGS'}
                         </button>
                     </div>

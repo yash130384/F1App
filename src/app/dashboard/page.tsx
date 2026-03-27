@@ -199,6 +199,7 @@ export default function Dashboard() {
     const [selectedLeagueName, setSelectedLeagueName] = useState<string | null>(null);
     const [league, setLeague] = useState<any | null>(null);
     const [standings, setStandings] = useState<any[]>([]);
+    const [teamStandings, setTeamStandings] = useState<any[]>([]);
     const [races, setRaces] = useState<any[]>([]);
     const [upcomingRaces, setUpcomingRaces] = useState<any[]>([]);
     const [leagueStats, setLeagueStats] = useState<any>(null);
@@ -253,6 +254,7 @@ export default function Dashboard() {
         if (res.success) {
             setLeague(res.league);
             setStandings(res.standings || []);
+            setTeamStandings(res.teamStandings || []);
             setRaces(res.races || []);
             setUpcomingRaces(res.upcoming || []);
             setGraphData(res.graphData || []);
@@ -487,6 +489,43 @@ export default function Dashboard() {
                                     {standings.length === 0 && <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--silver)' }}>No drivers in this league yet.</div>}
                                 </div>
                             </section>
+                            
+                            {league.config?.teamCompetition && teamStandings.length > 0 && (
+                                <section className="dashboard-teams animate-fade-in" style={{ marginBottom: '3rem' }}>
+                                    <h2 className="text-f1" style={{ borderLeft: '4px solid var(--f1-red)', paddingLeft: '1rem', marginBottom: '1.5rem' }}>
+                                        Team Standings
+                                    </h2>
+                                    <div className="f1-card" style={{ padding: 0, overflow: 'hidden' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                            <thead>
+                                                <tr style={{ background: 'rgba(255,255,255,0.05)', textAlign: 'left' }}>
+                                                    <th style={{ padding: '1.2rem 1rem', color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase' }}>Pos</th>
+                                                    <th style={{ padding: '1.2rem 1rem', color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase' }}>Team</th>
+                                                    <th title="Wins" style={{ padding: '1.2rem 0.5rem', color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900, textAlign: 'center' }}>W</th>
+                                                    <th style={{ padding: '1.2rem 1rem', color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', textAlign: 'right' }}>Points</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {teamStandings.map((team, idx) => (
+                                                    <tr key={team.id} style={{ borderTop: '1px solid var(--glass-border)' }}>
+                                                        <td style={{ padding: '1rem', fontWeight: 900, fontSize: '1.2rem', fontStyle: 'italic', opacity: 0.3 }}>{idx + 1}</td>
+                                                        <td style={{ padding: '1rem' }}>
+                                                            <div className="flex items-center gap-2">
+                                                                <div style={{ width: '4px', height: '20px', background: team.color || 'var(--silver)', borderRadius: '2px', marginRight: '8px' }} />
+                                                                <div className="text-f1" style={{ fontSize: '1rem' }}>{team.name}</div>
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ padding: '1rem 0.5rem', textAlign: 'center', fontWeight: 700 }}>{team.wins}</td>
+                                                        <td style={{ padding: '1rem', textAlign: 'right', fontWeight: 900, color: 'var(--f1-red)', fontSize: '1.2rem' }}>
+                                                            {team.total_points} <span style={{ fontSize: '0.7rem', opacity: 0.3, fontStyle: 'normal' }}>PTS</span>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </section>
+                            )}
 
                             {graphData && graphData.length > 0 && (
                                 <section className="dashboard-graph animate-fade-in" style={{ marginBottom: '3rem' }}>

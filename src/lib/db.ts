@@ -36,6 +36,7 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS drivers (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
     league_id TEXT,
+    team_id TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     name TEXT NOT NULL,
     team TEXT,
@@ -44,6 +45,15 @@ const SCHEMA = [
     total_points INTEGER DEFAULT 0,
     raw_points INTEGER DEFAULT 0
   )`,
+  `CREATE TABLE IF NOT EXISTS teams (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+    league_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    color TEXT DEFAULT '#ffffff',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `ALTER TABLE points_config ADD COLUMN IF NOT EXISTS team_competition BOOLEAN DEFAULT false`,
+  `ALTER TABLE drivers ADD COLUMN IF NOT EXISTS team_id TEXT`,
   `CREATE TABLE IF NOT EXISTS races (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
     league_id TEXT,
