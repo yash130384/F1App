@@ -59,9 +59,9 @@ export async function createLeague(name: string, adminPass: string, joinPass: st
 
         // Initialize default points config
         await run(
-            `INSERT INTO points_config (league_id, points_json, quali_points_json, fastest_lap_bonus, clean_driver_bonus, total_races, track_pool, drop_results_count)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [leagueId, JSON.stringify(DEFAULT_CONFIG.points), JSON.stringify(DEFAULT_CONFIG.qualiPoints), DEFAULT_CONFIG.fastestLapBonus, DEFAULT_CONFIG.cleanDriverBonus, DEFAULT_CONFIG.totalRaces, JSON.stringify(DEFAULT_CONFIG.trackPool), DEFAULT_CONFIG.dropResultsCount]
+            `INSERT INTO points_config (league_id, points_json, quali_points_json, fastest_lap_bonus, clean_driver_bonus, total_races, track_pool, drop_results_count, team_competition)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [leagueId, JSON.stringify(DEFAULT_CONFIG.points), JSON.stringify(DEFAULT_CONFIG.qualiPoints), DEFAULT_CONFIG.fastestLapBonus, DEFAULT_CONFIG.cleanDriverBonus, DEFAULT_CONFIG.totalRaces, JSON.stringify(DEFAULT_CONFIG.trackPool), DEFAULT_CONFIG.dropResultsCount, DEFAULT_CONFIG.teamCompetition ? 1 : 0]
         );
 
         console.log(`League created: ${name}`);
@@ -89,8 +89,8 @@ export async function joinLeague(leagueName: string, joinPass: string, driverNam
         const driverId = crypto.randomUUID();
 
         await run(
-            `INSERT INTO drivers (id, league_id, name, team, color, game_name) VALUES (?, ?, ?, ?, ?, ?)`,
-            [driverId, leagueId, driverName, team, color || '#ffffff', gameName || null]
+            `INSERT INTO drivers (id, league_id, name, team, color, game_name, team_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [driverId, leagueId, driverName, team, color || '#ffffff', gameName || null, null]
         );
 
         return { success: true };
@@ -226,8 +226,8 @@ export async function adminAddDriver(leagueId: string, adminPass: string, driver
         const driverId = crypto.randomUUID();
 
         await run(
-            `INSERT INTO drivers (id, league_id, name, team, color, game_name) VALUES (?, ?, ?, ?, ?, ?)`,
-            [driverId, leagueId, driverName, team, color || '#ffffff', gameName || null]
+            `INSERT INTO drivers (id, league_id, name, team, color, game_name, team_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [driverId, leagueId, driverName, team, color || '#ffffff', gameName || null, null]
         );
 
         return { success: true };
@@ -586,7 +586,7 @@ export async function getDashboardData(leagueName: string) {
 
         return {
             success: true,
-            league: leagues[0],
+            league: { ...leagues[0], config },
             standings,
             teamStandings,
             races: finishedRaces.slice().reverse().slice(0, 10), // Keep recent races descending

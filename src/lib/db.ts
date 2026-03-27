@@ -342,7 +342,7 @@ export async function run(sqlStr: string, params: any[] = [], retries = 2): Prom
 
   // Spezielle Logik für ON CONFLICT (Upsert) in PostgreSQL
   if (sqlStr.toLowerCase().includes('into points_config')) {
-    pSql += ' ON CONFLICT (league_id) DO UPDATE SET points_json = EXCLUDED.points_json, fastest_lap_bonus = EXCLUDED.fastest_lap_bonus, clean_driver_bonus = EXCLUDED.clean_driver_bonus, total_races = EXCLUDED.total_races, track_pool = EXCLUDED.track_pool, drop_results_count = EXCLUDED.drop_results_count';
+    pSql += ' ON CONFLICT (league_id) DO UPDATE SET points_json = EXCLUDED.points_json, quali_points_json = EXCLUDED.quali_points_json, fastest_lap_bonus = EXCLUDED.fastest_lap_bonus, clean_driver_bonus = EXCLUDED.clean_driver_bonus, total_races = EXCLUDED.total_races, track_pool = EXCLUDED.track_pool, drop_results_count = EXCLUDED.drop_results_count, team_competition = EXCLUDED.team_competition';
   }
 
   try {
