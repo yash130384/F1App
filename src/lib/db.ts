@@ -2,15 +2,29 @@ import { neon } from '@neondatabase/serverless';
 import dotenv from 'dotenv';
 import Database from 'better-sqlite3';
 
+// Lade Umgebungsvariablen für DB-Credentials und Konfiguration
 dotenv.config();
 
+/** 
+ * Flag zur Nutzung von SQLite (für lokale Entwicklung) oder Neon (Produktion).
+ */
 const USE_SQLITE = process.env.USE_SQLITE === 'true';
+
+/**
+ * SQLite Datenbank-Instanz (wird nur initialisiert, wenn USE_SQLITE aktiv ist).
+ */
 const sqlite = USE_SQLITE ? new Database('league.db') : null;
 
-// Standard PostgreSQL driver behavior: return result object with .rows
+/**
+ * Neon/PostgreSQL Verbindungsfunktion.
+ * Im Vollresultat-Modus wird das gesamte PG-Resultat inklusive Metadaten zurückgegeben.
+ */
 const sql = !USE_SQLITE ? neon(process.env.DATABASE_URL!, { fullResults: true }) : null;
 
-// --- Schema Initialization ---
+/**
+ * Definiertes Datenbankschema für das gesamte Projekt.
+ * Enthält Tabellen für Ligen, Fahrer, Rennen, Ergebnisse und Telemetrie.
+ */
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS leagues (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -155,12 +169,16 @@ const SCHEMA = [
   )`
 ];
 
+/**
+ * Initialisiert das Datenbankschema. 
+ * Unterstützt automatische Übersetzung von PostgreSQL-Syntax zu SQLite-Syntax.
+ */
 const initSchema = async (retries = 3) => {
   if (USE_SQLITE) {
-    console.log('Initializing SQLite Schema (Synchronous)...');
+    console.log('Initialisiere SQLite Schema (Synchron)...');
     for (const cmd of SCHEMA) {
       try {
-        // Simple conversion for SQLite
+        // Übersetzung von PG-spezifischen Befehlen zu SQLite Äquivalenten
         let sCmd = cmd.replace(/DEFAULT gen_random_uuid\(\)/g, "DEFAULT (lower(hex(randomblob(16))))");
         sCmd = sCmd.replace(/gen_random_uuid\(\)/g, "lower(hex(randomblob(16)))");
         sCmd = sCmd.replace(/TIMESTAMP DEFAULT CURRENT_TIMESTAMP/g, "DATETIME DEFAULT CURRENT_TIMESTAMP");
@@ -168,6 +186,8 @@ const initSchema = async (retries = 3) => {
         sCmd = sCmd.replace(/VARCHAR\(\d+\)/g, "TEXT");
         sCmd = sCmd.replace(/BOOLEAN/g, "INTEGER");
         sCmd = sCmd.replace(/ILIKE/g, "LIKE");
+        
+        // Manuelle Prüfung für ADD COLUMN IF NOT EXISTS, da SQLite dies nativ oft nicht unterstützt
         sCmd = sCmd.replace(/ALTER TABLE (\w+) ADD COLUMN IF NOT EXISTS (\w+) (\w+)( DEFAULT .*)?/g, (match, table, col, type, def) => {
           try {
             const info = sqlite?.prepare(`PRAGMA table_info(${table})`).all();
@@ -176,40 +196,40 @@ const initSchema = async (retries = 3) => {
               return `ALTER TABLE ${table} ADD COLUMN ${col} ${type}${def || ''}`;
             }
           } catch (e) {}
-          return '-- column exists';
+          return '-- Spalte existiert bereits';
         });
         
         if (sCmd.startsWith('--')) continue;
         sqlite?.exec(sCmd);
       } catch (err: any) {
         if (!err.message.includes('already exists') && !err.message.includes('duplicate column')) {
-           console.warn('SQLite Schema Command Error:', err.message, 'in', cmd.substring(0, 50));
+           console.warn('SQLite Schema Fehler:', err.message, 'in', cmd.substring(0, 50));
         }
       }
     }
-    console.log('SQLite Schema Initialized.');
+    console.log('SQLite Schema erfolgreich initialisiert.');
     return;
   }
 
-  console.log(`Synchronizing Schema with Neon (Attempt ${4 - retries}/3)...`);
+  console.log(`Synchronisiere Schema mit Neon (Versuch ${4 - retries}/3)...`);
   try {
     for (const cmd of SCHEMA) {
       await sql!.query(cmd);
     }
-    console.log('Schema Sync Successful.');
+    console.log('Schema-Synchronisierung erfolgreich.');
   } catch (err: any) {
+    // Retry-Logik bei Netzwerk-Timeouts (häufig bei serverless DBs)
     if (retries > 1 && (err.message?.includes('ETIMEDOUT') || err.message?.includes('fetch failed'))) {
-      console.warn('Schema Sync Timeout, retrying...');
+      console.warn('Schema-Sync Time-out, erneuter Versuch...');
       await new Promise(resolve => setTimeout(resolve, 2000));
       return initSchema(retries - 1);
     }
-    console.error('Schema Sync Error:', err);
+    console.error('Schema-Sync Fehler:', err);
   }
 };
 
-// Auto-init schema
+// Automatisches Auslösen der Schema-Initialisierung beim Laden des Moduls (außer in Tests)
 if (process.env.NODE_ENV !== 'test') {
-    // For SQLite we start synchronously to avoid race conditions
     if (USE_SQLITE) {
         initSchema();
     } else {
@@ -218,7 +238,12 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 /**
- * Runs a query and returns results as an array.
+ * Führt eine SQL-Abfrage aus und gibt das Ergebnis als Array zurück.
+ * Handhabt automatisch die Syntaxunterschiede zwischen SQLite und PostgreSQL (z.B. Parameter-Binding).
+ * 
+ * @param sqlStr Der SQL-String (nutzt ? als Platzhalter für Parameter).
+ * @param params Array der Parameterwerte.
+ * @returns Promise mit den Zeilen des Ergebnisses.
  */
 export async function query<T>(sqlStr: string, params: any[] = [], retries = 2): Promise<T[]> {
   if (USE_SQLITE) {
@@ -226,13 +251,8 @@ export async function query<T>(sqlStr: string, params: any[] = [], retries = 2):
       let sSql = sqlStr.replace(/ILIKE/g, 'LIKE');
       sSql = sSql.replace(/gen_random_uuid\(\)/g, "lower(hex(randomblob(16)))");
       sSql = sSql.replace(/NOW\(\) - INTERVAL '(\d+) minutes'/g, "datetime('now', '-$1 minutes')");
-      // basic RETURNING id support for some SQLite versions
-      if (!sSql.toLowerCase().includes('returning') && sSql.toLowerCase().includes('insert into')) {
-          // If we need ID back and it's not there, it might be tricky, 
-          // but usually it's there in the SCHEMA for these tables.
-      }
 
-      // Sanitize params
+      // Parameter-Bereinigung für SQLite Typen
       const sParams = params.map(p => {
           if (p === undefined) return null;
           if (typeof p === 'boolean') return p ? 1 : 0;
@@ -242,20 +262,19 @@ export async function query<T>(sqlStr: string, params: any[] = [], retries = 2):
       const stmt = sqlite?.prepare(sSql);
       return stmt?.all(...sParams) as T[];
     } catch (err) {
-      console.error('SQLite Query Error for:', sqlStr, err);
+      console.error('SQLite Query Fehler für:', sqlStr, err);
       throw err;
     }
   }
 
-  // Convert ? to $1, $2, etc.
+  // Konvertiere ? Platzhalter zu $1, $2 für PostgreSQL
   let pSql = sqlStr;
   const pParams = [...params];
 
-  // Simple replacement: find all '?' and replace with $1, $2, etc.
   let counter = 1;
   pSql = pSql.replace(/\?/g, () => `$${counter++}`);
 
-  // SQLite compatibility fixes
+  // Kompatibilitäts-Fixes zurück zu PG-Syntax
   pSql = pSql.replace('lower(hex(randomblob(16)))', 'gen_random_uuid()');
   pSql = pSql.replace(/INSERT OR REPLACE/gi, 'INSERT');
 
@@ -264,7 +283,7 @@ export async function query<T>(sqlStr: string, params: any[] = [], retries = 2):
     return results.rows as T[];
   } catch (err: any) {
     if (retries > 0 && (err.message?.includes('ETIMEDOUT') || err.message?.includes('fetch failed'))) {
-      console.warn(`Query timeout, retrying... (${retries} left)`);
+      console.warn(`Query Time-out, Retry... (${retries} verbleibend)`);
       await new Promise(resolve => setTimeout(resolve, 1000));
       return query(sqlStr, params, retries - 1);
     }
@@ -273,7 +292,10 @@ export async function query<T>(sqlStr: string, params: any[] = [], retries = 2):
 }
 
 /**
- * Runs a command (INSERT/UPDATE/DELETE).
+ * Führt einen SQL-Befehl aus (INSERT, UPDATE, DELETE), der keine Zeilen zurückgibt.
+ * 
+ * @param sqlStr Der SQL-String.
+ * @param params Platzhalter-Werte.
  */
 export async function run(sqlStr: string, params: any[] = [], retries = 2): Promise<void> {
   if (USE_SQLITE) {
@@ -291,7 +313,7 @@ export async function run(sqlStr: string, params: any[] = [], retries = 2): Prom
       stmt?.run(...sParams);
       return;
     } catch (err) {
-      console.error('SQLite Run Error for:', sqlStr, err);
+      console.error('SQLite Run Fehler für:', sqlStr, err);
       throw err;
     }
   }
@@ -302,10 +324,9 @@ export async function run(sqlStr: string, params: any[] = [], retries = 2): Prom
   let counter = 1;
   pSql = pSql.replace(/\?/g, () => `$${counter++}`);
 
-  // SQLite compatibility fixes
   pSql = pSql.replace(/INSERT OR REPLACE/gi, 'INSERT');
 
-  // Special handling for points_config upsert
+  // Spezielle Logik für ON CONFLICT (Upsert) in PostgreSQL
   if (sqlStr.toLowerCase().includes('into points_config')) {
     pSql += ' ON CONFLICT (league_id) DO UPDATE SET points_json = EXCLUDED.points_json, fastest_lap_bonus = EXCLUDED.fastest_lap_bonus, clean_driver_bonus = EXCLUDED.clean_driver_bonus, total_races = EXCLUDED.total_races, track_pool = EXCLUDED.track_pool, drop_results_count = EXCLUDED.drop_results_count';
   }
@@ -314,7 +335,7 @@ export async function run(sqlStr: string, params: any[] = [], retries = 2): Prom
     await sql!.query(pSql, pParams);
   } catch (err: any) {
     if (retries > 0 && (err.message?.includes('ETIMEDOUT') || err.message?.includes('fetch failed'))) {
-      console.warn(`Run timeout, retrying... (${retries} left)`);
+      console.warn(`Run Time-out, Retry... (${retries} verbleibend)`);
       await new Promise(resolve => setTimeout(resolve, 1000));
       return run(sqlStr, params, retries - 1);
     }

@@ -7,43 +7,57 @@ exports.startSender = startSender;
 const node_fetch_1 = __importDefault(require("node-fetch"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+/**
+ * Startet den Sender-Modus, der die gesammelten Telemetriedaten regelmäßig überträgt.
+ * Unterstützt sowohl die Live-Übertragung an eine API als auch die lokale JSON-Aufzeichnung.
+ *
+ * @param config Die globale Anwendungskonfiguration.
+ * @param state Der aktuelle Session-Zustand.
+ */
 function startSender(config, state) {
+    // --- LOKALER AUFZEICHNUNGS-MODUS (JSON) ---
     if (config.mode === 'Local Recording') {
         const logsDir = path_1.default.join(process.cwd(), 'logs');
         if (!fs_1.default.existsSync(logsDir)) {
             fs_1.default.mkdirSync(logsDir);
         }
         const filename = path_1.default.join(logsDir, `recording_${Date.now()}.json`);
-        console.log(`Recording local data to ${filename}`);
+        console.log(`📡 Zeichne lokale Daten auf in: ${filename}`);
         fs_1.default.writeFileSync(filename, '[\n');
         let isFirst = true;
         setInterval(() => {
             const payload = state.buildPayloadAndClear();
+            // Nur aufzeichnen, wenn Teilnehmer vorhanden sind und die Session bekannt ist
             if (payload.participants.length > 0 && payload.sessionType !== 'Unknown') {
                 const line = (isFirst ? '' : ',\n') + JSON.stringify(payload);
                 fs_1.default.appendFileSync(filename, line);
                 isFirst = false;
             }
         }, config.intervalMs);
+        // Sicherstellen, dass das JSON-Array beim Beenden korrekt geschlossen wird
         process.on('SIGINT', () => {
-            console.log('Shutting down and saving recording...');
+            console.log('Beende Router und speichere Aufzeichnung...');
             fs_1.default.appendFileSync(filename, '\n]');
             process.exit();
         });
         return;
     }
-    console.log(`Starting Live Routing to ${config.url} with ${config.transmissionMode} (Interval: ${config.intervalMs}ms)`);
-    let skipCount = 0;
+    // --- LIVE-ROUTING MODUS (HTTP POST) ---
+    console.log(`🚀 Starte Live-Übermittlung an ${config.url}`);
+    console.log(`   Modus: ${config.transmissionMode} (Intervall: ${config.intervalMs}ms)`);
     setInterval(async () => {
+        // Zustand abrufen und temporäre Buffer (z.B. neue Runden) leeren
         const payload = state.buildPayloadAndClear();
-        // Send if there are human participants (regardless of session type)
+        // ÜBERMITTLUNGS-FILTER:
+        // Wir senden Daten nur, wenn mindestens ein menschlicher Fahrer in der Session ist. 
+        // Dies verhindert das Überfluten der API mit reinen KI-Sessions.
         const hasHumans = payload.participants.some(p => p.isHuman);
         if (hasHumans) {
-            skipCount = 0; // reset
             const body = {
                 leagueId: config.leagueId,
                 packet: payload
             };
+            // AbortController für Timeouts verwenden, um hängende Verbindungen zu vermeiden
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
             try {
@@ -55,17 +69,13 @@ function startSender(config, state) {
                 });
                 clearTimeout(timeoutId);
                 if (!res.ok) {
-                    console.error(`Failed to send chunk, HTTP status: ${res.status}`);
+                    console.error(`Fehler beim Senden: HTTP-Status ${res.status}`);
                 }
             }
             catch (e) {
                 clearTimeout(timeoutId);
-                console.error(`Error sending telemetry: ${e.message}`);
+                console.error(`Netzwerkfehler beim Senden der Telemetrie: ${e.message}`);
             }
-        }
-        else {
-            // Silently skip if no humans or wrong session type
-            // (Dashboard handles status display)
         }
     }, config.intervalMs);
 }

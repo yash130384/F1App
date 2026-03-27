@@ -1,56 +1,51 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.parseSession = parseSession;
+/**
+ * Mapping-Tabelle für Strecken-IDs zu Klarnamen.
+ */
 const TRACK_MAP = {
-    0: 'Melbourne',
-    1: 'Paul Ricard',
-    2: 'Shanghai',
-    3: 'Sakhir (Bahrain)',
-    4: 'Catalunya',
-    5: 'Monaco',
-    6: 'Montreal',
-    7: 'Silverstone',
-    8: 'Hockenheim',
-    9: 'Hungaroring',
-    10: 'Spa',
-    11: 'Monza',
-    12: 'Singapore',
-    13: 'Suzuka',
-    14: 'Abu Dhabi',
-    15: 'Texas',
-    16: 'Brazil',
-    17: 'Austria',
-    18: 'Sochi',
-    19: 'Mexico',
-    20: 'Baku',
-    21: 'Sakhir Short',
-    22: 'Silverstone Short',
-    23: 'Texas Short',
-    24: 'Suzuka Short',
-    25: 'Hanoi',
-    26: 'Zandvoort',
-    27: 'Imola',
-    28: 'Portimão',
-    29: 'Jeddah',
-    30: 'Miami',
-    31: 'Las Vegas',
-    32: 'Losail (Qatar)'
+    0: 'Melbourne', 1: 'Paul Ricard', 2: 'Shanghai', 3: 'Sakhir (Bahrain)',
+    4: 'Catalunya', 5: 'Monaco', 6: 'Montreal', 7: 'Silverstone',
+    8: 'Hockenheim', 9: 'Hungaroring', 10: 'Spa', 11: 'Monza',
+    12: 'Singapore', 13: 'Suzuka', 14: 'Abu Dhabi', 15: 'Texas',
+    16: 'Brazil', 17: 'Austria', 18: 'Sochi', 19: 'Mexico',
+    20: 'Baku', 21: 'Sakhir Short', 22: 'Silverstone Short', 23: 'Texas Short',
+    24: 'Suzuka Short', 25: 'Hanoi', 26: 'Zandvoort', 27: 'Imola',
+    28: 'Portimão', 29: 'Jeddah', 30: 'Miami', 31: 'Las Vegas', 32: 'Losail (Qatar)'
 };
+/**
+ * Parsed das Paket ID 1 (Session Data).
+ * Enthält globale Informationen über die aktuelle Sitzung, das Wetter und die Strecke.
+ *
+ * @param buffer Der rohe binäre Buffer des UDP-Pakets.
+ * @returns Objekt mit detaillierten Session-Informationen.
+ */
 function parseSession(buffer) {
+    // Session Typ Mapping (Training, Quali, Rennen)
     const sessionTypeRaw = buffer.readUInt8(35);
     let sessionTypeMapped = "Unknown";
     if (sessionTypeRaw >= 1 && sessionTypeRaw <= 4)
-        sessionTypeMapped = "Practice";
-    else if (sessionTypeRaw >= 5 && sessionTypeRaw <= 9)
-        sessionTypeMapped = "Qualifying";
-    else if (sessionTypeRaw >= 10 && sessionTypeRaw <= 15)
-        sessionTypeMapped = "Race";
+        sessionTypeMapped = `Practice ${sessionTypeRaw}`;
+    else if (sessionTypeRaw === 5)
+        sessionTypeMapped = "Qualifying 1";
+    else if (sessionTypeRaw === 6)
+        sessionTypeMapped = "Qualifying 2";
+    else if (sessionTypeRaw === 7)
+        sessionTypeMapped = "Qualifying 3";
+    else if (sessionTypeRaw === 8)
+        sessionTypeMapped = "Short Qualifying";
+    else if (sessionTypeRaw === 9)
+        sessionTypeMapped = "OSQ";
+    else if (sessionTypeRaw >= 10 && sessionTypeRaw <= 12)
+        sessionTypeMapped = `Race ${sessionTypeRaw - 9}`;
     else if (sessionTypeRaw === 13)
         sessionTypeMapped = "Time Trial";
     else
         sessionTypeMapped = `Unknown_${sessionTypeRaw}`;
     const trackId = buffer.readInt8(36);
     const trackName = TRACK_MAP[trackId] || `Unknown (${trackId})`;
+    // Marshal Zonen extrahieren (Anzeige von lokalen Flaggen auf der Strecke)
     const marshalZones = [];
     for (let i = 0; i < 21; i++) {
         const offset = 48 + (i * 5);
@@ -59,6 +54,7 @@ function parseSession(buffer) {
             zoneFlag: buffer.readInt8(offset + 4)
         });
     }
+    // Wettervorhersage-Datenpunkte (64 Samples)
     const weatherForecastSamples = [];
     for (let i = 0; i < 64; i++) {
         const offset = 156 + (i * 8);
@@ -73,6 +69,7 @@ function parseSession(buffer) {
             rainPercentage: buffer.readUInt8(offset + 7)
         });
     }
+    // Wochenendstruktur (Reihenfolge der Sessions)
     const weekendStructure = [];
     for (let i = 0; i < 12; i++) {
         weekendStructure.push(buffer.readUInt8(733 + i));

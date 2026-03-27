@@ -28,5 +28,10 @@ function parseEventData(buffer) {
         event.overtakingVehicleIdx = buffer.readUInt8(33);
         event.beingOvertakenVehicleIdx = buffer.readUInt8(34);
     }
+    // Retirement event
+    else if (eventStringCode === 'RTMT') {
+        event.vehicleIdx = buffer.readUInt8(33);
+        event.retirementReason = buffer.readUInt8(34);
+    }
     return event;
 }

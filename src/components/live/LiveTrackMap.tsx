@@ -1,116 +1,127 @@
 'use client';
 
 import React, { useMemo, useRef, useEffect, useState } from 'react';
-import { getTrackLayout, TrackLayout } from '@/lib/trackData';
+import { getTrackLayout } from '@/lib/trackData';
+import styles from './LiveTrackMap.module.css';
 
+/** Datenstruktur eines Fahrers für die Karten-Visualisierung */
 interface Player {
+    /** Name im Spiel */
     gameName: string;
+    /** Aktuelle Distanz in der Runde (Meter) */
     lapDistance: number;
+    /** Aktuelle Position im Rennen */
     position: number;
+    /** Ob es sich um einen menschlichen Spieler handelt */
     isHuman: boolean;
 }
 
+/** Props für die LiveTrackMap Komponente */
 interface Props {
+    /** ID der Rennstrecke (entspricht F1 2024/25 Mapping) */
     trackId: number;
+    /** Gesamtlänge der Strecke in Metern */
     trackLength: number;
+    /** Liste aller aktiven Fahrer */
     players: Player[];
+    /** Name des aktuell zur Analyse ausgewählten Fahrers */
     selectedDriver: string;
 }
 
+/**
+ * Die LiveTrackMap visualisiert die Position aller Fahrer auf der Rennstrecke.
+ * Sie nutzt SVG-Pfad-Animationen und berechnet die Positionen basierend auf der Lap-Distance.
+ * Die Karte ist responsiv und hebt menschliche sowie ausgewählte Fahrer besonders hervor.
+ */
 export function LiveTrackMap({ trackId, trackLength, players, selectedDriver }: Props) {
+    // Layout-Daten (SVG-Pfad und ViewBox) für die Strecke laden
     const layout = useMemo(() => getTrackLayout(trackId), [trackId]);
     const pathRef = useRef<SVGPathElement>(null);
     const [pathLength, setPathLength] = useState(0);
 
+    // Gesamtlänge des SVG-Pfades bestimmen, sobald das Layout geladen ist
     useEffect(() => {
-        if (pathRef.current) {
+        if (pathRef.current && typeof pathRef.current.getTotalLength === 'function') {
             setPathLength(pathRef.current.getTotalLength());
         }
     }, [layout]);
 
+    // Berechnen der X/Y-Koordinaten für jeden Fahrer basierend auf dessen Fortschritt (0-1)
     const driverPoints = useMemo(() => {
         if (!pathRef.current || pathLength === 0 || trackLength === 0) return [];
 
         return players.map(p => {
             const progress = Math.max(0, Math.min(1, p.lapDistance / trackLength));
             try {
-                const pt = pathRef.current!.getPointAtLength(progress * pathLength);
-                return {
-                    ...p,
-                    x: pt.x,
-                    y: pt.y
-                };
+                // Punkt auf dem SVG-Pfad für den aktuellen Fortschritt finden
+                if (pathRef.current && typeof pathRef.current.getPointAtLength === 'function') {
+                    const pt = pathRef.current.getPointAtLength(progress * pathLength);
+                    return { ...p, x: pt.x, y: pt.y };
+                }
+                return { ...p, x: progress * 100, y: 0 }; // Einfacher Fallback für Tests
             } catch (e) {
+                // Fallback bei Fehlern in der SVG-Berechnung
                 return { ...p, x: 0, y: 0 };
             }
         });
     }, [players, pathLength, trackLength]);
 
     return (
-        <div style={{
-            background: 'rgba(0,0,0,0.2)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 12,
-            padding: '1rem',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-            minHeight: 300
-        }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Track Map — {layout.name}
+        <div className={styles.container}>
+            <header className={styles.header}>
+                <span className={styles.trackName}>
+                    Streckenkarte — {layout.name}
                 </span>
-                <div style={{ fontSize: 10, color: '#666' }}>
+                <div className={styles.trackInfo}>
                     {trackLength}m
                 </div>
-            </div>
+            </header>
 
-            <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className={styles.mapWrapper}>
                 <svg
                     viewBox={layout.viewBox}
-                    style={{ width: '100%', height: '100%', maxHeight: 400 }}
+                    className={styles.svg}
                 >
+                    {/* Basis-Pfad (die "Graue" Strecke) */}
                     <path
                         ref={pathRef}
                         d={layout.path}
-                        fill="none"
-                        stroke="rgba(255,255,255,0.1)"
-                        strokeWidth="12"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+                        className={styles.trackPathBase}
                     />
+                    {/* Dünne aktive Linie für besseren Kontrast */}
                     <path
                         d={layout.path}
-                        fill="none"
-                        stroke="rgba(255,255,255,0.2)"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+                        className={styles.trackPathActive}
                     />
 
-                    {driverPoints.map(p => (
-                        <g key={p.gameName} transform={`translate(${p.x}, ${p.y})`}>
-                            <circle
-                                r={p.gameName === selectedDriver ? 6 : 4}
-                                fill={p.isHuman ? (p.gameName === selectedDriver ? '#fff' : '#22c55e') : 'rgba(255,255,255,0.6)'}
-                                stroke={p.gameName === selectedDriver ? '#ef4444' : 'none'}
-                                strokeWidth="2"
-                                style={{ transition: 'all 0.3s ease-out' }}
-                            />
-                            { (p.gameName === selectedDriver || p.isHuman) && (
-                                <text
-                                    y="-10"
-                                    textAnchor="middle"
-                                    fill="#fff"
-                                    style={{ fontSize: '8px', fontWeight: 800, textShadow: '0 0 4px #000' }}
-                                >
-                                    {p.gameName === selectedDriver ? `P${p.position}` : p.position}
-                                </text>
-                            ) }
-                        </g>
-                    ))}
+                    {/* Visualisierung der Fahrer-Punkte */}
+                    {driverPoints.map(p => {
+                        const isSelected = p.gameName === selectedDriver;
+                        const isHuman = p.isHuman;
+
+                        return (
+                            <g 
+                                key={p.gameName} 
+                                transform={`translate(${p.x}, ${p.y})`}
+                                className={styles.driverDot}
+                            >
+                                <circle
+                                    r={isSelected ? 6 : 4}
+                                    fill={isHuman ? (isSelected ? '#fff' : '#22c55e') : 'rgba(255,255,255,0.4)'}
+                                    className={isSelected ? styles.selectedCircle : ''}
+                                />
+                                { (isSelected || isHuman) && (
+                                    <text
+                                        y="-12"
+                                        textAnchor="middle"
+                                        className={`${styles.driverLabel} ${isHuman ? styles.humanLabel : ''}`}
+                                    >
+                                        {isSelected ? `P${p.position}` : p.position}
+                                    </text>
+                                ) }
+                            </g>
+                        );
+                    })}
                 </svg>
             </div>
         </div>

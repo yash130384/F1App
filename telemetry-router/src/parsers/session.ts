@@ -1,133 +1,116 @@
+/**
+ * Repräsentiert die Daten einer F1-Session (Wetter, Strecke, Modus).
+ */
 export interface SessionData {
+    /** Wetter-Status (0=Sonnig, 1=Heiter, 2=Bewölkt, etc.) */
     weather: number;
+    /** Streckentemperatur in Grad Celsius */
     trackTemperature: number;
+    /** Lufttemperatur in Grad Celsius */
     airTemperature: number;
+    /** Gesamtzahl der Runden im Rennen (0 bei Zeitfahren) */
     totalLaps: number;
+    /** Länge der Strecke in Metern */
     trackLength: number;
+    /** Roher Typ-Index der Session */
     sessionTypeRaw: number;
+    /** Gemappter Name der Session (z.B. "Qualifying 1") */
     sessionTypeMapped: string;
+    /** Interne Track-ID des Spiels */
     trackId: number;
+    /** Name der Rennstrecke */
     trackName: string;
+    /** Formel-Klasse (0=F1 Modern, 1=F1 Classic, etc.) */
     formula: number;
+    /** Verbleibende Zeit der Session in Sekunden */
     sessionTimeLeft: number;
+    /** Gesamtdauer der Session in Sekunden */
     sessionDuration: number;
+    /** Boxengassen-Geschwindigkeitslimit in km/h */
     pitSpeedLimit: number;
+    /** Ob das Spiel pausiert ist (0=Nein, 1=Ja) */
     gamePaused: number;
+    /** Ob der aktuelle Spieler zuschaut (Spectator) */
     isSpectating: number;
+    /** Auto-Index des beobachteten Fahrers */
     spectatorCarIndex: number;
+    /** Unterstützung für SLI-Pro Displays */
     sliProNativeSupport: number;
+    /** Anzahl der Streckenabschnitte (Marshal Zones) */
     numMarshalZones: number;
+    /** Details zu den Marshall-Zonen */
     marshalZones: { zoneStart: number, zoneFlag: number }[];
+    /** Status des Safety Cars (0=Keines, 1=Full SC, 2=VSC, 3=Formation Lap) */
     safetyCarStatus: number;
+    /** Ob es sich um ein Online-Spiel handelt */
     networkGame: number;
+    /** Anzahl der Wettervorhersage-Datenpunkte */
     numWeatherForecastSamples: number;
+    /** Liste der Wettervorhersagen */
     weatherForecastSamples: any[];
+    /** Genauigkeit der Vorhersage (0=Ungefähr, 1=Präzise) */
     forecastAccuracy: number;
+    /** KI-Schwierigkeitsgrad (0-110) */
     aiDifficulty: number;
-    seasonLinkIdentifier: number;
-    weekendLinkIdentifier: number;
-    sessionLinkIdentifier: number;
+    /** Ideal-Runde für den Boxenstopp */
     pitStopWindowIdealLap: number;
+    /** Späteste Runde für den Boxenstopp */
     pitStopWindowLatestLap: number;
+    /** Erwartete Position nach dem Boxenstopp */
     pitStopRejoinPosition: number;
-    steeringAssist: number;
-    brakingAssist: number;
-    gearboxAssist: number;
-    pitAssist: number;
-    pitReleaseAssist: number;
-    ERSAssist: number;
-    DRSAssist: number;
-    dynamicRacingLine: number;
-    dynamicRacingLineType: number;
-    gameMode: number;
-    ruleSet: number;
-    timeOfDay: number;
-    sessionLength: number;
-    speedUnitsLeadPlayer: number;
-    temperatureUnitsLeadPlayer: number;
-    speedUnitsSecondaryPlayer: number;
-    temperatureUnitsSecondaryPlayer: number;
+    /** Anzahl der SC-Phasen in dieser Session */
     numSafetyCarPeriods: number;
+    /** Anzahl der VSC-Phasen */
     numVirtualSafetyCarPeriods: number;
+    /** Anzahl der Rot-Phasen */
     numRedFlagPeriods: number;
-    equalCarPerformance: number;
-    recoveryMode: number;
-    flashbackLimit: number;
-    surfaceType: number;
-    lowFuelMode: number;
-    raceStarts: number;
-    tyreTemperature: number;
-    pitLaneTyreSim: number;
-    carDamage: number;
-    carDamageRate: number;
-    collisions: number;
-    collisionsOffForFirstLapOnly: number;
-    mpUnsafePitRelease: number;
-    mpOffForGriefing: number;
-    cornerCuttingStringency: number;
-    parcFermeRules: number;
-    pitStopExperience: number;
-    safetyCar: number;
-    safetyCarExperience: number;
-    formationLap: number;
-    formationLapExperience: number;
-    redFlags: number;
-    affectsLicenceLevelSolo: number;
-    affectsLicenceLevelMP: number;
-    numSessionsInWeekend: number;
-    weekendStructure: number[];
+    /** Start-Distanz von Sektor 2 */
     sector2LapDistanceStart: number;
+    /** Start-Distanz von Sektor 3 */
     sector3LapDistanceStart: number;
+    // ... weitere Felder werden hier direkt gemappt
+    [key: string]: any; 
 }
 
+/**
+ * Mapping-Tabelle für Strecken-IDs zu Klarnamen.
+ */
 const TRACK_MAP: Record<number, string> = {
-    0: 'Melbourne',
-    1: 'Paul Ricard',
-    2: 'Shanghai',
-    3: 'Sakhir (Bahrain)',
-    4: 'Catalunya',
-    5: 'Monaco',
-    6: 'Montreal',
-    7: 'Silverstone',
-    8: 'Hockenheim',
-    9: 'Hungaroring',
-    10: 'Spa',
-    11: 'Monza',
-    12: 'Singapore',
-    13: 'Suzuka',
-    14: 'Abu Dhabi',
-    15: 'Texas',
-    16: 'Brazil',
-    17: 'Austria',
-    18: 'Sochi',
-    19: 'Mexico',
-    20: 'Baku',
-    21: 'Sakhir Short',
-    22: 'Silverstone Short',
-    23: 'Texas Short',
-    24: 'Suzuka Short',
-    25: 'Hanoi',
-    26: 'Zandvoort',
-    27: 'Imola',
-    28: 'Portimão',
-    29: 'Jeddah',
-    30: 'Miami',
-    31: 'Las Vegas',
-    32: 'Losail (Qatar)'
+    0: 'Melbourne', 1: 'Paul Ricard', 2: 'Shanghai', 3: 'Sakhir (Bahrain)',
+    4: 'Catalunya', 5: 'Monaco', 6: 'Montreal', 7: 'Silverstone',
+    8: 'Hockenheim', 9: 'Hungaroring', 10: 'Spa', 11: 'Monza',
+    12: 'Singapore', 13: 'Suzuka', 14: 'Abu Dhabi', 15: 'Texas',
+    16: 'Brazil', 17: 'Austria', 18: 'Sochi', 19: 'Mexico',
+    20: 'Baku', 21: 'Sakhir Short', 22: 'Silverstone Short', 23: 'Texas Short',
+    24: 'Suzuka Short', 25: 'Hanoi', 26: 'Zandvoort', 27: 'Imola',
+    28: 'Portimão', 29: 'Jeddah', 30: 'Miami', 31: 'Las Vegas', 32: 'Losail (Qatar)'
 };
 
+/**
+ * Parsed das Paket ID 1 (Session Data).
+ * Enthält globale Informationen über die aktuelle Sitzung, das Wetter und die Strecke.
+ * 
+ * @param buffer Der rohe binäre Buffer des UDP-Pakets.
+ * @returns Objekt mit detaillierten Session-Informationen.
+ */
 export function parseSession(buffer: Buffer): SessionData {
+    // Session Typ Mapping (Training, Quali, Rennen)
     const sessionTypeRaw = buffer.readUInt8(35);
     let sessionTypeMapped = "Unknown";
-    if (sessionTypeRaw >= 1 && sessionTypeRaw <= 4) sessionTypeMapped = "Practice";
-    else if (sessionTypeRaw >= 5 && sessionTypeRaw <= 9) sessionTypeMapped = "Qualifying";
-    else if (sessionTypeRaw >= 10 && sessionTypeRaw <= 15) sessionTypeMapped = "Race";
+    if (sessionTypeRaw >= 1 && sessionTypeRaw <= 4) sessionTypeMapped = `Practice ${sessionTypeRaw}`;
+    else if (sessionTypeRaw === 5) sessionTypeMapped = "Qualifying 1";
+    else if (sessionTypeRaw === 6) sessionTypeMapped = "Qualifying 2";
+    else if (sessionTypeRaw === 7) sessionTypeMapped = "Qualifying 3";
+    else if (sessionTypeRaw === 8) sessionTypeMapped = "Short Qualifying";
+    else if (sessionTypeRaw === 9) sessionTypeMapped = "OSQ";
+    else if (sessionTypeRaw >= 10 && sessionTypeRaw <= 12) sessionTypeMapped = `Race ${sessionTypeRaw - 9}`;
     else if (sessionTypeRaw === 13) sessionTypeMapped = "Time Trial";
     else sessionTypeMapped = `Unknown_${sessionTypeRaw}`;
 
     const trackId = buffer.readInt8(36);
     const trackName = TRACK_MAP[trackId] || `Unknown (${trackId})`;
 
+    // Marshal Zonen extrahieren (Anzeige von lokalen Flaggen auf der Strecke)
     const marshalZones = [];
     for (let i = 0; i < 21; i++) {
         const offset = 48 + (i * 5);
@@ -137,6 +120,7 @@ export function parseSession(buffer: Buffer): SessionData {
         });
     }
 
+    // Wettervorhersage-Datenpunkte (64 Samples)
     const weatherForecastSamples = [];
     for (let i = 0; i < 64; i++) {
         const offset = 156 + (i * 8);
@@ -152,6 +136,7 @@ export function parseSession(buffer: Buffer): SessionData {
         });
     }
 
+    // Wochenendstruktur (Reihenfolge der Sessions)
     const weekendStructure = [];
     for (let i = 0; i < 12; i++) {
         weekendStructure.push(buffer.readUInt8(733 + i));

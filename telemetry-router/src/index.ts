@@ -1,28 +1,44 @@
 import { config } from 'dotenv';
 import { prompt } from 'enquirer';
 
-config(); // Load .env if exists
+// Lade Umgebungsvariablen aus der .env Datei
+config();
 
+/**
+ * Konfiguration für die Telemetrie-Anwendung.
+ */
 export interface AppConfig {
+    /** Die ID der Liga, für die Daten gesammelt oder verarbeitet werden. */
     leagueId: string;
+    /** Der Betriebsmodus der Anwendung (Echtzeit, Aufzeichnung-Verarbeitung, Playback). */
     mode: 'Live Telemetry' | 'Fast Process Recordings' | 'Playback Recording (Legacy)' | 'Settings' | 'Local Recording';
+    /** Intervall-Modus für die Datenübertragung an den Server/API. */
     transmissionMode?: 'Live (60Hz)' | 'Balanced (5s)' | 'Results Only (60s)';
+    /** Ziel-URL für die HTTP-Übermittlung der Telemetriedaten. */
     url?: string;
+    /** Lokaler UDP-Port, auf dem die Spieldaten empfangen werden. */
     port?: number;
+    /** Aktuelles Sendeintervall in Millisekunden. */
     intervalMs: number;
 }
 
+/**
+ * Haupteinstiegspunkt der Anwendung.
+ * Verwaltet das interaktive Menü und startet die gewählten Sub-Module.
+ */
 async function main() {
     console.log('\n--- F1 25 Telemetry Router ---');
 
+    // Standard-Konfiguration basierend auf Umgebungsvariablen
     let appConfig: AppConfig = {
         leagueId: process.env.LEAGUE_ID || 'MyLeague',
         mode: 'Live Telemetry',
         url: process.env.TARGET_URL || 'http://localhost:3000/api/telemetry',
-        port: parseInt(process.env.UDP_PORT || '20888'),
+        port: parseInt(process.env.UDP_PORT || '20777'),
         intervalMs: 5000
     };
 
+    // Automatischer Start (nicht interaktiv) für Headless-Umgebungen/Vercel/Docker
     if (process.env.NON_INTERACTIVE === 'true') {
         appConfig.transmissionMode = (process.env.TRANSMISSION_MODE as any) || 'Balanced (5s)';
         appConfig.intervalMs = appConfig.transmissionMode === 'Results Only (60s)' ? 60000 : 
@@ -33,11 +49,12 @@ async function main() {
         return;
     }
 
+    // Interaktives CLI-Menü
     while (true) {
         const response = await prompt<any>({
             type: 'select',
             name: 'mode',
-            message: 'Main Menu:',
+            message: 'Hauptmenü:',
             choices: [
                 'Live Telemetry',
                 'Fast Process Recordings',
@@ -51,21 +68,23 @@ async function main() {
 
         appConfig.mode = response.mode;
 
+        // Einstellungen anpassen
         if (appConfig.mode === 'Settings') {
             const settings = await prompt<any>([
-                { type: 'input', name: 'leagueId', message: 'League ID:', initial: appConfig.leagueId },
-                { type: 'input', name: 'url', message: 'Target URL:', initial: appConfig.url },
+                { type: 'input', name: 'leagueId', message: 'Liga-ID:', initial: appConfig.leagueId },
+                { type: 'input', name: 'url', message: 'Ziel-URL:', initial: appConfig.url },
                 { type: 'numeral', name: 'port', message: 'UDP Port:', initial: appConfig.port }
             ]);
             appConfig = { ...appConfig, ...settings };
             continue;
         }
 
+        // Live-Telemetrie Start
         if (appConfig.mode === 'Live Telemetry') {
             const transRes = await prompt<any>({
                 type: 'select',
                 name: 'transmissionMode',
-                message: 'Select Transmission Mode:',
+                message: 'Übertragungsfrequenz wählen:',
                 choices: ['Live (60Hz)', 'Balanced (5s)', 'Results Only (60s)']
             });
             appConfig.transmissionMode = transRes.transmissionMode;
@@ -78,11 +97,13 @@ async function main() {
             return;
         }
 
+        // Schnelle Nachverarbeitung von lokalen Aufzeichnungen (.bin Dateien)
         if (appConfig.mode === 'Fast Process Recordings') {
             const { fastProcessRecordings } = await import('./fastProcess');
             await fastProcessRecordings(appConfig);
         }
 
+        // Simuliertes Abspielen einer Session zur UI-Entwicklung
         if (appConfig.mode === 'Playback Recording (Legacy)') {
             const { startPlayback } = await import('./playback');
             await startPlayback(appConfig);
@@ -90,7 +111,8 @@ async function main() {
     }
 }
 
+// Fehlerbehandlung für den globalen Scope
 main().catch(err => {
-    console.error('Fatal Error:', err);
+    console.error('Kritischer Fehler beim Starten der Anwendung:', err);
     process.exit(1);
 });

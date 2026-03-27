@@ -1,5 +1,8 @@
 'use client';
 
+import React, { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import {
     getRaceDetails,
     getDriverRaceTelemetry,

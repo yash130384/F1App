@@ -1,92 +1,46 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SessionState = void 0;
+const incidentManager_1 = require("./incidentManager");
+const payloadMapper_1 = require("./payloadMapper");
+/**
+ * Zentrale Verwaltung des Zustands einer laufenden F1-Telemetrie-Session.
+ * Folgt dem Single Responsibility Principle: Delegiert spezialisierte Aufgaben an Unter-Komponenten
+ * wie den IncidentManager (Vorfälle) und PayloadMapper (Daten-Transformation).
+ */
 class SessionState {
+    /** Typ der aktuellen Session (z.B. "Race", "Qualifying 1") */
     sessionType = 'Unknown';
+    /** Interne Track-ID vom Spiel */
     trackId = -1;
+    /** Klarname der Rennstrecke */
     trackName = 'Unknown';
+    /** Länge der Rennstrecke in Metern */
     trackLength = 0;
+    /** Ob aktive Pakete empfangen werden */
     isActive = false;
+    /** Ob das Session-Ende Ereignis empfangen wurde */
     isSessionEnded = false;
-    sessionData;
+    /** Aktuelle FIA-Flaggen auf der Strecke (0=Keine, 1=Grün, 2=Blau, 3=Gelb) */
+    trackFlags = 0;
+    /** Gesamtzahl der verarbeiteten Pakete in dieser Session */
     packetCount = 0;
+    /** Zeitstempel des zuletzt empfangenen Pakets */
     lastPacketTime = 0;
-    incrementPackets() {
-        this.packetCount++;
-        this.lastPacketTime = Date.now();
-    }
-    trackFlags = 0; // 0=none, 1=green, 2=blue, 3=yellow
-    safetyCarEvents = [];
-    incidentLog = [];
-    lapPositions = [];
-    handleSessionEnd() {
-        this.isSessionEnded = true;
-    }
-    addSafetyCarEvent(safetyCarType, eventType) {
-        let lapNumber = 0;
-        for (const [, p] of this.players) {
-            if (p.currentLapNum > 0) {
-                lapNumber = p.currentLapNum;
-                break;
-            }
-        }
-        this.safetyCarEvents.push({ safetyCarType, eventType, lapNumber });
-        const types = ['None', 'Full SC', 'VSC', 'Formation Lap'];
-        const events = ['Deployed', 'Returning', 'Returned', 'Resume Race'];
-        this.addIncident({
-            type: 'SAFETY_CAR',
-            details: `${types[safetyCarType]} ${events[eventType]}`,
-            lapNum: lapNumber
-        });
-    }
-    addIncident(incident) {
-        this.incidentLog.push({
-            ...incident,
-            timestamp: Date.now()
-        });
-        // Keep log concise (e.g., last 50)
-        if (this.incidentLog.length > 50)
-            this.incidentLog.shift();
-    }
-    handleEvent(event) {
-        const car = event.vehicleIdx !== undefined ? this.getPlayer(event.vehicleIdx) : null;
-        const other = event.otherVehicleIdx !== undefined ? this.getPlayer(event.otherVehicleIdx) : null;
-        if (event.eventStringCode === 'PENA') {
-            this.addIncident({
-                type: 'PENALTY',
-                details: `Penalty for ${car?.gameName || 'Car ' + event.vehicleIdx}: ${event.time}s`,
-                vehicleIdx: event.vehicleIdx,
-                lapNum: event.lapNum
-            });
-        }
-        else if (event.eventStringCode === 'COLL') {
-            const v1 = this.getPlayer(event.vehicle1Idx || 0);
-            const v2 = this.getPlayer(event.vehicle2Idx || 0);
-            this.addIncident({
-                type: 'COLLISION',
-                details: `Collision between ${v1.gameName} and ${v2.gameName}`,
-                vehicleIdx: event.vehicle1Idx,
-                otherVehicleIdx: event.vehicle2Idx
-            });
-        }
-        else if (event.eventStringCode === 'OVTK') {
-            const over = this.getPlayer(event.overtakingVehicleIdx || 0);
-            const under = this.getPlayer(event.beingOvertakenVehicleIdx || 0);
-            this.addIncident({
-                type: 'OVERTAKE',
-                details: `${over.gameName} overtook ${under.gameName}`,
-                vehicleIdx: event.overtakingVehicleIdx,
-                otherVehicleIdx: event.beingOvertakenVehicleIdx
-            });
-        }
-    }
-    // Verarbeite das LapPositions-Paket (ID 15): m_positionForVehicleIdx[50][22]
-    updateLapPositions(buffer) {
-        // Disabled: Packet 15 is unreliable/non-standard in F1 2025.
-        // Positions are now recorded per-lap directly in updateLapData.
-    }
-    // Map: Fahrzeug-Index (0-21) → PlayerState
+    /** Rohe Session-Daten vom Parser */
+    sessionData;
+    /** Endergebnis der Session (nur nach Rennende verfügbar) */
+    finalClassification = [];
+    // Interner Speicher für Fahrerdaten und Hilfsklassen
     players = new Map();
+    incidentManager = new incidentManager_1.IncidentManager();
+    lapPositions = [];
+    /**
+     * Erstellt einen neuen PlayerState oder gibt den existierenden für einen Fahrzeug-Index zurück.
+     * Sorgt für eine konsistente Initialisierung neuer Fahrer-Objekte.
+     *
+     * @param carIdx Index des Fahrzeugs im Paket (0-21).
+     */
     getPlayer(carIdx) {
         if (!this.players.has(carIdx)) {
             this.players.set(carIdx, {
@@ -109,90 +63,174 @@ class SessionState {
         }
         return this.players.get(carIdx);
     }
-    updateParticipant(carIdx, data) {
-        const p = this.getPlayer(carIdx);
-        if (data.name && data.name.trim().length > 0) {
-            p.gameName = data.name;
-        }
-        p.isHuman = data.isHuman;
-        p.teamId = data.teamId;
-        p.participantData = data;
+    /** Erhöht den globalen Paketzähler und aktualisiert den letzten Zeitstempel. */
+    incrementPackets() {
+        this.packetCount++;
+        this.lastPacketTime = Date.now();
     }
+    /**
+     * Aktualisiert Session-Metadaten (Strecke, Typ, Länge).
+     * @param data Gemappte Session-Daten vom Parser.
+     */
+    updateSession(data) {
+        this.incrementPackets();
+        this.sessionType = data.sessionTypeMapped;
+        this.trackId = data.trackId;
+        this.trackName = data.trackName;
+        this.trackLength = data.trackLength;
+        this.sessionData = data;
+        this.isActive = true;
+    }
+    /**
+     * Verarbeitet Event-Pakete wie Strafen, Kollisionen oder technische Defekte.
+     * Delegiert die Protokollierung an den IncidentManager.
+     *
+     * @param event Das geparste Event-Daten Paket.
+     */
+    handleEvent(event) {
+        const car = event.vehicleIdx !== undefined ? this.getPlayer(event.vehicleIdx) : null;
+        switch (event.eventStringCode) {
+            case 'PENA': // Strafe erhalten
+                this.incidentManager.addIncident({
+                    type: 'PENALTY',
+                    details: `Strafe für ${car?.gameName || 'Auto ' + event.vehicleIdx}: ${event.time}s`,
+                    vehicleIdx: event.vehicleIdx,
+                    lapNum: event.lapNum
+                });
+                break;
+            case 'COLL': // Kollision zwischen zwei Fahrzeugen
+                const v1 = this.getPlayer(event.vehicle1Idx || 0);
+                const v2 = this.getPlayer(event.vehicle2Idx || 0);
+                this.incidentManager.addIncident({
+                    type: 'COLLISION',
+                    details: `Kollision zwischen ${v1.gameName} und ${v2.gameName}`,
+                    vehicleIdx: event.vehicle1Idx,
+                    otherVehicleIdx: event.vehicle2Idx
+                });
+                break;
+            case 'RTMT': // Fahrzeug scheidet aus (DNF)
+                const reasonMap = {
+                    0: 'Ungültig', 1: 'Aufgegeben', 2: 'Beendet', 3: 'Totalschaden',
+                    4: 'Inaktiv', 5: 'Zu wenig Runden', 6: 'Disqualifiziert',
+                    7: 'Rote Flagge', 8: 'Motorschaden', 9: 'Übersprungen', 10: 'Simuliert'
+                };
+                const reason = event.retirementReason !== undefined ? (reasonMap[event.retirementReason] || 'Unbekannt') : 'Retired';
+                this.incidentManager.addIncident({
+                    type: 'RETIREMENT',
+                    details: `Ausscheiden von ${car?.gameName || 'Auto ' + event.vehicleIdx}: ${reason}`,
+                    vehicleIdx: event.vehicleIdx,
+                    lapNum: event.lapNum
+                });
+                break;
+        }
+    }
+    /**
+     * Registriert ein Safety-Car Ereignis.
+     * @param safetyCarType Typ des SC (1=Full, 2=VSC, 3=Medical).
+     * @param eventType Status (0=Deployed, 1=Returning, 2=Returned, 3=Resume).
+     */
+    addSafetyCarEvent(safetyCarType, eventType) {
+        let currentLap = 0;
+        // Bestimmung der aktuellen führenden Runde für das Log
+        for (const [, p] of this.players) {
+            if (p.currentLapNum > 0) {
+                currentLap = p.currentLapNum;
+                break;
+            }
+        }
+        this.incidentManager.addSafetyCarEvent(safetyCarType, eventType, currentLap);
+    }
+    /**
+     * Aktualisiert Rundendaten (Position, Distanz, Warnungen)
+     * und erkennt den Abschluss einer Runde.
+     *
+     * @param carIdx Fahrzeug-Index.
+     * @param data Lap-Daten Paket.
+     */
     updateLapData(carIdx, data) {
         const p = this.getPlayer(carIdx);
         p.position = data.carPosition;
+        p.lapDistance = data.lapDistance;
+        // Startposition nur einmalig beim ersten gültigen Paket erfassen
         if (p.startPosition === 0 && data.gridPosition > 0) {
             p.startPosition = data.gridPosition;
         }
         p.pitStops = data.numPitStops;
         p.warnings = data.totalWarnings + data.cornerCuttingWarnings;
         p.penaltiesTime = data.penalties;
-        // Rundenübergang erkennen (für Positionshistorie und Rundenzeiten)
+        // Rundenübergang: Aktuelle Runde im Paket ist höher als im internen Speicher
         if (data.currentLapNum > p.currentLapNum && p.currentLapNum > 0) {
-            // Rundenposition speichern (Position beim Überqueren der Ziellinie)
-            const existingPos = this.lapPositions.find(e => e.carIndex === carIdx && e.lapNumber === p.currentLapNum);
-            if (!existingPos && p.position > 0) {
-                this.lapPositions.push({
-                    carIndex: carIdx,
-                    lapNumber: p.currentLapNum,
-                    position: p.position
-                });
-            }
-            // Nur für menschliche Fahrer Rundenzeiten speichern (Optimierung der DB)
-            if (p.isHuman) {
-                if (data.lastLapTimeInMS > 0) {
-                    // Sektorzeiten berechnen (Minuten-Teil * 60000 + Millisekunden-Teil)
-                    const s1Ms = data.sector1TimeMinutesPart * 60000 + data.sector1TimeMSPart;
-                    const s2Ms = data.sector2TimeMinutesPart * 60000 + data.sector2TimeMSPart;
-                    const s3Ms = s1Ms > 0 && s2Ms > 0
-                        ? Math.max(0, data.lastLapTimeInMS - s1Ms - s2Ms)
-                        : 0;
-                    // Aktuellen Schadensstand erfassen
-                    let damageSnapshot;
-                    if (p.carDamageData) {
-                        damageSnapshot = {
-                            frontLeftWingDamage: p.carDamageData.frontLeftWingDamage,
-                            frontRightWingDamage: p.carDamageData.frontRightWingDamage,
-                            rearWingDamage: p.carDamageData.rearWingDamage,
-                            floorDamage: p.carDamageData.floorDamage,
-                            diffuserDamage: p.carDamageData.diffuserDamage,
-                            sidepodDamage: p.carDamageData.sidepodDamage,
-                            gearBoxDamage: p.carDamageData.gearBoxDamage,
-                            engineDamage: p.carDamageData.engineDamage,
-                            engineBlown: p.carDamageData.engineBlown,
-                            engineSeized: p.carDamageData.engineSeized,
-                        };
-                    }
-                    // Best Lap Logik
-                    if (!data.currentLapInvalid && (p.fastestLapMs === null || data.lastLapTimeInMS < p.fastestLapMs)) {
-                        p.fastestLapMs = data.lastLapTimeInMS;
-                        p.bestLapSamples = [...p.currentLapSamples];
-                    }
-                    p.laps.push({
-                        lapNumber: p.currentLapNum,
-                        lapTimeMs: data.lastLapTimeInMS,
-                        isValid: !data.currentLapInvalid,
-                        tyreCompound: p.carStatusData?.visualTyreCompound,
-                        isPitLap: data.pitStatus > 0,
-                        sector1Ms: s1Ms > 0 ? s1Ms : undefined,
-                        sector2Ms: s2Ms > 0 ? s2Ms : undefined,
-                        sector3Ms: s3Ms > 0 ? s3Ms : undefined,
-                        carDamage: damageSnapshot,
-                        // Nur Samples mitsenden, wenn es die neue Bestzeit war
-                        samples: (!data.currentLapInvalid && data.lastLapTimeInMS === p.fastestLapMs) ? p.bestLapSamples : undefined
-                    });
-                    // Buffer für neue Runde leeren
-                    p.currentLapSamples = [];
-                }
-            } // End of isHuman
-        } // End of currentLapNum > p.currentLapNum
-        // Sample mit voller Frequenz aufzeichnen (z.B. 60Hz) für präzise Analysen
+            this.handleLapCompleted(carIdx, p, data);
+        }
+        // Telemetrie-Samples aufzeichnen (nur für menschliche Fahrer)
         if (p.isHuman && data.currentLapNum > 0) {
             this.maybeRecordSample(p, data);
         }
         p.currentLapNum = data.currentLapNum;
         p.lapData = data;
     }
+    /**
+     * Schließt eine Runde ab: Berechnet Sektorzeiten, prüft Bestzeiten
+     * und archiviert die Runde im Fahrer-Profil.
+     */
+    handleLapCompleted(carIdx, p, data) {
+        // Archivierung der Position am Ende der Runde
+        if (p.position > 0) {
+            this.lapPositions.push({ carIndex: carIdx, lapNumber: p.currentLapNum, position: p.position });
+        }
+        if (p.isHuman && data.lastLapTimeInMS > 0) {
+            // Berechnung der Sektorzeiten aus den Paket-Daten
+            const s1Ms = data.sector1TimeMinutesPart * 60000 + data.sector1TimeMSPart;
+            const s2Ms = data.sector2TimeMinutesPart * 60000 + data.sector2TimeMSPart;
+            // Sektor 3 ist die Differenz zur Gesamtzeit
+            const s3Ms = s1Ms > 0 && s2Ms > 0 ? Math.max(0, data.lastLapTimeInMS - s1Ms - s2Ms) : 0;
+            // Logik für die persönliche Bestzeit (PB)
+            if (!data.currentLapInvalid && (p.fastestLapMs === null || data.lastLapTimeInMS < p.fastestLapMs)) {
+                p.fastestLapMs = data.lastLapTimeInMS;
+                // Sicherung der Telemetrie-Samples für die Analyse der Bestzeit
+                p.bestLapSamples = [...p.currentLapSamples];
+            }
+            p.laps.push({
+                lapNumber: p.currentLapNum,
+                lapTimeMs: data.lastLapTimeInMS,
+                isValid: !data.currentLapInvalid,
+                tyreCompound: p.carStatusData?.visualTyreCompound,
+                isPitLap: data.pitStatus > 0,
+                sector1Ms: s1Ms > 0 ? s1Ms : undefined,
+                sector2Ms: s2Ms > 0 ? s2Ms : undefined,
+                sector3Ms: s3Ms > 0 ? s3Ms : undefined,
+                carDamage: this.createDamageSnapshot(p),
+                // Samples nur an die Runde hängen, wenn es eine Bestzeit war (Entlastung der DB)
+                samples: (!data.currentLapInvalid && data.lastLapTimeInMS === p.fastestLapMs) ? p.bestLapSamples : undefined
+            });
+            // Sample-Buffer für die nächste Runde leeren
+            p.currentLapSamples = [];
+        }
+    }
+    /**
+     * Erstellt einen Momentaufnahme der Fahrzeugschäden für die Runden-Historie.
+     */
+    createDamageSnapshot(p) {
+        if (!p.carDamageData)
+            return undefined;
+        const d = p.carDamageData;
+        return {
+            frontLeftWingDamage: d.frontLeftWingDamage,
+            frontRightWingDamage: d.frontRightWingDamage,
+            rearWingDamage: d.rearWingDamage,
+            floorDamage: d.floorDamage,
+            diffuserDamage: d.diffuserDamage,
+            sidepodDamage: d.sidepodDamage,
+            gearBoxDamage: d.gearBoxDamage,
+            engineDamage: d.engineDamage,
+            engineBlown: d.engineBlown,
+            engineSeized: d.engineSeized,
+        };
+    }
+    /**
+     * Zeichnet Telemetrie-Sample auf (Speed, Pedale, G-Kräfte) basierend auf der Distanz.
+     * Dies wird für die Visualisierung der Fahrer-Liniendifferenz benötigt.
+     */
     maybeRecordSample(p, lap) {
         if (!p.telemetryData || !p.motionData)
             return;
@@ -210,64 +248,49 @@ class SessionState {
             rHeight: p.motionExData ? [p.motionExData.frontAeroHeight, p.motionExData.rearAeroHeight] : [0, 0]
         });
     }
-    updateSession(data) {
-        this.incrementPackets();
-        this.sessionType = data.sessionTypeMapped;
-        this.trackId = data.trackId;
-        this.trackName = data.trackName;
-        this.trackLength = data.trackLength;
-        this.sessionData = data;
-        this.isActive = true;
-    }
-    updateCarStatus(carIdx, data) {
-        this.incrementPackets();
-        const p = this.getPlayer(carIdx);
-        p.carStatusData = data;
-    }
-    updateTelemetry(carIdx, data) {
-        this.incrementPackets();
-        const p = this.getPlayer(carIdx);
-        if (data.speedKmh > p.topSpeedKmh) {
-            p.topSpeedKmh = data.speedKmh;
+    /**
+     * Zählt die Anzahl der aktiven menschlichen Fahrer in der Session.
+     */
+    getHumanCount() {
+        let count = 0;
+        for (const [_, p] of this.players) {
+            if (p.isHuman && p.gameName && !p.gameName.startsWith('Unknown_')) {
+                count++;
+            }
         }
-        p.telemetryData = data;
+        return count;
     }
-    updateCarDamage(carIdx, data) {
-        this.incrementPackets();
-        const p = this.getPlayer(carIdx);
-        p.carDamageData = data;
+    /** Setzt das Flag für "Session beendet" (z.B. nach Empfang des SEND-Events). */
+    handleSessionEnd() {
+        this.isSessionEnded = true;
     }
-    updateMotion(carIdx, data) {
-        this.incrementPackets();
-        const p = this.getPlayer(carIdx);
-        p.motionData = data;
+    /** Dummy-Methode für Interface-Kompatibilität (Wird in F1 2025 seltener genutzt). */
+    updateLapPositions(buffer) {
+        // Implementierung optional für Paket 15
     }
-    updateMotionEx(carIdx, data) {
-        this.incrementPackets();
-        const p = this.getPlayer(carIdx);
-        p.motionExData = data;
-    }
+    /**
+     * Synchronisiert die Historie einer Session (vergangene Runden und Sektoren).
+     * Wichtig nach einem Verbindungswiederaufbau.
+     *
+     * @param data Session-History Paket.
+     */
     updateSessionHistory(data) {
         this.incrementPackets();
         const p = this.getPlayer(data.carIdx);
         if (!p.isHuman)
-            return; // Opt: Onyl store full lap detailed sectors for human players
-        // data.lapHistoryData holds sector times for ALL completed laps
-        // data.numLaps is the number of fully completed laps
+            return;
         for (let i = 0; i < data.numLaps; i++) {
             const hLap = data.lapHistoryData[i];
-            const lapNumber = i + 1; // Array is 0-indexed, laps 1-indexed
+            const lapNumber = i + 1;
             const s1Ms = hLap.sector1TimeMinutes * 60000 + hLap.sector1TimeInMS;
             const s2Ms = hLap.sector2TimeMinutes * 60000 + hLap.sector2TimeInMS;
             const s3Ms = hLap.sector3TimeMinutes * 60000 + hLap.sector3TimeInMS;
-            // Find or create corresponding lap in our state buffer
             let stateLap = p.laps.find(l => l.lapNumber === lapNumber);
             if (!stateLap) {
-                // Create a temporary lap entry for these sectors
                 stateLap = {
                     lapNumber: lapNumber,
-                    lapTimeMs: hLap.lapTimeInMS, // Use history lap time
-                    isValid: (hLap.lapValidFlags & 0x01) !== 0, // 0x01 = lap valid flag
+                    lapTimeMs: hLap.lapTimeInMS,
+                    isValid: (hLap.lapValidFlags & 0x01) !== 0,
                     sector1Ms: s1Ms > 0 ? s1Ms : undefined,
                     sector2Ms: s2Ms > 0 ? s2Ms : undefined,
                     sector3Ms: s3Ms > 0 ? s3Ms : undefined
@@ -275,7 +298,6 @@ class SessionState {
                 p.laps.push(stateLap);
             }
             else {
-                // Update sector times if they are valid (> 0)
                 if (s1Ms > 0)
                     stateLap.sector1Ms = s1Ms;
                 if (s2Ms > 0)
@@ -285,106 +307,17 @@ class SessionState {
             }
         }
     }
-    updateTyreSets(carIdx, tyreSets) {
-        this.incrementPackets();
-        const p = this.getPlayer(carIdx);
-        p.tyreSets = tyreSets;
-    }
-    // Payload erstellen und Runden/Events leeren, um keine Duplikate zu senden
+    /**
+     * Baut das Payload-Objekt für die Übertragung an das Frontend zusammen.
+     * Nutzt den PayloadMapper zur Transformation und leert temporäre Ereignis-Buffer.
+     *
+     * @returns Komplettes Session-Status Objekt für die API/SSE.
+     */
     buildPayloadAndClear() {
         const participantsList = Array.from(this.players.entries())
             .filter(([_, p]) => p.gameName && !p.gameName.startsWith('Unknown_'))
-            .map(([_, p]) => {
-            const lapsToSend = [...p.laps];
-            p.laps = []; // Nach dem Extrahieren leeren
-            // Kompakten Delta-Wert berechnen (ms)
-            const lapData = p.lapData;
-            const deltaToFront = lapData
-                ? lapData.deltaToCarInFrontMinutesPart * 60000 + lapData.deltaToCarInFrontMSPart
-                : 0;
-            const deltaToLeader = lapData
-                ? lapData.deltaToRaceLeaderMinutesPart * 60000 + lapData.deltaToRaceLeaderMSPart
-                : 0;
-            return {
-                gameName: p.gameName,
-                carIndex: _,
-                position: p.position,
-                lapDistance: p.lapDistance,
-                fastestLapMs: p.fastestLapMs,
-                topSpeedKmh: p.topSpeedKmh,
-                isHuman: p.isHuman,
-                startPosition: p.startPosition,
-                teamId: p.teamId,
-                pitStops: p.pitStops,
-                warnings: p.warnings,
-                penaltiesTime: p.penaltiesTime,
-                laps: lapsToSend,
-                // Live-Daten für SSE
-                telemetry: p.telemetryData ? {
-                    speedKmh: p.telemetryData.speedKmh,
-                    throttle: p.telemetryData.throttle,
-                    brake: p.telemetryData.brake,
-                    steer: p.telemetryData.steer,
-                    clutch: p.telemetryData.clutch,
-                    gear: p.telemetryData.gear,
-                    engineRPM: p.telemetryData.engineRPM,
-                    drs: p.telemetryData.drs,
-                    brakesTemperature: p.telemetryData.brakesTemperature,
-                    tyresSurfaceTemperature: p.telemetryData.tyresSurfaceTemperature,
-                    tyresInnerTemperature: p.telemetryData.tyresInnerTemperature,
-                    tyresPressure: p.telemetryData.tyresPressure,
-                } : undefined,
-                status: p.carStatusData ? {
-                    ersDeployMode: p.carStatusData.ersDeployMode,
-                    ersStoreEnergy: p.carStatusData.ersStoreEnergy,
-                    fuelMix: p.carStatusData.fuelMix,
-                    fuelRemainingLaps: p.carStatusData.fuelRemainingLaps,
-                    fuelInTank: p.carStatusData.fuelInTank,
-                    visualTyreCompound: p.carStatusData.visualTyreCompound,
-                    actualTyreCompound: p.carStatusData.actualTyreCompound,
-                    tyresAgeLaps: p.carStatusData.tyresAgeLaps,
-                } : undefined,
-                damage: p.carDamageData ? {
-                    tyreBlisters: p.carDamageData.tyreBlisters,
-                    tyresWear: p.carDamageData.tyresWear,
-                    tyresDamage: p.carDamageData.tyresDamage,
-                    brakesDamage: p.carDamageData.brakesDamage,
-                    frontLeftWingDamage: p.carDamageData.frontLeftWingDamage,
-                    frontRightWingDamage: p.carDamageData.frontRightWingDamage,
-                    rearWingDamage: p.carDamageData.rearWingDamage,
-                    gearBoxDamage: p.carDamageData.gearBoxDamage,
-                    engineDamage: p.carDamageData.engineDamage,
-                } : undefined,
-                tyreSets: p.tyreSets,
-                motion: p.motionData ? {
-                    gForceLateral: p.motionData.gForceLateral,
-                    gForceLongitudinal: p.motionData.gForceLongitudinal,
-                    gForceVertical: p.motionData.gForceVertical,
-                } : undefined,
-                lapInfo: lapData ? {
-                    currentLapNum: lapData.currentLapNum,
-                    currentLapTimeInMS: lapData.currentLapTimeInMS,
-                    lastLapTimeInMS: lapData.lastLapTimeInMS,
-                    sector1Ms: lapData.sector1TimeMinutesPart * 60000 + lapData.sector1TimeMSPart,
-                    sector2Ms: lapData.sector2TimeMinutesPart * 60000 + lapData.sector2TimeMSPart,
-                    pitStatus: lapData.pitStatus,
-                    driverStatus: lapData.driverStatus,
-                    resultStatus: lapData.resultStatus,
-                    pitLaneTimeInLaneInMS: lapData.pitLaneTimeInLaneInMS,
-                    pitStopTimerInMS: lapData.pitStopTimerInMS,
-                    deltaToCarInFrontMs: deltaToFront,
-                    deltaToRaceLeaderMs: deltaToLeader,
-                } : undefined,
-                sessionStatus: p.carStatusData ? {
-                    pitStopWindowIdealLap: p.pitStopWindowIdealLap ?? 0,
-                    pitStopWindowLatestLap: p.pitStopWindowLatestLap ?? 0,
-                    pitStopRejoinPosition: p.pitStopRejoinPosition ?? 0,
-                } : undefined,
-            };
-        });
-        // Safety-Car-Events und Positionsverlauf sammeln und leeren
-        const safetyCarEvents = [...this.safetyCarEvents];
-        this.safetyCarEvents = [];
+            .map(([_, p]) => payloadMapper_1.PayloadMapper.mapPlayer(_, p));
+        const safetyCarEvents = this.incidentManager.fetchAndClearEvents();
         const lapPositions = [...this.lapPositions];
         this.lapPositions = [];
         return {
@@ -393,18 +326,69 @@ class SessionState {
             trackName: this.trackName,
             trackLength: this.trackLength,
             isActive: this.isActive,
-            isSessionEnded: false,
+            isSessionEnded: this.isSessionEnded,
             sessionData: this.sessionData,
             participants: participantsList,
             safetyCarEvents,
-            incidentLog: this.incidentLog,
+            incidentLog: this.incidentManager.getIncidentLog(),
             trackFlags: this.trackFlags,
             lapPositions,
+            finalClassification: this.finalClassification,
         };
     }
+    /** Aktualisiert Basis-Informationen zum Teilnehmer. */
+    updateParticipant(carIdx, data) {
+        const p = this.getPlayer(carIdx);
+        if (data.name?.trim().length)
+            p.gameName = data.name;
+        p.isHuman = data.isHuman;
+        p.teamId = data.teamId;
+        p.participantData = data;
+    }
+    /** Aktualisiert Telemetrie (Speed, etc.) und trackt Topspeed. */
+    updateTelemetry(carIdx, data) {
+        this.incrementPackets();
+        const p = this.getPlayer(carIdx);
+        if (data.speedKmh > p.topSpeedKmh)
+            p.topSpeedKmh = data.speedKmh;
+        p.telemetryData = data;
+    }
+    /** Aktualisiert Status-Daten (Reifen, Mischung, FIA Flaggen). */
+    updateCarStatus(carIdx, data) {
+        this.incrementPackets();
+        const p = this.getPlayer(carIdx);
+        p.carStatusData = data;
+    }
+    /** Aktualisiert Schadensdaten des Fahrzeugs. */
+    updateCarDamage(carIdx, data) {
+        this.incrementPackets();
+        this.getPlayer(carIdx).carDamageData = data;
+    }
+    /** Aktualisiert Bewegungsdaten (Position, G-Kräfte). */
+    updateMotion(carIdx, data) {
+        this.incrementPackets();
+        this.getPlayer(carIdx).motionData = data;
+    }
+    /** Aktualisiert erweiterte Bewegungsdaten (Aero-Höhe etc.). */
+    updateMotionEx(carIdx, data) {
+        this.incrementPackets();
+        this.getPlayer(carIdx).motionExData = data;
+    }
+    /** Aktualisiert verfügbare Reifensätze. */
+    updateTyreSets(carIdx, tyreSets) {
+        this.incrementPackets();
+        this.getPlayer(carIdx).tyreSets = tyreSets;
+    }
+    /** Speichert das finale Klassement am Ende des Rennens/Qualifyings. */
+    updateFinalClassification(data) {
+        this.incrementPackets();
+        this.finalClassification = data.classificationData;
+        this.isSessionEnded = true;
+    }
+    /** Gibt eine Zusammenfassung des Session-Status für das Terminal-Dashboard zurück. */
     getDashboardState() {
         return {
-            sessionId: 'current',
+            sessionId: 'aktuell',
             trackName: this.trackName,
             sessionType: this.sessionType,
             isActive: this.isActive,

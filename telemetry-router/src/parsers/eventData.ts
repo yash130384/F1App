@@ -16,6 +16,8 @@ export interface EventData {
     // Overtake
     overtakingVehicleIdx?: number;
     beingOvertakenVehicleIdx?: number;
+    // Retirement
+    retirementReason?: number;
 }
 
 export function parseEventData(buffer: Buffer): EventData {
@@ -45,6 +47,11 @@ export function parseEventData(buffer: Buffer): EventData {
     else if (eventStringCode === 'OVTK') {
         event.overtakingVehicleIdx = buffer.readUInt8(33);
         event.beingOvertakenVehicleIdx = buffer.readUInt8(34);
+    }
+    // Retirement event
+    else if (eventStringCode === 'RTMT') {
+        event.vehicleIdx = buffer.readUInt8(33);
+        event.retirementReason = buffer.readUInt8(34);
     }
 
     return event;

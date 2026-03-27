@@ -2,27 +2,35 @@ import fs from 'fs';
 import fetch from 'node-fetch';
 import path from 'path';
 import { AppConfig } from './index';
-// If using commonjs for enquirer, prompt works out of the box.
 import { prompt } from 'enquirer';
 
+/**
+ * Startet den Playback-Modus für Legacy-JSON-Aufzeichnungen.
+ * Dieser Modus erlaubt es, eine zuvor als JSON gespeicherte Session erneut an die API zu senden.
+ * Dies ist besonders nützlich für die Entwicklung des Frontends ohne laufendes Spiel.
+ * 
+ * @param config Die globale Anwendungskonfiguration.
+ */
 export async function startPlayback(config: AppConfig) {
-    console.log('\n--- Playback Mode ---');
+    console.log('\n--- Wiedergabemodus (Legacy JSON) ---');
     const logsDir = path.join(process.cwd(), 'logs');
+    
     if (!fs.existsSync(logsDir)) {
-        console.error('No logs directory found.');
+        console.error('Kein "logs" Verzeichnis gefunden.');
         return;
     }
 
     const files = fs.readdirSync(logsDir).filter(f => f.endsWith('.json'));
     if (files.length === 0) {
-        console.error('No recordings found in ./logs');
+        console.error('Keine JSON-Aufzeichnungen in ./logs gefunden.');
         return;
     }
 
+    // Interaktive Auswahl der Aufzeichnung
     const response = await prompt<any>({
         type: 'select',
         name: 'file',
-        message: 'Select a recording to playback:',
+        message: 'Wählen Sie eine Datei zur Wiedergabe:',
         choices: files
     });
 
@@ -31,20 +39,21 @@ export async function startPlayback(config: AppConfig) {
     let jsonData;
     try {
         let text = fileData.trim();
-        // Handle abruptly terminated JSON arrays
+        // Repariert automatisch JSON-Arrays, die durch Programmabbruch nicht geschlossen wurden
         if (!text.endsWith(']')) text += '\n]';
         jsonData = JSON.parse(text);
     } catch (e) {
-        console.error('Error parsing recording file. Make sure it is valid JSON.');
+        console.error('Fehler beim Parsen der Aufzeichnung. Stellen Sie sicher, dass es sich um gültiges JSON handelt.');
         return;
     }
 
-    console.log(`Loaded ${jsonData.length} frames. Starting playback to ${config.url} at ${config.intervalMs}ms interval...`);
+    console.log(`Geladen: ${jsonData.length} Datenpunkte.`);
+    console.log(`Starte Wiedergabe an ${config.url} im ${config.intervalMs}ms Intervall...`);
 
     let index = 0;
     const timer = setInterval(async () => {
         if (index >= jsonData.length) {
-            console.log('Playback complete.');
+            console.log('✅ Wiedergabe abgeschlossen.');
             clearInterval(timer);
             return;
         }
@@ -63,13 +72,14 @@ export async function startPlayback(config: AppConfig) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
+            
             if (!res.ok) {
-                console.error(`Failed to send chunk ${index}, status: ${res.status}`);
+                console.error(`Fehler beim Senden von Block ${index}, Status: ${res.status}`);
             } else {
-                console.log(`Sent chunk ${index} / ${jsonData.length}`);
+                process.stdout.write(`\rSende Block ${index} / ${jsonData.length}...`);
             }
         } catch (e: any) {
-            console.error(`Error sending telemetry chunk ${index}: ${e.message}`);
+            console.error(`\nNetzwerkfehler beim Senden von Block ${index}: ${e.message}`);
         }
     }, config.intervalMs);
 }

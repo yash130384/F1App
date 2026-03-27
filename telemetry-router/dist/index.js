@@ -35,16 +35,23 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const dotenv_1 = require("dotenv");
 const enquirer_1 = require("enquirer");
-(0, dotenv_1.config)(); // Load .env if exists
+// Lade Umgebungsvariablen aus der .env Datei
+(0, dotenv_1.config)();
+/**
+ * Haupteinstiegspunkt der Anwendung.
+ * Verwaltet das interaktive Menü und startet die gewählten Sub-Module.
+ */
 async function main() {
     console.log('\n--- F1 25 Telemetry Router ---');
+    // Standard-Konfiguration basierend auf Umgebungsvariablen
     let appConfig = {
         leagueId: process.env.LEAGUE_ID || 'MyLeague',
         mode: 'Live Telemetry',
         url: process.env.TARGET_URL || 'http://localhost:3000/api/telemetry',
-        port: parseInt(process.env.UDP_PORT || '20888'),
+        port: parseInt(process.env.UDP_PORT || '20777'),
         intervalMs: 5000
     };
+    // Automatischer Start (nicht interaktiv) für Headless-Umgebungen/Vercel/Docker
     if (process.env.NON_INTERACTIVE === 'true') {
         appConfig.transmissionMode = process.env.TRANSMISSION_MODE || 'Balanced (5s)';
         appConfig.intervalMs = appConfig.transmissionMode === 'Results Only (60s)' ? 60000 :
@@ -53,11 +60,12 @@ async function main() {
         startUdpListener(appConfig);
         return;
     }
+    // Interaktives CLI-Menü
     while (true) {
         const response = await (0, enquirer_1.prompt)({
             type: 'select',
             name: 'mode',
-            message: 'Main Menu:',
+            message: 'Hauptmenü:',
             choices: [
                 'Live Telemetry',
                 'Fast Process Recordings',
@@ -69,20 +77,22 @@ async function main() {
         if (response.mode === 'Exit')
             process.exit(0);
         appConfig.mode = response.mode;
+        // Einstellungen anpassen
         if (appConfig.mode === 'Settings') {
             const settings = await (0, enquirer_1.prompt)([
-                { type: 'input', name: 'leagueId', message: 'League ID:', initial: appConfig.leagueId },
-                { type: 'input', name: 'url', message: 'Target URL:', initial: appConfig.url },
+                { type: 'input', name: 'leagueId', message: 'Liga-ID:', initial: appConfig.leagueId },
+                { type: 'input', name: 'url', message: 'Ziel-URL:', initial: appConfig.url },
                 { type: 'numeral', name: 'port', message: 'UDP Port:', initial: appConfig.port }
             ]);
             appConfig = { ...appConfig, ...settings };
             continue;
         }
+        // Live-Telemetrie Start
         if (appConfig.mode === 'Live Telemetry') {
             const transRes = await (0, enquirer_1.prompt)({
                 type: 'select',
                 name: 'transmissionMode',
-                message: 'Select Transmission Mode:',
+                message: 'Übertragungsfrequenz wählen:',
                 choices: ['Live (60Hz)', 'Balanced (5s)', 'Results Only (60s)']
             });
             appConfig.transmissionMode = transRes.transmissionMode;
@@ -93,17 +103,20 @@ async function main() {
             startUdpListener(appConfig);
             return;
         }
+        // Schnelle Nachverarbeitung von lokalen Aufzeichnungen (.bin Dateien)
         if (appConfig.mode === 'Fast Process Recordings') {
             const { fastProcessRecordings } = await Promise.resolve().then(() => __importStar(require('./fastProcess')));
             await fastProcessRecordings(appConfig);
         }
+        // Simuliertes Abspielen einer Session zur UI-Entwicklung
         if (appConfig.mode === 'Playback Recording (Legacy)') {
             const { startPlayback } = await Promise.resolve().then(() => __importStar(require('./playback')));
             await startPlayback(appConfig);
         }
     }
 }
+// Fehlerbehandlung für den globalen Scope
 main().catch(err => {
-    console.error('Fatal Error:', err);
+    console.error('Kritischer Fehler beim Starten der Anwendung:', err);
     process.exit(1);
 });
