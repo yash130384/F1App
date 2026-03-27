@@ -314,7 +314,11 @@ function DriverDetailContent() {
                                         <ReferenceLine key={`sc-${i}`} x={e.lap_number} stroke="#ffc107" strokeDasharray="4 3" strokeWidth={1.5}
                                             label={{ value: e.safety_car_type === 1 ? 'SC' : 'VSC', position: 'insideTopLeft', fill: '#ffc107', fontSize: 9 }} />
                                     ))}
-                                    {driverLaps.filter((l: any) => l.is_pit_lap).map((l: any) => (
+                                    {driverLaps.filter((l: any, idx: number) => {
+                                        if (!l.is_pit_lap) return false;
+                                        // Nur anzeigen, wenn die Vorrunde keine Pit-Runde war (verhindert Doppel-Anzeige)
+                                        return idx === 0 || !driverLaps[idx-1].is_pit_lap;
+                                    }).map((l: any) => (
                                         <ReferenceLine key={`pit-${l.lap_number}`} x={l.lap_number} stroke="#ff8700"
                                             strokeWidth={1} strokeDasharray="3 2"
                                             label={<ChartEventLabel value="PIT" color="#ff8700" bg="rgba(255,135,0,0.18)" />} />
@@ -347,9 +351,11 @@ function DriverDetailContent() {
                                     })}
                                     <Line type="monotone" dataKey="lap_time_ms" stroke="url(#singleTyreGradient)" strokeWidth={3}
                                         dot={(props: any) => {
-                                            const lap = driverLaps[props.index];
+                                            const idx = props.index;
+                                            const lap = driverLaps[idx];
                                             if (!lap) return <g key={props.key} />;
-                                            if (lap.is_pit_lap && lap.tyre_compound) {
+                                            const isFirstPitLap = lap.is_pit_lap && (idx === 0 || !driverLaps[idx-1].is_pit_lap);
+                                            if (isFirstPitLap && lap.tyre_compound) {
                                                 const info = getTyreInfo(lap.tyre_compound);
                                                 return <circle key={props.key} cx={props.cx} cy={props.cy} r={6} fill={info.color} stroke="rgba(255,255,255,0.5)" strokeWidth={2} />;
                                             }
@@ -525,7 +531,11 @@ function DriverDetailContent() {
                                                             <td style={{ padding: '0.5rem 0.75rem', textAlign: 'center' }}>
                                                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                                                                     {lap.tyre_compound != null && <TyreBadge compoundId={lap.tyre_compound} />}
-                                                                    {lap.is_pit_lap && <span style={{ background: '#ff8700', color: 'white', fontSize: '0.55rem', padding: '2px 4px', borderRadius: '3px', fontWeight: 900 }}>PIT</span>}
+                                                                    {(() => {
+                                                                        const idx = driverLaps.findIndex(l => l.lap_number === lap.lap_number);
+                                                                        const isFirstPitLap = lap.is_pit_lap && (idx === 0 || !driverLaps[idx-1].is_pit_lap);
+                                                                        return isFirstPitLap ? <span style={{ background: '#ff8700', color: 'white', fontSize: '0.55rem', padding: '2px 4px', borderRadius: '3px', fontWeight: 900 }}>PIT</span> : null;
+                                                                    })()}
                                                                     {!lap.is_valid && <span style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.55rem', padding: '2px 4px', borderRadius: '3px', fontWeight: 900 }} title="Runde Ungültig">INV</span>}
                                                                     
                                                                     {lapCollisions.length > 0 && (
