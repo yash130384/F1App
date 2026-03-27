@@ -204,6 +204,8 @@ export default function Dashboard() {
     const [upcomingRaces, setUpcomingRaces] = useState<any[]>([]);
     const [leagueStats, setLeagueStats] = useState<any>(null);
     const [graphData, setGraphData] = useState<any[]>([]);
+    const [teamGraphData, setTeamGraphData] = useState<any[]>([]);
+    const [activeGraphTab, setActiveGraphTab] = useState<'driver' | 'team'>('driver');
 
     const [selectedRace, setSelectedRace] = useState<any | null>(null);
     const [raceResults, setRaceResults] = useState<any[]>([]);
@@ -258,6 +260,7 @@ export default function Dashboard() {
             setRaces(res.races || []);
             setUpcomingRaces(res.upcoming || []);
             setGraphData(res.graphData || []);
+            setTeamGraphData(res.teamGraphData || []);
             setLeagueStats(res.stats);
 
             // Fetch live session
@@ -529,33 +532,66 @@ export default function Dashboard() {
 
                             {graphData && graphData.length > 0 && (
                                 <section className="dashboard-graph animate-fade-in" style={{ marginBottom: '3rem' }}>
-                                    <h2 className="text-f1" style={{ borderLeft: '4px solid var(--f1-red)', paddingLeft: '1rem', marginBottom: '1.5rem' }}>
-                                        Championship Progression
-                                    </h2>
-                                    <div className="f1-card" style={{ padding: '2rem 1rem', height: '400px' }}>
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <LineChart data={graphData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-                                                <XAxis dataKey="name" stroke="var(--silver)" tick={{ fill: 'var(--silver)', fontSize: 12 }} />
-                                                <YAxis stroke="var(--silver)" tick={{ fill: 'var(--silver)', fontSize: 12 }} />
-                                                <Tooltip
-                                                    contentStyle={{ backgroundColor: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--white)' }}
-                                                    itemStyle={{ color: 'var(--white)' }}
-                                                />
-                                                <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                                                {standings.map((driver, idx) => (
-                                                    <Line
-                                                        key={driver.id}
-                                                        type="monotone"
-                                                        dataKey={driver.name}
-                                                        stroke={driver.color || colors[idx % colors.length]}
-                                                        strokeWidth={3}
-                                                        dot={{ r: 4, strokeWidth: 2 }}
-                                                        activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}
+                                    <div className="flex justify-between items-center mb-4" style={{ borderLeft: '4px solid var(--f1-red)', paddingLeft: '1rem' }}>
+                                        <h2 className="text-f1" style={{ margin: 0 }}>
+                                            Progression
+                                        </h2>
+                                        {league.config?.teamCompetition && (
+                                            <div className="flex bg-white/5 rounded-lg p-1 border border-white/5">
+                                                <button 
+                                                    onClick={() => setActiveGraphTab('driver')}
+                                                    className={`px-4 py-1 rounded-md text-[0.7rem] font-black transition-all ${activeGraphTab === 'driver' ? 'bg-f1-red text-white' : 'text-silver hover:text-white'}`}
+                                                >
+                                                    DRIVER
+                                                </button>
+                                                <button 
+                                                    onClick={() => setActiveGraphTab('team')}
+                                                    className={`px-4 py-1 rounded-md text-[0.7rem] font-black transition-all ${activeGraphTab === 'team' ? 'bg-f1-red text-white' : 'text-silver hover:text-white'}`}
+                                                >
+                                                    TEAM
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="f1-card" style={{ padding: '2rem 1.5rem 1rem 0.5rem' }}>
+                                        <div style={{ width: '100%', height: 400 }}>
+                                            <ResponsiveContainer>
+                                                <LineChart data={activeGraphTab === 'driver' ? graphData : teamGraphData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                                    <XAxis 
+                                                        dataKey="name" 
+                                                        stroke="var(--silver)" 
+                                                        fontSize={10} 
+                                                        tickLine={false}
+                                                        axisLine={false}
+                                                        dy={10}
                                                     />
-                                                ))}
-                                            </LineChart>
-                                        </ResponsiveContainer>
+                                                    <YAxis 
+                                                        stroke="var(--silver)" 
+                                                        fontSize={10} 
+                                                        tickLine={false}
+                                                        axisLine={false}
+                                                    />
+                                                    <Tooltip 
+                                                        contentStyle={{ backgroundColor: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', fontSize: '0.8rem' }}
+                                                        itemStyle={{ padding: '2px 0' }}
+                                                    />
+                                                    <Legend wrapperStyle={{ fontSize: '0.7rem', paddingTop: '20px' }} />
+                                                    {(activeGraphTab === 'driver' ? standings : teamStandings).map((item, idx) => (
+                                                        <Line
+                                                            key={item.id}
+                                                            type="monotone"
+                                                            dataKey={item.name}
+                                                            stroke={item.color || `hsl(${(idx * 137.5) % 360}, 70%, 50%)`}
+                                                            strokeWidth={3}
+                                                            dot={{ r: 4, strokeWidth: 2, fill: 'var(--f1-carbon)' }}
+                                                            activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }}
+                                                            animationDuration={1500}
+                                                        />
+                                                    ))}
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
                                     </div>
                                 </section>
                             )}

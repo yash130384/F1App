@@ -465,6 +465,8 @@ export async function getDashboardData(leagueName: string) {
             return { ...r, is_hidden: false };
         });
 
+        const teams = await query<any>(`SELECT * FROM teams WHERE league_id = ?`, [leagueId]);
+
         // Build Chronological Data for the Graph and Form Indicator
         // 1. Fetch all results for finished races in this league
         const allResults = await query<any>(`
@@ -484,6 +486,7 @@ export async function getDashboardData(leagueName: string) {
 
         const graphData: any[] = [];
         const runningTotals: Record<string, number> = {};
+        const teamRunningTotals: Record<string, number> = {};
         const previousPoints: Record<string, number> = {}; // Points from race N-1
         const latestPoints: Record<string, number> = {};   // Points from race N
 
@@ -491,6 +494,12 @@ export async function getDashboardData(leagueName: string) {
             runningTotals[d.id] = 0;
             d.formIndicator = 'SAME'; // Default
         });
+        
+        teams.forEach((t: any) => {
+            teamRunningTotals[t.id] = 0;
+        });
+
+        const teamGraphData: any[] = [];
 
         // Calculate running totals per race for the graph
         finishedRaces.forEach((race: any, index: number) => {
@@ -498,7 +507,8 @@ export async function getDashboardData(leagueName: string) {
 
             standings.forEach((d: any) => {
                 const earned = resultsByRace[race.id]?.[d.id] || 0;
-
+                
+                // Track for form indicator later
                 if (index === finishedRaces.length - 2) {
                     previousPoints[d.id] = earned;
                 }
@@ -508,8 +518,21 @@ export async function getDashboardData(leagueName: string) {
 
                 runningTotals[d.id] += earned;
                 dataPoint[d.name] = runningTotals[d.id];
+
+                // Add to team total if assigned
+                if (d.team_id && teamRunningTotals[d.team_id] !== undefined) {
+                    teamRunningTotals[d.team_id] += earned;
+                }
             });
+
             graphData.push(dataPoint);
+            
+            // Build separate team graph point for this same race
+            const teamDataPoint: any = { name: race.track || `Race ${index + 1}` };
+            teams.forEach((t: any) => {
+                teamDataPoint[t.name] = teamRunningTotals[t.id];
+            });
+            teamGraphData.push(teamDataPoint);
         });
 
         // Determine Form Indicator
@@ -569,6 +592,7 @@ export async function getDashboardData(leagueName: string) {
             races: finishedRaces.slice().reverse().slice(0, 10), // Keep recent races descending
             upcoming: upcomingRaces,
             graphData,
+            teamGraphData,
             stats: {
                 totalRaces: totalRaces[0].count,
                 plannedTotalRaces: config?.totalRaces || 0,
