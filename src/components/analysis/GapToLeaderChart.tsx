@@ -70,8 +70,12 @@ export default function GapToLeaderChart({ laps }: GapToLeaderChartProps) {
         dataByLap[lap] = { lap };
         
         totalTimes.forEach((lapMap, driverName) => {
+            // Wir berechnen den Abstand nur, wenn der Fahrer diese Runde auch beendet hat
+            // (Um zu verhindern, dass die Linie am Ende auf 0 fällt, nur weil keine neuen Daten kommen)
+            const driverFinishedThisLap = laps.some(l => (l.driver_name || l.game_name) === driverName && l.lap_number === lap);
+            
             const time = lapMap.get(lap);
-            if (time !== undefined) {
+            if (time !== undefined && driverFinishedThisLap) {
                 const gap = (time - leaderTime) / 1000;
                 dataByLap[lap][driverName] = parseFloat(gap.toFixed(3));
             }

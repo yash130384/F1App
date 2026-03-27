@@ -43,21 +43,35 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-                {sorted.map((p, i) => (
-                    <div key={p.game_name} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ width: 120, fontSize: 11, color: '#aaa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            <span style={{ fontWeight: 800, color: '#fff', marginRight: 6 }}>P{p.position}</span>
-                            {p.driver_name || p.game_name}
-                        </div>
-                        <div style={{ 
-                            flex: 1, 
-                            height: 20, 
-                            background: 'rgba(255,255,255,0.02)', 
-                            borderRadius: 4, 
-                            position: 'relative',
-                            display: 'flex',
-                        }}>
-                            {p.stints.map((stint, idx) => {
+                {sorted.map((p, i) => {
+                    // Merging logic: Stints mit dem gleichen Reifen hintereinander zusammenfassen
+                    const mergedStints: Stint[] = [];
+                    p.stints.forEach(stint => {
+                        const last = mergedStints[mergedStints.length - 1];
+                        if (last && last.visual_compound === stint.visual_compound) {
+                            // Erweitern des vorherigen Stints
+                            last.end_lap = stint.end_lap || totalLaps;
+                        } else {
+                            // Neuen Stint hinzufügen
+                            mergedStints.push({ ...stint, end_lap: stint.end_lap || totalLaps });
+                        }
+                    });
+
+                    return (
+                        <div key={p.game_name} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ width: 120, fontSize: 11, color: '#aaa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <span style={{ fontWeight: 800, color: '#fff', marginRight: 6 }}>P{p.position}</span>
+                                {p.driver_name || p.game_name}
+                            </div>
+                            <div style={{ 
+                                flex: 1, 
+                                height: 20, 
+                                background: 'rgba(255,255,255,0.02)', 
+                                borderRadius: 4, 
+                                position: 'relative',
+                                display: 'flex',
+                            }}>
+                                {mergedStints.map((stint, idx) => {
                                 const start = stint.start_lap;
                                 const end = stint.end_lap || totalLaps;
                                 const duration = end - start + 1;
@@ -81,17 +95,17 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
                                             fontWeight: 900,
                                             color: '#000',
                                             opacity: 0.9,
-                                            borderRadius: idx === 0 ? '4px 0 0 4px' : idx === p.stints.length - 1 ? '0 4px 4px 0' : '0',
+                                            borderRadius: idx === 0 ? '4px 0 0 4px' : idx === mergedStints.length - 1 ? '0 4px 4px 0' : '0',
                                         }}
-                                        title={`Stint ${stint.stint_number}: Lap ${start}-${end} (${COMPOUND_LABELS[stint.visual_compound]})`}
+                                        title={`Stint ${idx + 1}: Lap ${start}-${end} (${COMPOUND_LABELS[stint.visual_compound]})`}
                                     >
-                                        {duration > 2 && COMPOUND_LABELS[stint.visual_compound]}
+                                        {duration > 1 && COMPOUND_LABELS[stint.visual_compound]}
                                     </div>
                                 );
                             })}
                         </div>
                         <div style={{ width: 40, fontSize: 10, color: '#666', textAlign: 'right' }}>
-                            {p.stints.length - 1} 🛑
+                            {mergedStints.length - 1} 🛑
                         </div>
                     </div>
                 ))}
