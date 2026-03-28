@@ -292,9 +292,8 @@ function RaceDetailContent() {
                                     </div>
                                 </div>
 
-                                <div className="f1-card">
-                                    <h3 className="text-f1-bold mb-large" style={{ fontSize: '0.75rem', color: 'var(--f1-red)', letterSpacing: '2px' }}>TYRE STRATEGY</h3>
-                                    <div style={{ height: '400px' }}>
+                                <div className="f1-card" style={{ padding: 0 }}>
+                                    <div>
                                         <TyreStrategyChart 
                                             participants={analysisData.participants} 
                                             totalLaps={graphData.length > 0 ? graphData[graphData.length - 1].lap_number : 50} 
