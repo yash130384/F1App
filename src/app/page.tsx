@@ -12,8 +12,8 @@ export default function Home() {
           Automate scoring and manage your F1 25 league standings in seconds with a professional director's dashboard.
         </p>
         <div className="flex justify-center gap-medium">
-          <Link href="/create-league" className="btn btn-primary" style={{ padding: '1rem 2,5rem', fontSize: '1rem' }}>Create League</Link>
-          <Link href="/dashboard" className="btn btn-secondary" style={{ padding: '1rem 2,5rem', fontSize: '1rem' }}>See Standings</Link>
+          <Link href="/create-league" className="btn btn-primary" style={{ minWidth: '220px' }}>INITIALIZE LEAGUE</Link>
+          <Link href="/dashboard" className="btn btn-secondary" style={{ minWidth: '220px' }}>CHAMPIONSHIP HUB</Link>
         </div>
       </header>
 

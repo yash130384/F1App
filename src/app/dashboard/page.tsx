@@ -336,8 +336,8 @@ export default function Dashboard() {
                 <h1 className="h1 text-gradient" style={{ fontSize: '2.5rem' }}>League Center</h1>
 
                 {selectedLeagueName && (
-                    <button className="btn btn-secondary" onClick={() => { setSelectedLeagueName(null); setLeague(null); setSelectedRace(null); }}>
-                        &larr; All Leagues
+                    <button className="btn btn-secondary btn-sm" onClick={() => { setSelectedLeagueName(null); setLeague(null); setSelectedRace(null); }}>
+                        &larr; BACK TO LEAGUES
                     </button>
                 )}
             </header>
@@ -528,32 +528,20 @@ export default function Dashboard() {
                             {graphData && graphData.length > 0 && (
                                 <section>
                                     <div className="flex justify-between items-center" style={{ marginBottom: '1.5rem', borderLeft: '4px solid var(--f1-red)', paddingLeft: '1rem' }}>
-                                        <h2 className="h2" style={{ fontSize: '1.5rem', margin: 0 }}>Progression</h2>
+                                        <h2 className="h2" style={{ fontSize: '1.5rem', margin: 0 }}>Season Progression</h2>
                                         {league.config?.teamCompetition && (
-                                            <div className="flex glass-panel" style={{ padding: '2px', borderRadius: '4px' }}>
+                                            <div className="flex gap-xsmall glass-panel p-1">
                                                 <button 
                                                     onClick={() => setActiveGraphTab('driver')}
-                                                    className="btn"
-                                                    style={{ 
-                                                        padding: '4px 12px', 
-                                                        fontSize: '0.7rem', 
-                                                        background: activeGraphTab === 'driver' ? 'var(--f1-red)' : 'transparent',
-                                                        color: activeGraphTab === 'driver' ? 'white' : 'var(--text-secondary)'
-                                                    }}
+                                                    className={`btn btn-xs ${activeGraphTab === 'driver' ? 'btn-primary' : 'btn-outline'}`}
                                                 >
-                                                    DRIVER
+                                                    DRIVERS
                                                 </button>
                                                 <button 
                                                     onClick={() => setActiveGraphTab('team')}
-                                                    className="btn"
-                                                    style={{ 
-                                                        padding: '4px 12px', 
-                                                        fontSize: '0.7rem', 
-                                                        background: activeGraphTab === 'team' ? 'var(--f1-red)' : 'transparent',
-                                                        color: activeGraphTab === 'team' ? 'white' : 'var(--text-secondary)'
-                                                    }}
+                                                    className={`btn btn-xs ${activeGraphTab === 'team' ? 'btn-primary' : 'btn-outline'}`}
                                                 >
-                                                    TEAM
+                                                    CONSTRUCTORS
                                                 </button>
                                             </div>
                                         )}

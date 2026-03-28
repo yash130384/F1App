@@ -516,7 +516,7 @@ export default function AdminHub() {
                         </div>
                         
                         <div className="flex items-center gap-medium">
-                            <nav className="flex gap-xsmall bg-black/30 p-1 rounded-sm border border-white/5">
+                            <nav className="flex gap-xsmall glass-panel p-1">
                                 {[
                                     { id: 'races', label: 'RACE PLANNER' },
                                     { id: 'drivers', label: 'DRIVERS & TEAMS' },
@@ -526,20 +526,15 @@ export default function AdminHub() {
                                     <button 
                                         key={tab.id}
                                         onClick={() => { setActiveTab(tab.id as any); setManagingSession(null); }}
-                                        className={`px-4 py-2 text-f1-bold transition-all ${activeTab === tab.id ? 'bg-f1-red text-white' : 'text-text-secondary hover:text-white'}`}
-                                        style={{ fontSize: '0.7rem', borderRadius: '1px' }}
+                                        className={`btn btn-xs ${activeTab === tab.id ? 'btn-primary' : 'btn-outline'}`}
                                     >
                                         {tab.label}
                                     </button>
                                 ))}
                             </nav>
                             
-                            <button
-                                onClick={handleLogout}
-                                className="btn btn-secondary"
-                                style={{ fontSize: '0.7rem', padding: '0.5rem 1rem' }}
-                            >
-                                TERMINATE
+                            <button onClick={handleLogout} className="btn btn-secondary btn-sm">
+                                TERMINATE SESSION
                             </button>
                         </div>
                     </div>
@@ -640,15 +635,16 @@ export default function AdminHub() {
                                         onClick={handleSaveEdit}
                                         disabled={submitting}
                                         className="btn btn-primary"
-                                        style={{ flex: 1, padding: '1.5rem', justifyContent: 'center' }}
+                                        style={{ flex: 1 }}
                                     >
                                         {submitting ? 'SYNCHRONIZING...' : 'COMMIT CHANGES'}
                                     </button>
                                     <button
                                         onClick={() => setEditingRaceId(null)}
-                                        className="btn btn-secondary px-xlarge"
+                                        className="btn btn-secondary"
+                                        style={{ minWidth: '150px' }}
                                     >
-                                        ABORT
+                                        CANCEL
                                     </button>
                                 </div>
                             </div>
@@ -878,8 +874,8 @@ export default function AdminHub() {
                                                                 <div className="stat-label" style={{ fontSize: '0.6rem' }}>{new Date(r.race_date || r.created_at || '').toLocaleDateString([], { dateStyle: 'medium' }).toUpperCase()}</div>
                                                             </div>
                                                             <div className="flex gap-small">
-                                                                <button onClick={() => handleStartEdit(r.id, r.track)} className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.65rem' }}>MODIFY</button>
-                                                                <button onClick={() => handleDeleteRace(r.id, r.track)} className="btn-danger-text">WIPE</button>
+                                                                <button onClick={() => handleStartEdit(r.id, r.track)} className="btn btn-secondary btn-xs">MODIFY</button>
+                                                                <button onClick={() => handleDeleteRace(r.id, r.track)} className="btn btn-danger btn-xs">WIPE</button>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -1040,8 +1036,7 @@ export default function AdminHub() {
                                         <button 
                                            onClick={handleAddDriver} 
                                            disabled={submitting} 
-                                           className="btn btn-primary w-full mt-small"
-                                           style={{ padding: '1rem', justifyContent: 'center' }}
+                                           className="btn btn-primary w-full mt-medium"
                                         >
                                             {submitting ? 'RECRUITING...' : 'ENLIST DRIVER'}
                                         </button>
@@ -1063,7 +1058,7 @@ export default function AdminHub() {
                                                         <div className="w-4 h-4" style={{ background: team.color || '#fff' }}></div>
                                                         <span className="text-f1-bold" style={{ fontSize: '0.9rem' }}>{team.name.toUpperCase()}</span>
                                                     </div>
-                                                    <button onClick={() => handleDeleteTeam(team.id)} className="btn-danger-text">DISSOLVE</button>
+                                                    <button onClick={() => handleDeleteTeam(team.id)} className="btn btn-danger btn-xs">DISSOLVE</button>
                                                 </div>
                                             ))}
                                             {teams.length === 0 && <p className="stat-label text-center py-medium">NO TEAMS ESTABLISHED</p>}
@@ -1089,8 +1084,8 @@ export default function AdminHub() {
                                                     style={{ width: '100%', height: '32px', background: 'none', border: '1px solid var(--glass-border)', cursor: 'pointer' }}
                                                 />
                                             </div>
-                                            <button type="submit" disabled={submitting || !newTeamName} className="btn btn-secondary w-full" style={{ justifyContent: 'center' }}>
-                                                {submitting ? 'COMMISIONING...' : 'ESTABLISH FACTORY TEAM'}
+                                            <button type="submit" disabled={submitting || !newTeamName} className="btn btn-secondary w-full">
+                                                {submitting ? 'COMMISSIONING...' : 'ESTABLISH FACTORY TEAM'}
                                             </button>
                                         </form>
                                     </div>
@@ -1177,7 +1172,7 @@ export default function AdminHub() {
                                 </div>
                             </div>
 
-                            <button onClick={handleUpdatePointsConfig} disabled={submitting} className="btn btn-primary w-full mt-xlarge" style={{ padding: '1.25rem', justifyContent: 'center' }}>
+                            <button onClick={handleUpdatePointsConfig} disabled={submitting} className="btn btn-primary w-full mt-xlarge">
                                 {submitting ? 'SYNCHRONIZING RULES...' : 'APPLY CHAMPIONSHIP POINTS'}
                             </button>
                         </div>

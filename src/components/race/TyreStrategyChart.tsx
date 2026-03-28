@@ -49,18 +49,18 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
     }, [participants, totalLaps]);
 
     return (
-        <div className="flex flex-col gap-small w-full overflow-x-auto">
-            <div className="flex flex-col gap-small min-w-[600px]">
+        <div className="flex flex-col gap-medium w-full overflow-x-auto p-medium glass-panel" style={{ background: 'rgba(0,0,0,0.2)' }}>
+            <div className="flex flex-col gap-small min-w-[700px]">
                 {participantsWithMergedStints.map((p, i) => (
-                    <div key={p.game_name} className="flex items-center gap-medium">
-                        <div className="flex items-center gap-small" style={{ width: '160px', flexShrink: 0 }}>
-                            <span className="text-f1-bold" style={{ width: '30px', color: 'var(--f1-red)', fontSize: '0.75rem' }}>P{p.position}</span>
-                            <span className="text-f1-bold truncate" style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                    <div key={p.game_name} className="flex items-center gap-medium group hover:bg-white/5 transition-colors p-xsmall rounded-sm">
+                        <div className="flex items-center gap-medium" style={{ width: '220px', flexShrink: 0 }}>
+                            <span className="text-f1-bold" style={{ width: '35px', color: 'var(--f1-red)', fontSize: '0.8rem' }}>P{p.position}</span>
+                            <span className="text-f1-bold" style={{ fontSize: '0.9rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {p.driver_name || p.game_name}
                             </span>
                         </div>
-                        <div className="relative flex-1 flex h-6 bg-glass-surface rounded-sm overflow-hidden" 
-                             style={{ border: '1px solid var(--glass-border)' }}>
+                        <div className="relative flex-1 flex h-8 bg-black/40 rounded-sm overflow-hidden" 
+                             style={{ border: '1px solid var(--glass-border)', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.5)' }}>
                             {p.mergedStints.map((stint, idx) => {
                                 const start = stint.start_lap;
                                 const end = stint.end_lap || totalLaps;
@@ -76,30 +76,42 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
                                             left: `${left}%`,
                                             width: `${width}%`,
                                             height: '100%',
-                                            background: COMPOUND_COLORS[stint.visual_compound] || 'var(--text-muted)',
-                                            color: '#000',
-                                            fontSize: '0.65rem',
-                                            opacity: 0.95,
-                                            borderRight: '1px solid rgba(0,0,0,0.1)'
+                                            background: `linear-gradient(to bottom, ${COMPOUND_COLORS[stint.visual_compound]}dd, ${COMPOUND_COLORS[stint.visual_compound]})`,
+                                            color: stint.visual_compound === 18 ? '#000' : '#fff',
+                                            fontSize: '0.7rem',
+                                            opacity: 0.9,
+                                            borderRight: '2px solid rgba(0,0,0,0.3)',
+                                            boxShadow: 'inset 0 0 5px rgba(255,255,255,0.2)'
                                         }}
                                         title={`Stint ${idx + 1}: Lap ${start}-${end} (${COMPOUND_LABELS[stint.visual_compound]})`}
                                     >
-                                        {width > 3 && COMPOUND_LABELS[stint.visual_compound]}
+                                        {width > 4 && COMPOUND_LABELS[stint.visual_compound]}
                                     </div>
                                 );
                             })}
                         </div>
-                        <div className="stat-label" style={{ width: '40px', textAlign: 'right', fontSize: '0.65rem' }}>
-                            {p.mergedStints.length - 1} 🛑
+                        <div className="flex items-center justify-center gap-xsmall stat-label" style={{ width: '60px', flexShrink: 0 }}>
+                            <span style={{ fontSize: '0.8rem' }}>{p.mergedStints.length - 1}</span>
+                            <span style={{ fontSize: '1rem', filter: 'grayscale(0.5)' }}>🛑</span>
                         </div>
                     </div>
                 ))}
             </div>
 
             {/* Lap scale at bottom */}
-            <div className="flex pt-small mt-small" style={{ marginLeft: '160px', borderTop: '1px solid var(--glass-border)' }}>
-                {[0, 0.25, 0.5, 0.75, 1].map(pct => (
-                    <div key={pct} className="flex-1 stat-label" style={{ fontSize: '0.6rem' }}>
+            <div className="flex relative h-6 mt-medium" style={{ marginLeft: '220px', borderTop: '2px solid var(--f1-red)' }}>
+                {[0, 0.2, 0.4, 0.6, 0.8, 1].map(pct => (
+                    <div 
+                        key={pct} 
+                        className="absolute stat-label" 
+                        style={{ 
+                            left: `${pct * 100}%`, 
+                            transform: 'translateX(-50%)',
+                            fontSize: '0.65rem',
+                            paddingTop: '8px'
+                        }}
+                    >
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-2 bg-f1-red"></div>
                         L{Math.round(pct * totalLaps)}
                     </div>
                 ))}
