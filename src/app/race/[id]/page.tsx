@@ -223,7 +223,6 @@ function RaceDetailContent() {
                                         <th style={{ width: '60px' }}>Pos</th>
                                         <th>Driver</th>
                                         <th className="hide-mobile" style={{ textAlign: 'center' }}>Grid</th>
-                                        <th className="hide-mobile" style={{ textAlign: 'center' }}>Pits</th>
                                         <th style={{ textAlign: 'right' }}>Points</th>
                                     </tr>
                                 </thead>
@@ -248,9 +247,6 @@ function RaceDetailContent() {
                                             </td>
                                             <td className="hide-mobile" style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
                                                 {res.quali_position > 0 ? `P${res.quali_position}` : '-'}
-                                            </td>
-                                            <td className="hide-mobile" style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                                                {res.pit_stops > 0 ? res.pit_stops : '-'}
                                             </td>
                                             <td className="text-right text-mono">
                                                 <span className="text-f1-bold" style={{ fontSize: '1.2rem', color: res.is_dropped ? 'var(--text-muted)' : 'var(--f1-red)', textDecoration: res.is_dropped ? 'line-through' : 'none' }}>

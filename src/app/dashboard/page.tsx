@@ -145,7 +145,6 @@ function RaceResultsTable({ raceResults, handleDriverClick, compact = false }: R
                         <th style={{ width: '40px' }}>P</th>
                         <th>Driver</th>
                         {!compact && <th className="hide-mobile">Grid</th>}
-                        {!compact && <th>Pits</th>}
                         <th style={{ textAlign: 'right' }}>Points</th>
                     </tr>
                 </thead>
@@ -175,11 +174,6 @@ function RaceResultsTable({ raceResults, handleDriverClick, compact = false }: R
                             {!compact && (
                                 <td className="hide-mobile" style={{ color: 'var(--text-secondary)' }}>
                                     {res.quali_position > 0 ? `P${res.quali_position}` : '-'}
-                                </td>
-                            )}
-                            {!compact && (
-                                <td style={{ color: 'var(--text-secondary)' }}>
-                                    {res.pit_stops > 0 ? res.pit_stops : '-'}
                                 </td>
                             )}
                             <td className="text-right text-mono" style={{ fontWeight: 900, color: res.is_dropped ? 'var(--text-muted)' : 'var(--f1-red)' }}>
@@ -669,7 +663,6 @@ export default function Dashboard() {
                                                                     <th style={{ width: '50px' }}>Pos</th>
                                                                     <th>Driver</th>
                                                                     <th className="hide-mobile" style={{ textAlign: 'center' }}>Grid</th>
-                                                                    <th className="hide-mobile" style={{ textAlign: 'center' }}>Pits</th>
                                                                     <th style={{ textAlign: 'right' }}>Points</th>
                                                                 </tr>
                                                             </thead>
@@ -696,9 +689,6 @@ export default function Dashboard() {
                                                                         </td>
                                                                         <td className="hide-mobile" style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
                                                                             {res.quali_position > 0 ? `P${res.quali_position}` : '-'}
-                                                                        </td>
-                                                                        <td className="hide-mobile" style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                                                                            {res.pit_stops > 0 ? res.pit_stops : '-'}
                                                                         </td>
                                                                         <td className="text-right text-mono" style={{ whiteSpace: 'nowrap' }}>
                                                                             <span style={{ fontWeight: 900, fontSize: '1.1rem', color: res.is_dropped ? 'var(--text-muted)' : 'var(--f1-red)', textDecoration: res.is_dropped ? 'line-through' : 'none' }}>

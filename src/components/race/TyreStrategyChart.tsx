@@ -48,6 +48,17 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
         });
     }, [participants, totalLaps]);
 
+    // Find the actual highest lap reached to scale bars to 100% width
+    const effectiveMaxLaps = React.useMemo(() => {
+        let max = 0;
+        participantsWithMergedStints.forEach(p => {
+            p.mergedStints.forEach(s => {
+                if (s.end_lap && s.end_lap > max) max = s.end_lap;
+            });
+        });
+        return max || totalLaps;
+    }, [participantsWithMergedStints, totalLaps]);
+
     return (
         <div className="flex flex-col gap-medium w-full overflow-x-auto p-medium glass-panel" style={{ background: 'rgba(0,0,0,0.35)' }}>
             <div className="flex flex-col gap-medium min-w-[700px]">
@@ -67,10 +78,10 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
                              style={{ border: '1px solid var(--glass-border)', boxShadow: 'inset 0 0 15px rgba(0,0,0,0.7)' }}>
                             {p.mergedStints.map((stint, idx) => {
                                 const start = stint.start_lap;
-                                const end = stint.end_lap || totalLaps;
+                                const end = stint.end_lap || effectiveMaxLaps;
                                 const duration = end - start + 1;
-                                const left = ((start - 1) / totalLaps) * 100;
-                                const width = (duration / totalLaps) * 100;
+                                const left = ((start - 1) / effectiveMaxLaps) * 100;
+                                const width = (duration / effectiveMaxLaps) * 100;
 
                                 return (
                                     <div 
@@ -115,7 +126,7 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
                         }}
                     >
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-3 bg-f1-red"></div>
-                        <span className="text-mono">L{Math.round(pct * totalLaps)}</span>
+                        <span className="text-mono">L{Math.round(pct * effectiveMaxLaps)}</span>
                     </div>
                 ))}
             </div>
