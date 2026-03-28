@@ -21,10 +21,10 @@ export default function RootLayout({
               F1<span style={{ color: 'var(--text-primary)' }}>25</span> <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>LEAGUE</span>
             </Link>
             
-            <div className="flex gap-medium items-center nav-links">
-              <Link href="/dashboard" className="text-f1-bold" style={{ fontSize: '0.75rem', opacity: 0.8 }}>Standings</Link>
-              <Link href="/admin" className="text-f1-bold" style={{ fontSize: '0.75rem', opacity: 0.8 }}>Admin Hub</Link>
-              <Link href="/join" className="btn btn-secondary" style={{ padding: '0.5rem 1rem' }}>Join League</Link>
+            <div className="flex gap-small items-center nav-links">
+              <Link href="/dashboard" className="nav-link">Standings</Link>
+              <Link href="/admin" className="nav-link">Admin Hub</Link>
+              <Link href="/join" className="btn btn-primary btn-sm">Join League</Link>
             </div>
           </div>
         </nav>

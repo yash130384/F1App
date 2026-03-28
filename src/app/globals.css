@@ -47,7 +47,7 @@
 
 html, body {
   min-height: 100vh;
-  background-color: var(--surface-low);
+  background-color: transparent; /* Changed to transparent to show ::before image */
   color: var(--text-primary);
   font-family: var(--font-body);
   overflow-x: hidden;
@@ -61,11 +61,11 @@ body::before {
   position: fixed;
   inset: 0;
   background: 
-    linear-gradient(rgba(5, 5, 7, 0.8), rgba(5, 5, 7, 0.9)),
+    linear-gradient(to bottom, rgba(5, 5, 7, 0.75), rgba(5, 5, 7, 0.95)),
     url('/f1_atmosphere_background_1774657487988.png') center/cover no-repeat;
   pointer-events: none;
-  z-index: -1;
-  filter: brightness(0.65) contrast(1.1);
+  z-index: -10;
+  filter: brightness(0.8) contrast(1.2) saturate(1.1);
 }
 
 /* Layout Utilities */
@@ -147,80 +147,117 @@ body::before {
   border-radius: 8px;
 }
 
-/* Buttons & Interactions */
+/* Buttons & Interactions - The "F1 Performance" Style */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.6rem 1.5rem;
+  padding: 0.7rem 1.8rem;
   font-family: var(--font-display);
-  font-weight: 800;
+  font-weight: 900;
   text-transform: uppercase;
-  border-radius: 2px;
+  border-radius: 0; /* Boxy F1 look */
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.2s cubic-bezier(0.23, 1, 0.320, 1);
   border: 1px solid transparent;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
   font-style: italic;
   white-space: nowrap;
   user-select: none;
+  position: relative;
+  overflow: hidden;
 }
 
 .btn-primary {
   background: var(--f1-red);
   color: white;
-  border-color: var(--f1-red);
+  border: 1px solid var(--f1-red);
+  box-shadow: 4px 4px 0px rgba(255, 24, 1, 0.2);
 }
 
 .btn-primary:hover {
   background: white;
-  color: var(--f1-red);
+  color: #000;
   border-color: white;
-  box-shadow: 0 0 25px rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
+  box-shadow: 6px 6px 0px rgba(255, 255, 255, 0.3);
+  transform: translate(-2px, -2px);
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.05);
+  background: transparent;
   color: white;
-  border-color: var(--glass-border);
-  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 4px 4px 0px rgba(255, 255, 255, 0.05);
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
   border-color: white;
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 6px 6px 0px rgba(255, 255, 255, 0.1);
+  transform: translate(-2px, -2px);
 }
 
 .btn-outline {
   background: transparent;
   color: white;
-  border-color: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .btn-outline:hover {
-  border-color: white;
-  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--f1-cyan);
+  color: var(--f1-cyan);
+  background: rgba(0, 245, 255, 0.05);
 }
 
 .btn-danger {
   background: transparent;
   color: var(--f1-red);
-  border-color: rgba(255, 24, 1, 0.3);
+  border: 1px solid rgba(255, 24, 1, 0.3);
 }
 
 .btn-danger:hover {
   background: var(--f1-red);
   color: white;
   border-color: var(--f1-red);
-  box-shadow: 0 0 15px var(--f1-red-glow);
 }
 
-.btn-sm { padding: 0.4rem 0.8rem; font-size: 0.65rem; }
-.btn-xs { padding: 0.2rem 0.5rem; font-size: 0.55rem; }
+.btn-sm { padding: 0.5rem 1rem; font-size: 0.7rem; letter-spacing: 0.08em; }
+.btn-xs { padding: 0.3rem 0.6rem; font-size: 0.6rem; letter-spacing: 0.05em; }
+
+.nav-link {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-style: italic;
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  transition: all 0.2s ease;
+  padding: 0.5rem 1rem;
+  position: relative;
+}
+
+.nav-link:hover {
+  color: #fff;
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 1rem;
+  right: 1rem;
+  height: 2px;
+  background: var(--f1-red);
+  transform: scaleX(0);
+  transition: transform 0.2s ease;
+}
+
+.nav-link:hover::after {
+  transform: scaleX(1);
+}
 
 /* Utility Grid */
 .grid-responsive {
