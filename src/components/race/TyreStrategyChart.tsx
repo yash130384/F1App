@@ -32,8 +32,28 @@ const COMPOUND_LABELS: Record<number, string> = {
     19: 'SS', 20: 'S', 21: 'M', 22: 'H'
 };
 
+function TyreBadge({ compoundId, size = '16px' }: { compoundId: number, size?: string }) {
+    const label = COMPOUND_LABELS[compoundId] || '?';
+    const color = COMPOUND_COLORS[compoundId] || '#555';
+    const textColor = compoundId === 18 ? '#000' : '#fff';
+
+    return (
+        <span style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: size, height: size, borderRadius: '50%',
+            background: color, color: textColor,
+            fontWeight: 900, fontSize: '0.6rem',
+            border: '1px solid rgba(255,255,255,0.2)',
+            flexShrink: 0,
+            lineHeight: 1
+        }}>
+            {label}
+        </span>
+    );
+}
+
 export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChartProps) {
-    const participantsWithMergedStints = React.useMemo(() => {
+    const sortedParticipants = React.useMemo(() => {
         return [...participants].sort((a, b) => a.position - b.position).map(p => {
             const mergedStints: Stint[] = [];
             p.stints.forEach(stint => {
@@ -48,88 +68,65 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
         });
     }, [participants, totalLaps]);
 
-    // Find the actual highest lap reached to scale bars to 100% width
     const effectiveMaxLaps = React.useMemo(() => {
         let max = 0;
-        participantsWithMergedStints.forEach(p => {
+        sortedParticipants.forEach(p => {
             p.mergedStints.forEach(s => {
                 if (s.end_lap && s.end_lap > max) max = s.end_lap;
             });
         });
         return max || totalLaps;
-    }, [participantsWithMergedStints, totalLaps]);
+    }, [sortedParticipants, totalLaps]);
 
     return (
-        <div className="flex flex-col gap-medium w-full overflow-x-auto p-medium glass-panel" style={{ background: 'rgba(0,0,0,0.35)' }}>
-            <div className="flex flex-col gap-medium min-w-[700px]">
-                {participantsWithMergedStints.map((p, i) => (
-                    <div key={p.game_name} className="relative group hover:bg-white/5 transition-all p-xsmall rounded-sm h-10 flex items-center">
-                        {/* Name and Position Overlay */}
-                        <div className="absolute left-4 z-10 flex items-center gap-small pointer-events-none" 
-                             style={{ textShadow: '0 2px 4px rgba(0,0,0,0.9)', top: '50%', transform: 'translateY(-50%)' }}>
-                            <span className="text-f1-bold italic text-mono" style={{ color: 'var(--f1-red)', fontSize: '0.8rem' }}>P{p.position}</span>
-                            <span className="text-f1-bold italic" style={{ fontSize: '0.9rem', color: '#fff', letterSpacing: '0.05em' }}>
-                                {p.driver_name?.toUpperCase() || p.game_name.toUpperCase()}
-                            </span>
-                        </div>
+        <div className="flex flex-col gap-small w-full">
+            {sortedParticipants.map((p) => (
+                <div key={p.game_name} className="flex items-center gap-medium group">
+                    {/* Identity Section (Fixed Width) */}
+                    <div className="flex items-center gap-small" style={{ width: '220px', flexShrink: 0 }}>
+                        <span className="text-mono" style={{ color: 'var(--f1-red)', fontWeight: 900, fontSize: '0.8rem', width: '30px' }}>
+                            P{p.position}
+                        </span>
+                        <span className="text-f1-bold italic truncate" style={{ fontSize: '0.9rem', color: 'var(--text-primary)', letterSpacing: '0.05em' }}>
+                            {p.driver_name?.toUpperCase() || p.game_name.toUpperCase()}
+                        </span>
+                    </div>
 
-                        {/* Full Width Bar Container */}
-                        <div className="relative w-full flex h-10 bg-black/60 rounded-xs overflow-hidden" 
-                             style={{ border: '1px solid var(--glass-border)', boxShadow: 'inset 0 0 15px rgba(0,0,0,0.7)' }}>
-                            {p.mergedStints.map((stint, idx) => {
-                                const start = stint.start_lap;
-                                const end = stint.end_lap || effectiveMaxLaps;
-                                const duration = end - start + 1;
-                                const left = ((start - 1) / effectiveMaxLaps) * 100;
-                                const width = (duration / effectiveMaxLaps) * 100;
+                    {/* Timeline Section (Flexible) */}
+                    <div className="relative flex-1 h-8 bg-surface-lower overflow-hidden flex items-center" 
+                         style={{ boxShadow: 'inset 0 0 10px rgba(0,0,0,0.5)' }}>
+                        {p.mergedStints.map((stint, idx) => {
+                            const start = stint.start_lap;
+                            const end = stint.end_lap || effectiveMaxLaps;
+                            const duration = end - start + 1;
+                            const left = ((start - 1) / effectiveMaxLaps) * 100;
+                            const width = (duration / effectiveMaxLaps) * 100;
 
-                                return (
-                                    <div 
-                                        key={idx}
-                                        className="absolute flex items-center justify-center text-f1-bold italic"
-                                        style={{
-                                            left: `${left}%`,
-                                            width: `${width}%`,
-                                            height: '100%',
-                                            background: `linear-gradient(to bottom, ${COMPOUND_COLORS[stint.visual_compound]}bb, ${COMPOUND_COLORS[stint.visual_compound]})`,
-                                            color: stint.visual_compound === 18 ? '#000' : '#fff',
-                                            fontSize: '0.7rem',
-                                            opacity: 0.85,
-                                            borderRight: '1px solid rgba(0,0,0,0.2)',
-                                            boxShadow: 'inset 0 0 8px rgba(255,255,255,0.1)'
-                                        }}
-                                    >
-                                        <div className="flex flex-col items-center">
-                                            <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>{COMPOUND_LABELS[stint.visual_compound]}</span>
-                                            {width > 6 && <span className="text-mono" style={{ fontSize: '0.55rem', opacity: 0.6 }}>L{duration}</span>}
-                                        </div>
+                            return (
+                                <div 
+                                    key={idx}
+                                    className="absolute h-full flex items-center px-1"
+                                    style={{
+                                        left: `${left}%`,
+                                        width: `${width}%`,
+                                        background: `linear-gradient(to right, ${COMPOUND_COLORS[stint.visual_compound]}44, ${COMPOUND_COLORS[stint.visual_compound]}11)`,
+                                        borderLeft: idx > 0 ? '1px solid rgba(255,255,255,0.1)' : 'none'
+                                    }}
+                                >
+                                    <div className="flex items-center gap-xsmall">
+                                        <TyreBadge compoundId={stint.visual_compound} />
+                                        {width > 8 && (
+                                            <span className="text-mono" style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', opacity: 0.8 }}>
+                                                L{duration}
+                                            </span>
+                                        )}
                                     </div>
-                                );
-                            })}
-                        </div>
+                                </div>
+                            );
+                        })}
                     </div>
-                ))}
-            </div>
-
-            {/* Lap scale at bottom */}
-            <div className="flex relative h-6 mt-large" style={{ borderTop: '2px solid var(--f1-red)' }}>
-                {[0, 0.2, 0.4, 0.6, 0.8, 1].map(pct => (
-                    <div 
-                        key={pct} 
-                        className="absolute stat-label italic" 
-                        style={{ 
-                            left: `${pct * 100}%`, 
-                            transform: 'translateX(-50%)',
-                            fontSize: '0.65rem',
-                            paddingTop: '10px',
-                            color: 'var(--text-secondary)'
-                        }}
-                    >
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-3 bg-f1-red"></div>
-                        <span className="text-mono">L{Math.round(pct * effectiveMaxLaps)}</span>
-                    </div>
-                ))}
-            </div>
+                </div>
+            ))}
         </div>
     );
 }
