@@ -46,32 +46,56 @@ const COMPOUND_NAMES: Record<number, string> = {
 };
 
 export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChartProps) {
-    const sortedParticipants = React.useMemo(() => {
-        return [...participants].sort((a, b) => a.position - b.position).map(p => {
-            const mergedStints: Stint[] = [];
-            p.stints.forEach(stint => {
-                const last = mergedStints[mergedStints.length - 1];
-                if (last && last.visual_compound === stint.visual_compound) {
-                    last.end_lap = stint.end_lap || totalLaps;
-                } else {
-                    mergedStints.push({ ...stint, end_lap: stint.end_lap || totalLaps });
-                }
-            });
-            return { ...p, mergedStints };
+    // Aggressively group participants by driver to ensure ONE ROW PER DRIVER
+    const groupedParticipants = React.useMemo(() => {
+        const driverMap = new Map<string, Participant>();
+
+        participants.forEach(p => {
+            const name = p.driver_name || p.game_name;
+            if (!driverMap.has(name)) {
+                driverMap.set(name, { ...p, stints: [...p.stints] });
+            } else {
+                const existing = driverMap.get(name)!;
+                // Add stints that aren't already there
+                p.stints.forEach(s => {
+                    if (!existing.stints.find(es => es.start_lap === s.start_lap)) {
+                        existing.stints.push(s);
+                    }
+                });
+                // Keep the best position
+                if (p.position < existing.position) existing.position = p.position;
+            }
         });
+
+        return Array.from(driverMap.values())
+            .sort((a, b) => a.position - b.position)
+            .map(p => {
+                // Merge consecutive stints of same compound
+                const sortedStints = [...p.stints].sort((a, b) => a.start_lap - b.start_lap);
+                const mergedStints: Stint[] = [];
+                
+                sortedStints.forEach(stint => {
+                    const last = mergedStints[mergedStints.length - 1];
+                    if (last && last.visual_compound === stint.visual_compound) {
+                        last.end_lap = stint.end_lap || totalLaps;
+                    } else {
+                        mergedStints.push({ ...stint, end_lap: stint.end_lap || totalLaps });
+                    }
+                });
+                return { ...p, mergedStints };
+            });
     }, [participants, totalLaps]);
 
     const effectiveMaxLaps = React.useMemo(() => {
         let max = 0;
-        sortedParticipants.forEach(p => {
+        groupedParticipants.forEach(p => {
             p.mergedStints.forEach(s => {
                 if (s.end_lap && s.end_lap > max) max = s.end_lap;
             });
         });
         return max || totalLaps;
-    }, [sortedParticipants, totalLaps]);
+    }, [groupedParticipants, totalLaps]);
 
-    // Generate lap scale ticks (4-5 ticks)
     const ticks = React.useMemo(() => {
         const count = 5;
         const result = [];
@@ -84,10 +108,10 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
 
     return (
         <div className="flex flex-col gap-large w-full p-large glass-panel" style={{ background: 'rgba(5,5,7,0.85)', minHeight: '400px' }}>
-            {/* Header */}
-            <h2 className="text-f1-bold italic" style={{ color: 'var(--f1-cyan)', fontSize: '1.4rem', letterSpacing: '0.05em' }}>
+            {/* Header - Synced with dashboard style (Red/0.75rem/Uppercase) */}
+            <h3 className="text-f1-bold mb-large" style={{ fontSize: '0.75rem', color: 'var(--f1-red)', letterSpacing: '2px' }}>
                 TYRE STRATEGY ANALYSIS
-            </h2>
+            </h3>
 
             {/* Legend */}
             <div className="flex gap-large items-center mb-medium border-t border-b border-white/5 py-4">
@@ -103,7 +127,7 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
 
             {/* Chart Grid */}
             <div className="flex flex-col gap-medium">
-                {sortedParticipants.map((p) => (
+                {groupedParticipants.map((p) => (
                     <div key={p.game_name} className="grid items-center" style={{ gridTemplateColumns: '180px 1fr', gap: '2rem' }}>
                         {/* Driver Name (Right Aligned) */}
                         <div className="text-right">
@@ -112,7 +136,7 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
                             </span>
                         </div>
 
-                        {/* Strategy Bar (Full Width) */}
+                        {/* Strategy Bar (Full Width - Single Row) */}
                         <div className="relative h-7 w-full bg-white/5 overflow-hidden" style={{ border: 'none' }}>
                             {p.mergedStints.map((stint, idx) => {
                                 const start = stint.start_lap;
