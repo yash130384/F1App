@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
-import { AppConfig } from './index';
+import { AppConfig } from './types/config';
 import { SessionState } from './state';
 
 /**

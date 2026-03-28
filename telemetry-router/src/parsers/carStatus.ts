@@ -7,11 +7,22 @@ export interface CarStatusData {
     ersDeployMode: number;       // 0=None, 1=Medium, 2=Hotlap, 3=Overtake
     ersStoreEnergy: number;      // ERS Energie im Speicher (Joule)
     ersDeployedThisLap: number;  // ERS verbraucht diese Runde (Joule)
+    ersHarvestedThisLapMGUK: number;
+    ersHarvestedThisLapMGUH: number;
     // Kraftstoff
     fuelMix: number;             // 0=Lean, 1=Standard, 2=Rich, 3=Max
     fuelRemainingLaps: number;   // Verbleibende Runden auf aktuellem Mix
     fuelInTank: number;          // Aktueller Kraftstofftank (kg)
     fuelCapacity: number;        // Maximale Tankkapazität (kg)
+    // Engine & Gear
+    enginePowerICE: number;
+    enginePowerMGUK: number;
+    maxRPM: number;
+    idleRPM: number;
+    maxGears: number;
+    // DRS
+    drsAllowed: number;
+    drsActivationDistance: number;
 }
 
 // PacketCarStatusData: Header (29 bytes) + 22 * CarStatusData
@@ -56,12 +67,21 @@ export function parseCarStatus(buffer: Buffer): CarStatusData[] {
             fuelInTank: buffer.readFloatLE(offset + 5),
             fuelCapacity: buffer.readFloatLE(offset + 9),
             fuelRemainingLaps: buffer.readFloatLE(offset + 13),
+            maxRPM: buffer.readUInt16LE(offset + 17),
+            idleRPM: buffer.readUInt16LE(offset + 19),
+            maxGears: buffer.readUInt8(offset + 21),
+            drsAllowed: buffer.readUInt8(offset + 22),
+            drsActivationDistance: buffer.readUInt16LE(offset + 23),
             actualTyreCompound: buffer.readUInt8(offset + 25),
             visualTyreCompound: buffer.readUInt8(offset + 26),
             tyresAgeLaps: buffer.readUInt8(offset + 27),
             vehicleFIAFlags: buffer.readInt8(offset + 28),
+            enginePowerICE: buffer.readFloatLE(offset + 29),
+            enginePowerMGUK: buffer.readFloatLE(offset + 33),
             ersStoreEnergy: buffer.readFloatLE(offset + 37),
             ersDeployMode: buffer.readUInt8(offset + 41),
+            ersHarvestedThisLapMGUK: buffer.readFloatLE(offset + 42),
+            ersHarvestedThisLapMGUH: buffer.readFloatLE(offset + 46),
             ersDeployedThisLap: buffer.readFloatLE(offset + 50),
         });
     }

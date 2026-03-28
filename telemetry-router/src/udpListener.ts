@@ -1,7 +1,7 @@
 import dgram from 'dgram';
 import fs from 'fs';
 import path from 'path';
-import { AppConfig } from './index';
+import { AppConfig } from './types/config';
 import { parseHeader } from './parsers/header';
 import { parseSession } from './parsers/session';
 import { parseParticipants } from './parsers/participants';
@@ -15,9 +15,16 @@ import { parseSessionHistoryData } from './parsers/sessionHistory';
 import { parseFinalClassificationData } from './parsers/finalClassification';
 import { parseMotionExData } from './parsers/motionEx';
 import { parseTyreSets } from './parsers/tyreSets';
+import { parseCarSetups } from './parsers/carSetups';
 import { SessionState } from './state';
 import { startSender } from './sender';
 import { renderDashboard } from './dashboard';
+
+export interface StatusUpdate {
+    isRecording: boolean;
+    trackName?: string;
+    sessionType?: string;
+}
 
 /**
  * Startet den UDP-Listener, der auf Pakete vom Spiel (F1 25) wartet.
@@ -25,8 +32,9 @@ import { renderDashboard } from './dashboard';
  * die Paketverarbeitung an den SessionState.
  * 
  * @param config Die Anwendungskonfiguration inkl. Port und Sendeintervall.
+ * @param onStatusUpdate Callback-Funktion für Statusänderungen (z.B. für Tray-Icon).
  */
-export function startUdpListener(config: AppConfig) {
+export function startUdpListener(config: AppConfig, onStatusUpdate?: (status: StatusUpdate) => void) {
     if (!config.port) {
         console.error('Kritischer Fehler: Kein UDP-Port in der Konfiguration angegeben.');
         return;
@@ -137,6 +145,15 @@ export function startUdpListener(config: AppConfig) {
                 case 1: { // Session-Daten: Strecke, Wetter, Session-Typ (Training, Quali, Rennen)
                     const sessionData = parseSession(msg);
                     state.updateSession(sessionData);
+                    
+                    // Status-Update für Tray senden, wenn sich Daten geändert haben
+                    if (onStatusUpdate && state.trackName !== 'Unknown') {
+                        onStatusUpdate({
+                            isRecording: true,
+                            trackName: state.trackName,
+                            sessionType: state.sessionType
+                        });
+                    }
                     break;
                 }
                 case 2: { // Rundendaten: Aktuelle Runde, Sektorzeiten, Pit-Status
@@ -164,6 +181,11 @@ export function startUdpListener(config: AppConfig) {
                 case 6: { // Fahrzeug-Telemetrie: Geschwindigkeit, Gas, Bremse, Temperaturen
                     const telemetryData = parseTelemetry(msg);
                     telemetryData.forEach((t, i) => state.updateTelemetry(i, t));
+                    break;
+                }
+                case 5: { // Car Setups: Flügel-Einstellungen, Differential, Reifendruck
+                    const setups = parseCarSetups(msg);
+                    setups.forEach((s, i) => state.updateCarSetup(i, s));
                     break;
                 }
                 case 7: { // Fahrzeug-Status: ERS, Benzin, FIA Flaggen, Reifenmischung

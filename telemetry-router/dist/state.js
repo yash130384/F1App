@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SessionState = void 0;
 const incidentManager_1 = require("./incidentManager");
 const payloadMapper_1 = require("./payloadMapper");
+const trackIntel_1 = require("./trackIntel");
 /**
  * Zentrale Verwaltung des Zustands einer laufenden F1-Telemetrie-Session.
  * Folgt dem Single Responsibility Principle: Delegiert spezialisierte Aufgaben an Unter-Komponenten
@@ -35,6 +36,7 @@ class SessionState {
     players = new Map();
     incidentManager = new incidentManager_1.IncidentManager();
     lapPositions = [];
+    trackIntel = new trackIntel_1.TrackIntel();
     /**
      * Erstellt einen neuen PlayerState oder gibt den existierenden für einen Fahrzeug-Index zurück.
      * Sorgt für eine konsistente Initialisierung neuer Fahrer-Objekte.
@@ -57,6 +59,7 @@ class SessionState {
                 penaltiesTime: 0,
                 laps: [],
                 currentLapNum: 0,
+                speedTraps: [],
                 currentLapSamples: [],
                 bestLapSamples: []
             });
@@ -79,6 +82,8 @@ class SessionState {
         this.trackName = data.trackName;
         this.trackLength = data.trackLength;
         this.sessionData = data;
+        // Track-Intelligenz initialisieren (Kurven-Mapping laden)
+        this.trackIntel.loadTrack(this.trackId);
         this.isActive = true;
     }
     /**
@@ -121,6 +126,17 @@ class SessionState {
                     vehicleIdx: event.vehicleIdx,
                     lapNum: event.lapNum
                 });
+                break;
+            case 'SPTP': // Speed Trap
+                if (car) {
+                    car.speedTraps.push({
+                        speed: event.speed,
+                        isOverallFastest: event.isOverallFastestInSession === 1,
+                        isDriverFastest: event.isDriverFastestInSession === 1,
+                        lapNum: car.currentLapNum,
+                        distance: car.lapDistance
+                    });
+                }
                 break;
         }
     }
@@ -228,24 +244,43 @@ class SessionState {
         };
     }
     /**
-     * Zeichnet Telemetrie-Sample auf (Speed, Pedale, G-Kräfte) basierend auf der Distanz.
+     * Zeichnet Telemetrie-Sample auf (Speed, Pedale, G-Kräfte, ERS) basierend auf der Distanz.
      * Dies wird für die Visualisierung der Fahrer-Liniendifferenz benötigt.
+     * Filtert auf menschliche Fahrer und fügt Weltkoordinaten nur für die Bestlap hinzu.
      */
     maybeRecordSample(p, lap) {
+        if (!p.isHuman)
+            return; // Nur menschliche Spieler aufzeichnen
         if (!p.telemetryData || !p.motionData)
             return;
+        const t = p.telemetryData;
+        const m = p.motionData;
+        const s = p.carStatusData;
+        // Wir prüfen, ob dies die aktuelle Bestrunde ist, um Weltkoordinaten anzuhängen
+        const isBestLapCandidate = p.fastestLapMs === null || (lap.lastLapTimeInMS > 0 && lap.lastLapTimeInMS <= p.fastestLapMs);
         p.currentLapSamples.push({
             d: lap.lapDistance,
-            s: p.telemetryData.speedKmh,
-            t: p.telemetryData.throttle,
-            b: p.telemetryData.brake,
-            st: p.telemetryData.steer,
-            gLat: p.motionData.gForceLateral,
-            gLon: p.motionData.gForceLongitudinal,
-            gVert: p.motionData.gForceVertical,
-            tSurf: p.telemetryData.tyresSurfaceTemperature,
-            tInner: p.telemetryData.tyresInnerTemperature,
-            rHeight: p.motionExData ? [p.motionExData.frontAeroHeight, p.motionExData.rearAeroHeight] : [0, 0]
+            s: t.speedKmh,
+            t: t.throttle,
+            b: t.brake,
+            st: t.steer,
+            g: t.gear,
+            rpm: t.engineRPM,
+            ers: s?.ersStoreEnergy || 0,
+            em: s?.ersDeployMode || 0,
+            drs: t.drs,
+            gLat: m.gForceLateral,
+            gLon: m.gForceLongitudinal,
+            gVert: m.gForceVertical,
+            tSurf: [...t.tyresSurfaceTemperature],
+            tInner: [...t.tyresInnerTemperature],
+            rHeight: p.motionExData ? [p.motionExData.frontAeroHeight, p.motionExData.rearAeroHeight] : [0, 0],
+            // Weltkoordinaten für Race-Line Analyse (spart Speicher, wenn wir es immer machen, daher nur in bestLapSamples via Kopie später oder hier)
+            // Entwurf: Wir nehmen sie hier immer auf, wenn wir sie für das Overlay brauchen. 
+            // Optimierung: Nur anhängen wenn wir vermuten es wird ein PB (einfacher: Immer für den Slot aufnehmen)
+            x: m.worldPositionX,
+            z: m.worldPositionZ,
+            y: m.yaw
         });
     }
     /**
@@ -330,10 +365,11 @@ class SessionState {
             sessionData: this.sessionData,
             participants: participantsList,
             safetyCarEvents,
-            incidentLog: this.incidentManager.getIncidentLog(),
             trackFlags: this.trackFlags,
             lapPositions,
             finalClassification: this.finalClassification,
+            // Track Metadaten für das Kurven-Mapping im Backend (nur senden, wenn geladen)
+            trackMetadata: this.trackIntel.getMetadata(),
         };
     }
     /** Aktualisiert Basis-Informationen zum Teilnehmer. */
@@ -363,6 +399,13 @@ class SessionState {
     updateCarDamage(carIdx, data) {
         this.incrementPackets();
         this.getPlayer(carIdx).carDamageData = data;
+    }
+    /** Aktualisiert das Fahrzeug-Setup (Packet 5). */
+    updateCarSetup(carIdx, data) {
+        this.incrementPackets();
+        const p = this.getPlayer(carIdx);
+        // Wir speichern das Setup nur, wenn es sich ändert oder noch keins da ist
+        p.carSetupData = data;
     }
     /** Aktualisiert Bewegungsdaten (Position, G-Kräfte). */
     updateMotion(carIdx, data) {

@@ -1,8 +1,9 @@
 import fs from 'fs';
 import fetch from 'node-fetch';
 import path from 'path';
-import { AppConfig } from './index';
-import { prompt } from 'enquirer';
+import { AppConfig } from './types/config';
+import Enquirer from 'enquirer';
+const { prompt } = Enquirer;
 
 /**
  * Startet den Playback-Modus für Legacy-JSON-Aufzeichnungen.

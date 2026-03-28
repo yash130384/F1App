@@ -8,6 +8,32 @@ import { TyreSetData } from './parsers/tyreSets';
 import { MotionExData } from './parsers/motionEx';
 
 /**
+ * Telemetrie-Momentaufnahme während einer Runde.
+ */
+export interface LapSample {
+    d: number;      // Distance
+    s: number;      // Speed
+    t: number;      // Throttle
+    b: number;      // Brake
+    st: number;     // Steer
+    g: number;      // Gear
+    rpm: number;    // RPM
+    ers: number;    // ERS Level
+    em: number;     // ERS Deploy Mode
+    drs: number;    // DRS Active
+    gLat: number;   // G-Lat
+    gLon: number;   // G-Lon
+    gVert: number;  // G-Vert
+    tSurf: number[]; // Tyre Surface Temp
+    tInner: number[]; // Tyre Inner Temp
+    rHeight: number[]; // Ride Height [Front, Rear]
+    // Weltkoordinaten (nur für Bestrunde / Race-Line Visualisierung)
+    x?: number;     
+    z?: number;
+    y?: number;     // Yaw (Rotation)
+}
+
+/**
  * Repräsentiert eine einzelne Runde eines Fahrers mit Telemetrie-Zusammenfassung.
  */
 export interface LapEntry {
@@ -20,7 +46,7 @@ export interface LapEntry {
     sector2Ms?: number;
     sector3Ms?: number;
     carDamage?: CarDamageSnapshot;
-    samples?: any[];
+    samples?: LapSample[];
 }
 
 /**
@@ -95,7 +121,9 @@ export interface PlayerState {
     carDamageData?: CarDamageData;
     motionData?: MotionData;
     motionExData?: MotionExData;
+    carSetupData?: any; // To be replaced with CarSetupData from parsers
     tyreSets?: TyreSetData[];
-    currentLapSamples: any[];
-    bestLapSamples: any[];
+    speedTraps: any[];
+    currentLapSamples: LapSample[];
+    bestLapSamples: LapSample[];
 }

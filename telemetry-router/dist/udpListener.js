@@ -20,6 +20,7 @@ const sessionHistory_1 = require("./parsers/sessionHistory");
 const finalClassification_1 = require("./parsers/finalClassification");
 const motionEx_1 = require("./parsers/motionEx");
 const tyreSets_1 = require("./parsers/tyreSets");
+const carSetups_1 = require("./parsers/carSetups");
 const state_1 = require("./state");
 const sender_1 = require("./sender");
 const dashboard_1 = require("./dashboard");
@@ -29,8 +30,9 @@ const dashboard_1 = require("./dashboard");
  * die Paketverarbeitung an den SessionState.
  *
  * @param config Die Anwendungskonfiguration inkl. Port und Sendeintervall.
+ * @param onStatusUpdate Callback-Funktion für Statusänderungen (z.B. für Tray-Icon).
  */
-function startUdpListener(config) {
+function startUdpListener(config, onStatusUpdate) {
     if (!config.port) {
         console.error('Kritischer Fehler: Kein UDP-Port in der Konfiguration angegeben.');
         return;
@@ -43,7 +45,7 @@ function startUdpListener(config) {
         fs_1.default.mkdirSync(recordingsDir);
     }
     let recordingStream = null;
-    let currentSessionUID = 0n;
+    let currentSessionUID = BigInt(0);
     let tempRecordingFilename = null;
     let finalRecordingFilename = null;
     let startTimeStr = '';
@@ -79,7 +81,7 @@ function startUdpListener(config) {
                 currentSessionUID = header.sessionUID;
                 tempRecordingFilename = null;
                 finalRecordingFilename = null;
-                if (currentSessionUID !== 0n) {
+                if (currentSessionUID !== BigInt(0)) {
                     startTimeStr = new Date().toISOString().replace(/[:.]/g, '-');
                     // Temporäre Datei verwenden, bis wir Track- und Session-Namen kennen
                     tempRecordingFilename = path_1.default.join(recordingsDir, `_temp_session_${currentSessionUID}_${startTimeStr}.bin`);
@@ -88,7 +90,7 @@ function startUdpListener(config) {
                 }
             }
             // Paket in die lokale Datei schreiben (mit eigenem Mini-Header für die Wiederverarbeitung)
-            if (recordingStream && currentSessionUID !== 0n) {
+            if (recordingStream && currentSessionUID !== BigInt(0)) {
                 const fileHeader = Buffer.alloc(6);
                 fileHeader.writeUInt32LE(0, 0); // Preamble (0000)
                 fileHeader.writeUInt16LE(msg.length, 4); // Reale Paketlänge
@@ -128,6 +130,14 @@ function startUdpListener(config) {
                 case 1: { // Session-Daten: Strecke, Wetter, Session-Typ (Training, Quali, Rennen)
                     const sessionData = (0, session_1.parseSession)(msg);
                     state.updateSession(sessionData);
+                    // Status-Update für Tray senden, wenn sich Daten geändert haben
+                    if (onStatusUpdate && state.trackName !== 'Unknown') {
+                        onStatusUpdate({
+                            isRecording: true,
+                            trackName: state.trackName,
+                            sessionType: state.sessionType
+                        });
+                    }
                     break;
                 }
                 case 2: { // Rundendaten: Aktuelle Runde, Sektorzeiten, Pit-Status
@@ -157,6 +167,11 @@ function startUdpListener(config) {
                 case 6: { // Fahrzeug-Telemetrie: Geschwindigkeit, Gas, Bremse, Temperaturen
                     const telemetryData = (0, telemetry_1.parseTelemetry)(msg);
                     telemetryData.forEach((t, i) => state.updateTelemetry(i, t));
+                    break;
+                }
+                case 5: { // Car Setups: Flügel-Einstellungen, Differential, Reifendruck
+                    const setups = (0, carSetups_1.parseCarSetups)(msg);
+                    setups.forEach((s, i) => state.updateCarSetup(i, s));
                     break;
                 }
                 case 7: { // Fahrzeug-Status: ERS, Benzin, FIA Flaggen, Reifenmischung

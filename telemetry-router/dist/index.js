@@ -49,7 +49,9 @@ async function main() {
         mode: 'Live Telemetry',
         url: process.env.TARGET_URL || 'http://localhost:3000/api/telemetry',
         port: parseInt(process.env.UDP_PORT || '20777'),
-        intervalMs: 5000
+        intervalMs: 5000,
+        autostart: true,
+        transmissionMode: 'Balanced (5s)'
     };
     // Automatischer Start (nicht interaktiv) für Headless-Umgebungen/Vercel/Docker
     if (process.env.NON_INTERACTIVE === 'true') {

@@ -18,6 +18,12 @@ export interface EventData {
     beingOvertakenVehicleIdx?: number;
     // Retirement
     retirementReason?: number;
+    // Speed Trap
+    speed?: number;
+    isOverallFastestInSession?: number;
+    isDriverFastestInSession?: number;
+    fastestVehicleIdxInSession?: number;
+    fastestSpeedInSession?: number;
 }
 
 export function parseEventData(buffer: Buffer): EventData {
@@ -52,6 +58,15 @@ export function parseEventData(buffer: Buffer): EventData {
     else if (eventStringCode === 'RTMT') {
         event.vehicleIdx = buffer.readUInt8(33);
         event.retirementReason = buffer.readUInt8(34);
+    }
+    // Speed Trap event
+    else if (eventStringCode === 'SPTP') {
+        event.vehicleIdx = buffer.readUInt8(33);
+        event.speed = buffer.readFloatLE(34);
+        event.isOverallFastestInSession = buffer.readUInt8(38);
+        event.isDriverFastestInSession = buffer.readUInt8(39);
+        event.fastestVehicleIdxInSession = buffer.readUInt8(40);
+        event.fastestSpeedInSession = buffer.readFloatLE(41);
     }
 
     return event;

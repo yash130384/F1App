@@ -1,26 +1,10 @@
 import { config } from 'dotenv';
-import { prompt } from 'enquirer';
+import Enquirer from 'enquirer';
+const { prompt } = Enquirer;
+import { AppConfig } from './types/config';
 
 // Lade Umgebungsvariablen aus der .env Datei
 config();
-
-/**
- * Konfiguration für die Telemetrie-Anwendung.
- */
-export interface AppConfig {
-    /** Die ID der Liga, für die Daten gesammelt oder verarbeitet werden. */
-    leagueId: string;
-    /** Der Betriebsmodus der Anwendung (Echtzeit, Aufzeichnung-Verarbeitung, Playback). */
-    mode: 'Live Telemetry' | 'Fast Process Recordings' | 'Playback Recording (Legacy)' | 'Settings' | 'Local Recording';
-    /** Intervall-Modus für die Datenübertragung an den Server/API. */
-    transmissionMode?: 'Live (60Hz)' | 'Balanced (5s)' | 'Results Only (60s)';
-    /** Ziel-URL für die HTTP-Übermittlung der Telemetriedaten. */
-    url?: string;
-    /** Lokaler UDP-Port, auf dem die Spieldaten empfangen werden. */
-    port?: number;
-    /** Aktuelles Sendeintervall in Millisekunden. */
-    intervalMs: number;
-}
 
 /**
  * Haupteinstiegspunkt der Anwendung.
@@ -35,7 +19,9 @@ async function main() {
         mode: 'Live Telemetry',
         url: process.env.TARGET_URL || 'http://localhost:3000/api/telemetry',
         port: parseInt(process.env.UDP_PORT || '20777'),
-        intervalMs: 5000
+        intervalMs: 5000,
+        autostart: true,
+        transmissionMode: 'Balanced (5s)'
     };
 
     // Automatischer Start (nicht interaktiv) für Headless-Umgebungen/Vercel/Docker

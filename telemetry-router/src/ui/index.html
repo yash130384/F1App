@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Telemetry Router - Settings</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #0b0b0b;
+            --bg-card: #151515;
+            --accent: #c1ff00; /* Electric Lime */
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --border: #222222;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* F1 Kinetic Header */
+        header {
+            background: var(--bg-card);
+            padding: 20px;
+            border-bottom: 3px solid var(--accent);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-style: italic;
+        }
+
+        .status-badge {
+            background: rgba(193, 255, 0, 0.1);
+            color: var(--accent);
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            border: 1px solid var(--accent);
+        }
+
+        /* Form Layout */
+        main {
+            padding: 30px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        input, select {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 1rem;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 10px rgba(193, 255, 0, 0.2);
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-card);
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+
+        /* Custom Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input { display: none; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #333;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; width: 18px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        /* Actions */
+        .actions {
+            margin-top: auto;
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px;
+            font-weight: 900;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-save {
+            background: var(--accent);
+            color: black;
+        }
+
+        .btn-save:hover {
+            filter: brightness(1.1);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #222;
+            color: white;
+        }
+
+        .btn-secondary:hover { background: #333; }
+
+        .hint {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>F1 Router <span style="color:var(--accent)">v3.0.0</span></h1>
+        <div class="status-badge" id="status-display">Standby</div>
+    </header>
+
+    <main>
+        <div class="form-group">
+            <label>UDP Listener Port</label>
+            <input type="number" id="port" value="20777">
+            <span class="hint">Standardport für F1 25.</span>
+        </div>
+
+        <div class="form-group">
+            <label>Backend API URL</label>
+            <input type="text" id="api-url" placeholder="http://localhost:3000/api/telemetry">
+        </div>
+
+        <div class="toggle-group">
+            <div>
+                <label>System-Autostart</label>
+                <div class="hint">Router beim Rechner-Start laden.</div>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="autostart">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <div class="actions">
+            <button class="btn-secondary" id="btn-close">Schließen</button>
+            <button class="btn-save" id="btn-save">Einstellungen Speichern</button>
+        </div>
+    </main>
+
+    <script>
+        // Die Logik wird über das Preload-Skript bereitgestellt (window.api)
+        const portInput = document.getElementById('port');
+        const apiInput = document.getElementById('api-url');
+        const autostartInput = document.getElementById('autostart');
+        const saveBtn = document.getElementById('btn-save');
+        const closeBtn = document.getElementById('btn-close');
+
+        // Initialdaten laden
+        window.api.getConfig().then(config => {
+            portInput.value = config.port || 20777;
+            apiInput.value = config.apiUrl || '';
+            autostartInput.checked = !!config.autostart;
+        });
+
+        saveBtn.addEventListener('click', async () => {
+            const config = {
+                port: parseInt(portInput.value),
+                apiUrl: apiInput.value,
+                autostart: autostartInput.checked
+            };
+            
+            saveBtn.innerText = 'Speichere...';
+            saveBtn.disabled = true;
+            
+            await window.api.saveConfig(config);
+            
+            setTimeout(() => {
+                saveBtn.innerText = 'Gespeichert!';
+                saveBtn.disabled = false;
+                setTimeout(() => saveBtn.innerText = 'Einstellungen Speichern', 1500);
+            }, 500);
+        });
+
+        closeBtn.addEventListener('click', () => {
+            window.api.closeWindow();
+        });
+    </script>
+</body>
+</html>

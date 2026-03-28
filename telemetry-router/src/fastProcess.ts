@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
-import { AppConfig } from './index';
+import { AppConfig } from './types/config';
 import { SessionState } from './state';
 import { parseHeader } from './parsers/header';
 import { parseSession } from './parsers/session';
@@ -15,7 +15,8 @@ import { parseSessionHistoryData } from './parsers/sessionHistory';
 import { parseMotionData } from './parsers/motionData';
 import { parseMotionExData } from './parsers/motionEx';
 import { parseTyreSets } from './parsers/tyreSets';
-import { prompt } from 'enquirer';
+import Enquirer from 'enquirer';
+const { prompt } = Enquirer;
 
 /**
  * Der FastProcessor ermöglicht die nachträgliche Verarbeitung von .bin-Aufzeichnungen.

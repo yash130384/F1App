@@ -102,6 +102,8 @@ export const telemetrySessions = pgTable('telemetry_sessions', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
   trackFlags: integer('track_flags').default(0),
+  pitEntry: real('pit_entry'),
+  pitExit: real('pit_exit'),
 }, (table) => ({
   leagueIdx: index('telemetry_sessions_league_id_idx').on(table.leagueId),
   raceIdx: index('telemetry_sessions_race_id_idx').on(table.raceId),
@@ -125,6 +127,12 @@ export const telemetryParticipants = pgTable('telemetry_participants', {
   pitStops: integer('pit_stops').default(0),
   warnings: integer('warnings').default(0),
   penaltiesTime: integer('penalties_time').default(0),
+  // F1 25 Erweiterungen
+  visualTyreCompound: integer('visual_tyre_compound'),
+  actualTyreCompound: integer('actual_tyre_compound'),
+  tyreAgeLaps: integer('tyre_age_laps'),
+  enginePowerICE: real('engine_power_ice'),
+  enginePowerMGUK: real('engine_power_mguk'),
 }, (table) => ({
   sessionGameNameUniq: uniqueIndex('telemetry_participants_session_game_name_uniq').on(table.sessionId, table.gameName),
   sessionIdx: index('telemetry_participants_session_id_idx').on(table.sessionId),
@@ -220,4 +228,45 @@ export const telemetrySafetyCarEvents = pgTable('telemetry_safety_car_events', {
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
   sessionIdx: index('telemetry_safety_car_events_session_id_idx').on(table.sessionId),
+}));
+
+/**
+ * Fahrzeug-Setups (F1 25)
+ */
+export const telemetryCarSetups = pgTable('telemetry_car_setups', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  participantId: uuid('participant_id').references(() => telemetryParticipants.id, { onDelete: 'cascade' }).notNull(),
+  lapNumber: integer('lap_number').notNull(),
+  setupJson: text('setup_json').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  participantIdx: index('telemetry_car_setups_participant_id_idx').on(table.participantId),
+}));
+
+/**
+ * Speed Traps
+ */
+export const telemetrySpeedTraps = pgTable('telemetry_speed_traps', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sessionId: uuid('session_id').references(() => telemetrySessions.id, { onDelete: 'cascade' }).notNull(),
+  participantId: uuid('participant_id').references(() => telemetryParticipants.id, { onDelete: 'cascade' }).notNull(),
+  speed: real('speed').notNull(),
+  lapNumber: integer('lap_number'),
+  distance: real('distance'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  sessionIdx: index('telemetry_speed_traps_session_id_idx').on(table.sessionId),
+}));
+
+/**
+ * Strecken-Metadaten (Kurven-Mapping etc.)
+ */
+export const telemetryTrackMetadata = pgTable('telemetry_track_metadata', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  trackId: integer('track_id').notNull(),
+  curveName: text('curve_name').notNull(),
+  distanceStart: real('distance_start').notNull(),
+  distanceEnd: real('distance_end').notNull(),
+}, (table) => ({
+  trackIdx: index('telemetry_track_metadata_track_id_idx').on(table.trackId),
 }));

@@ -1,5 +1,5 @@
 import readline from 'readline';
-import { AppConfig } from './index';
+import { AppConfig } from './types/config';
 
 /**
  * Repräsentiert den aktuellen Status für die Terminal-Anzeige.

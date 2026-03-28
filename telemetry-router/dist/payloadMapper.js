@@ -21,6 +21,8 @@ class PayloadMapper {
         // Dies stellt sicher, dass jede abgeschlossene Runde nur genau einmal gesendet wird.
         const lapsToSend = [...p.laps];
         p.laps = [];
+        const speedTrapsToSend = [...p.speedTraps];
+        p.speedTraps = [];
         const ld = p.lapData;
         // Berechnung der Deltas zu Vorderleuten und Führendem in Millisekunden
         const deltaToFront = ld ? ld.deltaToCarInFrontMinutesPart * 60000 + ld.deltaToCarInFrontMSPart : 0;
@@ -58,12 +60,20 @@ class PayloadMapper {
             status: p.carStatusData ? {
                 ersDeployMode: p.carStatusData.ersDeployMode,
                 ersStoreEnergy: p.carStatusData.ersStoreEnergy,
+                ersHarvestedThisLapMGUK: p.carStatusData.ersHarvestedThisLapMGUK,
+                ersHarvestedThisLapMGUH: p.carStatusData.ersHarvestedThisLapMGUH,
                 fuelMix: p.carStatusData.fuelMix,
                 fuelRemainingLaps: p.carStatusData.fuelRemainingLaps,
                 fuelInTank: p.carStatusData.fuelInTank,
                 visualTyreCompound: p.carStatusData.visualTyreCompound,
                 actualTyreCompound: p.carStatusData.actualTyreCompound,
                 tyresAgeLaps: p.carStatusData.tyresAgeLaps,
+                enginePowerICE: p.carStatusData.enginePowerICE,
+                enginePowerMGUK: p.carStatusData.enginePowerMGUK,
+                maxRPM: p.carStatusData.maxRPM,
+                maxGears: p.carStatusData.maxGears,
+                drsAllowed: p.carStatusData.drsAllowed,
+                drsActivationDistance: p.carStatusData.drsActivationDistance,
             } : undefined,
             // Mechanischer Zustand und Schäden
             damage: p.carDamageData ? {
@@ -76,6 +86,9 @@ class PayloadMapper {
                 rearWingDamage: p.carDamageData.rearWingDamage,
                 gearBoxDamage: p.carDamageData.gearBoxDamage,
                 engineDamage: p.carDamageData.engineDamage,
+                floorDamage: p.carDamageData.floorDamage,
+                diffuserDamage: p.carDamageData.diffuserDamage,
+                sidepodDamage: p.carDamageData.sidepodDamage,
             } : undefined,
             // Reifensätze und Boxenstrategie
             tyreSets: p.tyreSets,
@@ -100,6 +113,10 @@ class PayloadMapper {
                 pitLaneTimeInLaneInMS: ld.pitLaneTimeInLaneInMS,
                 pitStopTimerInMS: ld.pitStopTimerInMS,
             } : undefined,
+            // Fahrzeug-Setup (Aero, Fahrwerk, Getriebe)
+            setup: p.carSetupData,
+            // Speed Traps der aktuellen Übertragung (wird danach geleert)
+            speedTraps: [...p.speedTraps],
             // Zusätzliche Strategie-Fenster (ideal für Boxenstopp-Planung)
             sessionStatus: p.carStatusData ? {
                 pitStopWindowIdealLap: p.pitStopWindowIdealLap ?? 0,
