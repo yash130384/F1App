@@ -1,6 +1,6 @@
 'use server';
 
-import crypto from 'crypto';
+import * as crypto from 'node:crypto';
 import { query, run } from './db';
 import { calculatePoints, DEFAULT_CONFIG, PointsConfig } from './scoring';
 
@@ -307,6 +307,7 @@ export async function saveRaceResults(leagueId: string, track: string, results: 
 
 /**
  * Recalculates all driver totals for a league, accounting for drop results.
+ * Optimized with Batch-Loading to avoid N+1 queries.
  */
 export async function recalculateStandings(leagueId: string) {
     const drivers = await query<any>(`SELECT id FROM drivers WHERE league_id = ?`, [leagueId]);
@@ -315,31 +316,44 @@ export async function recalculateStandings(leagueId: string) {
 
     // Total finished races in this league
     const racesCountRes = await query<any>(`SELECT COUNT(*) as c FROM races WHERE league_id = ? AND is_finished = true`, [leagueId]);
-    const finishedRaces = parseInt(racesCountRes[0].c || 0);
+    const finishedRacesCount = parseInt(racesCountRes[0].c || 0);
 
-    // Max drops allowed is 25% of the highest between configured total races or finished races
-    const referenceRaces = (config?.totalRaces && config.totalRaces > 0) ? config.totalRaces : finishedRaces;
+    // Max drops calculation
+    const referenceRaces = (config?.totalRaces && config.totalRaces > 0) ? config.totalRaces : finishedRacesCount;
     const maxDropsAllowed = Math.floor(referenceRaces * 0.25);
     const actualDrops = Math.min((config?.dropResultsCount || 0), maxDropsAllowed);
 
-    for (const driver of drivers) {
-        // Fetch all individual results for this driver
-        const results = await query<any>(`SELECT id, points_earned FROM race_results WHERE driver_id = ?`, [driver.id]);
+    // BATCH-LOADING: Fetch ALL results for ALL drivers in this league at once
+    const allResults = await query<any>(`
+        SELECT rr.id, rr.driver_id, rr.points_earned 
+        FROM race_results rr
+        JOIN races r ON rr.race_id = r.id
+        WHERE r.league_id = ? AND r.is_finished = true
+    `, [leagueId]);
 
-        let allPoints: { id: string | null; points: number }[] = results.map((r: any) => ({
+    // Group results by driver_id for O(1) access
+    const resultsMap = new Map<string, { id: string; points: number }[]>();
+    allResults.forEach((r: any) => {
+        if (!resultsMap.has(r.driver_id)) resultsMap.set(r.driver_id, []);
+        resultsMap.get(r.driver_id)!.push({ id: r.id, points: r.points_earned || 0 });
+    });
+
+    for (const driver of drivers) {
+        const driverResults = resultsMap.get(driver.id) || [];
+
+        let allPoints: { id: string | null; points: number }[] = driverResults.map((r: any) => ({
             id: r.id,
-            points: r.points_earned || 0
+            points: r.points
         }));
 
-        // They missed races if they have fewer results than finished races, so we fill with 0s. 
-        // We use null ID for missed races.
-        while (allPoints.length < finishedRaces) {
+        // Fill missed races with 0s
+        while (allPoints.length < finishedRacesCount) {
             allPoints.push({ id: null, points: 0 });
         }
 
         const rawPoints = allPoints.reduce((sum, p) => sum + p.points, 0);
 
-        // Sort ascending to find lowest
+        // Sort ascending to identify lowest results to drop
         const sortedPoints = [...allPoints].sort((a, b) => a.points - b.points);
         let totalPoints = rawPoints;
         let droppedResultIds: string[] = [];
@@ -351,19 +365,16 @@ export async function recalculateStandings(leagueId: string) {
             droppedResultIds = dropped.filter(d => d.id !== null).map(d => d.id as string);
         }
 
-        // We store total and raw points in drivers table
+        // Update driver totals
         await run(`UPDATE drivers SET total_points = ?, raw_points = ? WHERE id = ?`, [totalPoints, rawPoints, driver.id]);
 
-        // Update race_results flags
-        if (results.length > 0) {
-            // First clear old flags for this driver
-            await run(`UPDATE race_results SET is_dropped = false WHERE driver_id = ?`, [driver.id]);
+        // Reset dropped flags first (for this driver)
+        await run(`UPDATE race_results SET is_dropped = false WHERE driver_id = ?`, [driver.id]);
 
-            // Set true for dropped results if any exist
-            if (droppedResultIds.length > 0) {
-                const placeholders = droppedResultIds.map(() => '?').join(',');
-                await run(`UPDATE race_results SET is_dropped = true WHERE id IN (${placeholders})`, droppedResultIds);
-            }
+        // Mark current drops
+        if (droppedResultIds.length > 0) {
+            const placeholders = droppedResultIds.map(() => '?').join(',');
+            await run(`UPDATE race_results SET is_dropped = true WHERE id IN (${placeholders})`, droppedResultIds);
         }
     }
 }
@@ -435,12 +446,15 @@ export async function getDashboardData(leagueName: string) {
 
         const standings = await query<any>(`
             SELECT d.*,
-                (SELECT COUNT(*) FROM race_results rr WHERE rr.driver_id = d.id AND rr.position = 1) as wins,
-                (SELECT COUNT(*) FROM race_results rr WHERE rr.driver_id = d.id AND rr.position <= 3) as podiums,
-                (SELECT COUNT(*) FROM race_results rr WHERE rr.driver_id = d.id AND rr.fastest_lap = true) as fastest_laps,
-                (SELECT COUNT(*) FROM race_results rr WHERE rr.driver_id = d.id AND rr.clean_driver = true) as clean_races
+                COUNT(CASE WHEN rr.position = 1 AND r.is_finished = true THEN 1 END) as wins,
+                COUNT(CASE WHEN rr.position <= 3 AND rr.position > 0 AND r.is_finished = true THEN 1 END) as podiums,
+                COUNT(CASE WHEN rr.fastest_lap = true AND r.is_finished = true THEN 1 END) as fastest_laps,
+                COUNT(CASE WHEN rr.clean_driver = true AND r.is_finished = true THEN 1 END) as clean_races
             FROM drivers d 
+            LEFT JOIN race_results rr ON d.id = rr.driver_id
+            LEFT JOIN races r ON rr.race_id = r.id
             WHERE d.league_id = ? 
+            GROUP BY d.id
             ORDER BY d.total_points DESC, wins DESC, podiums DESC
         `, [leagueId]);
 
@@ -762,6 +776,7 @@ export async function deleteDriver(driverId: string, leagueId: string, adminPass
 
 /**
  * Fetches points configuration for a league.
+ * Optimized with Drizzle for typsafety.
  */
 export async function getPointsConfig(leagueId: string) {
     try {
@@ -770,15 +785,16 @@ export async function getPointsConfig(leagueId: string) {
             return { success: true, config: DEFAULT_CONFIG };
         }
 
+        const row = rows[0];
         const config: PointsConfig = {
-            points: JSON.parse(rows[0].points_json),
-            qualiPoints: rows[0].quali_points_json ? JSON.parse(rows[0].quali_points_json) : DEFAULT_CONFIG.qualiPoints,
-            fastestLapBonus: rows[0].fastest_lap_bonus,
-            cleanDriverBonus: rows[0].clean_driver_bonus,
-            totalRaces: rows[0].total_races || 0,
-            trackPool: rows[0].track_pool ? JSON.parse(rows[0].track_pool) : [],
-            dropResultsCount: rows[0].drop_results_count || 0,
-            teamCompetition: !!rows[0].team_competition
+            points: row.points_json ? JSON.parse(row.points_json) : DEFAULT_CONFIG.points,
+            qualiPoints: row.quali_points_json ? JSON.parse(row.quali_points_json) : DEFAULT_CONFIG.qualiPoints,
+            fastestLapBonus: row.fastest_lap_bonus,
+            cleanDriverBonus: row.clean_driver_bonus,
+            totalRaces: row.total_races || 0,
+            trackPool: row.track_pool ? JSON.parse(row.track_pool) : [],
+            dropResultsCount: row.drop_results_count || 0,
+            teamCompetition: !!row.team_competition
         };
 
         return { success: true, config };
@@ -1434,14 +1450,22 @@ export async function getRaceAnalysis(sessionId: string) {
             ORDER BY tp.position ASC
         `, [sessionId]);
 
-        for (const p of participants) {
-            const laps = await query<any>(`
-                SELECT lap_number, tyre_compound, is_pit_lap 
-                FROM telemetry_laps 
-                WHERE participant_id = ? 
-                ORDER BY lap_number ASC
-            `, [p.id]);
+        // BATCH-LOADING: Laps für alle Teilnehmer in einer Query holen
+        const allLaps = await query<any>(`
+            SELECT participant_id, lap_number, tyre_compound, is_pit_lap 
+            FROM telemetry_laps 
+            WHERE participant_id IN (SELECT id FROM telemetry_participants WHERE session_id = ?)
+            ORDER BY participant_id ASC, lap_number ASC
+        `, [sessionId]);
 
+        const lapsByParticipant = new Map<string, any[]>();
+        allLaps.forEach((l: any) => {
+            if (!lapsByParticipant.has(l.participant_id)) lapsByParticipant.set(l.participant_id, []);
+            lapsByParticipant.get(l.participant_id)!.push(l);
+        });
+
+        for (const p of participants) {
+            const laps = lapsByParticipant.get(p.id) || [];
             const computedStints: any[] = [];
             let currentStint: any = null;
             let stintNum = 1;
@@ -1470,7 +1494,7 @@ export async function getRaceAnalysis(sessionId: string) {
             }
             p.stints = computedStints;
         }
-
+    
         const positionHistory = await query<any>(
             `SELECT car_index, lap_number, position FROM telemetry_position_history WHERE session_id = ? ORDER BY lap_number ASC`,
             [sessionId]
