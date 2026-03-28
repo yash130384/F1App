@@ -56,7 +56,7 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
                         {/* Name and Position Overlay */}
                         <div className="absolute left-4 z-10 flex items-center gap-small pointer-events-none" 
                              style={{ textShadow: '0 2px 4px rgba(0,0,0,0.9)', top: '50%', transform: 'translateY(-50%)' }}>
-                            <span className="text-f1-bold italic" style={{ color: 'var(--f1-red)', fontSize: '0.8rem' }}>P{p.position}</span>
+                            <span className="text-f1-bold italic text-mono" style={{ color: 'var(--f1-red)', fontSize: '0.8rem' }}>P{p.position}</span>
                             <span className="text-f1-bold italic" style={{ fontSize: '0.9rem', color: '#fff', letterSpacing: '0.05em' }}>
                                 {p.driver_name?.toUpperCase() || p.game_name.toUpperCase()}
                             </span>
@@ -90,7 +90,7 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
                                     >
                                         <div className="flex flex-col items-center">
                                             <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>{COMPOUND_LABELS[stint.visual_compound]}</span>
-                                            {width > 6 && <span style={{ fontSize: '0.55rem', opacity: 0.6 }}>L{duration}</span>}
+                                            {width > 6 && <span className="text-mono" style={{ fontSize: '0.55rem', opacity: 0.6 }}>L{duration}</span>}
                                         </div>
                                     </div>
                                 );
@@ -115,7 +115,7 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
                         }}
                     >
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-3 bg-f1-red"></div>
-                        L{Math.round(pct * totalLaps)}
+                        <span className="text-mono">L{Math.round(pct * totalLaps)}</span>
                     </div>
                 ))}
             </div>

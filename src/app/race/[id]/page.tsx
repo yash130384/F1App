@@ -80,7 +80,7 @@ function AllDriversTooltip({ active, payload, label, drivers, graphData }: any) 
                         <div style={{ width: '3px', height: '14px', borderRadius: '2px', background: d.color || 'var(--silver)', flexShrink: 0 }} />
                         <span style={{ color: 'var(--white)', flex: 1 }}>{d.name}</span>
                         {tyreCmpd ? <TyreBadge compoundId={tyreCmpd} /> : null}
-                        <span style={{ color: 'var(--f1-red)', fontFamily: 'monospace', fontWeight: 600 }}>{formatLapTime(p.value)}</span>
+                        <span className="text-mono" style={{ color: 'var(--f1-red)', fontWeight: 600 }}>{formatLapTime(p.value)}</span>
                     </div>
                 );
             })}
@@ -234,7 +234,7 @@ function RaceDetailContent() {
                                             onClick={() => res.driver_id && handleDriverClick(res)}
                                             style={{ cursor: res.driver_id ? 'pointer' : 'default' }}
                                         >
-                                            <td className="pos-number">P{res.position}</td>
+                                            <td className="pos-number text-mono">P{res.position}</td>
                                             <td>
                                                 <div className="flex items-center gap-small">
                                                     <div style={{ width: '3px', height: '18px', borderRadius: '1px', background: res.driver_color || 'var(--text-muted)' }} />
@@ -252,7 +252,7 @@ function RaceDetailContent() {
                                             <td className="hide-mobile" style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
                                                 {res.pit_stops > 0 ? res.pit_stops : '-'}
                                             </td>
-                                            <td style={{ textAlign: 'right' }}>
+                                            <td className="text-right text-mono">
                                                 <span className="text-f1-bold" style={{ fontSize: '1.2rem', color: res.is_dropped ? 'var(--text-muted)' : 'var(--f1-red)', textDecoration: res.is_dropped ? 'line-through' : 'none' }}>
                                                     {res.points_earned}
                                                 </span>

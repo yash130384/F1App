@@ -156,7 +156,7 @@ function RaceResultsTable({ raceResults, handleDriverClick, compact = false }: R
                             onClick={() => handleDriverClick(res)}
                             style={{ cursor: 'pointer' }}
                         >
-                            <td className="pos-number">
+                            <td className="pos-number text-mono">
                                 {res.position}
                             </td>
                             <td>
@@ -182,8 +182,8 @@ function RaceResultsTable({ raceResults, handleDriverClick, compact = false }: R
                                     {res.pit_stops > 0 ? res.pit_stops : '-'}
                                 </td>
                             )}
-                            <td style={{ textAlign: 'right', fontWeight: 900, color: res.is_dropped ? 'var(--text-muted)' : 'var(--f1-red)' }}>
-                                <span style={{ textDecoration: res.is_dropped ? 'line-through' : 'none' }}>
+                            <td className="text-right text-mono" style={{ fontWeight: 900, color: res.is_dropped ? 'var(--text-muted)' : 'var(--f1-red)' }}>
+                                <span style={{ textDecoration: res.is_dropped ? 'line-through' : 'none', fontSize: '1.2rem' }}>
                                     {res.points_earned}
                                 </span>
                                 <span style={{ fontSize: '0.7rem', opacity: 0.5, marginLeft: '4px', fontWeight: 400 }}>PTS</span>
@@ -456,7 +456,7 @@ export default function Dashboard() {
                                             <tbody>
                                                 {standings.map((driver, idx) => (
                                                     <tr key={driver.id}>
-                                                        <td className="pos-number">{idx + 1}</td>
+                                                    <td className="pos-number text-mono">{idx + 1}</td>
                                                         <td>
                                                             <div className="flex items-center gap-small">
                                                                 <div style={{ width: '3px', height: '18px', background: driver.color || 'var(--text-muted)', borderRadius: '1px' }} />
@@ -469,7 +469,7 @@ export default function Dashboard() {
                                                         <td style={{ textAlign: 'center', fontWeight: 700 }}>{driver.wins}</td>
                                                         <td style={{ textAlign: 'center', fontWeight: 700 }}>{driver.podiums}</td>
                                                         <td className="hide-mobile" style={{ textAlign: 'center', fontWeight: 700 }}>{driver.fastest_laps}</td>
-                                                        <td style={{ textAlign: 'right', fontWeight: 900, color: 'var(--f1-red)', fontSize: '1.2rem' }}>
+                                                        <td className="text-right text-mono" style={{ fontWeight: 900, color: 'var(--f1-red)', fontSize: '1.2rem' }}>
                                                             {driver.total_points}
                                                             {driver.raw_points !== driver.total_points && (
                                                                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '4px', fontWeight: 400 }}>
@@ -505,7 +505,7 @@ export default function Dashboard() {
                                                 <tbody>
                                                     {teamStandings.map((team, idx) => (
                                                         <tr key={team.id}>
-                                                            <td className="pos-number">{idx + 1}</td>
+                                                        <td className="pos-number text-mono">{idx + 1}</td>
                                                             <td>
                                                                 <div className="flex items-center gap-small">
                                                                     <div style={{ width: '3px', height: '18px', background: team.color || 'var(--text-muted)', borderRadius: '1px' }} />
@@ -513,7 +513,7 @@ export default function Dashboard() {
                                                                 </div>
                                                             </td>
                                                             <td style={{ textAlign: 'center', fontWeight: 700 }}>{team.wins}</td>
-                                                            <td style={{ textAlign: 'right', fontWeight: 900, color: 'var(--f1-red)', fontSize: '1.2rem' }}>
+                                                            <td className="text-right text-mono" style={{ fontWeight: 900, color: 'var(--f1-red)', fontSize: '1.2rem' }}>
                                                                 {team.total_points} <span style={{ fontSize: '0.7rem', opacity: 0.3 }}>PTS</span>
                                                             </td>
                                                         </tr>
@@ -680,7 +680,7 @@ export default function Dashboard() {
                                                                         onClick={() => handleDriverClick(res)}
                                                                         style={{ cursor: 'pointer' }}
                                                                     >
-                                                                        <td className="pos-number">
+                                                                        <td className="pos-number text-mono">
                                                                              {res.position}
                                                                         </td>
                                                                         <td>
@@ -700,7 +700,7 @@ export default function Dashboard() {
                                                                         <td className="hide-mobile" style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
                                                                             {res.pit_stops > 0 ? res.pit_stops : '-'}
                                                                         </td>
-                                                                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                                                        <td className="text-right text-mono" style={{ whiteSpace: 'nowrap' }}>
                                                                             <span style={{ fontWeight: 900, fontSize: '1.1rem', color: res.is_dropped ? 'var(--text-muted)' : 'var(--f1-red)', textDecoration: res.is_dropped ? 'line-through' : 'none' }}>
                                                                                 {res.points_earned}
                                                                             </span>
@@ -781,19 +781,19 @@ export default function Dashboard() {
                                             <div className="grid-responsive" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', marginBottom: '3rem' }}>
                                                 <div className="glass-panel" style={{ padding: '1.5rem', textAlign: 'center' }}>
                                                     <div className="stat-label">FINISH</div>
-                                                    <div className="stat-value">P{selectedDriverDetails.summary.position}</div>
+                                                    <div className="stat-value text-mono">P{selectedDriverDetails.summary.position}</div>
                                                 </div>
                                                 <div className="glass-panel" style={{ padding: '1.5rem', textAlign: 'center' }}>
                                                     <div className="stat-label">START</div>
-                                                    <div className="stat-value">P{selectedDriverDetails.summary.quali_position}</div>
+                                                    <div className="stat-value text-mono">P{selectedDriverDetails.summary.quali_position}</div>
                                                 </div>
                                                 <div className="glass-panel" style={{ padding: '1.5rem', textAlign: 'center' }}>
                                                     <div className="stat-label">PITS</div>
-                                                    <div className="stat-value" style={{ color: selectedDriverDetails.summary.pit_stops > 0 ? 'var(--f1-cyan)' : 'var(--text-secondary)' }}>{selectedDriverDetails.summary.pit_stops}</div>
+                                                    <div className="stat-value text-mono" style={{ color: selectedDriverDetails.summary.pit_stops > 0 ? 'var(--f1-cyan)' : 'var(--text-secondary)' }}>{selectedDriverDetails.summary.pit_stops}</div>
                                                 </div>
                                                 <div className="glass-panel" style={{ padding: '1.5rem', textAlign: 'center' }}>
                                                     <div className="stat-label">PENALTY</div>
-                                                    <div className="stat-value" style={{ color: selectedDriverDetails.summary.penalties_time > 0 ? 'var(--f1-red)' : 'var(--text-secondary)' }}>+{selectedDriverDetails.summary.penalties_time}s</div>
+                                                    <div className="stat-value text-mono" style={{ color: selectedDriverDetails.summary.penalties_time > 0 ? 'var(--f1-red)' : 'var(--text-secondary)' }}>+{selectedDriverDetails.summary.penalties_time}s</div>
                                                 </div>
                                             </div>
 
@@ -878,13 +878,13 @@ export default function Dashboard() {
                                                                             lap.lap_time_ms === Math.min(...selectedDriverDetails.laps.filter((l: any) => l.is_valid).map((l: any) => l.lap_time_ms));
                                                                         return (
                                                                             <tr key={lap.lap_number}>
-                                                                                <td className="pos-number" style={{ fontSize: '0.9rem' }}>{lap.lap_number}</td>
-                                                                                <td className="text-f1-bold" style={{ color: isOverallFastest ? '#9c27b0' : (lap.is_valid ? 'var(--text-primary)' : 'rgba(255,24,1,0.4)') }}>
+                                                                                <td className="pos-number text-mono" style={{ fontSize: '0.9rem' }}>{lap.lap_number}</td>
+                                                                                <td className="text-f1-bold text-mono" style={{ color: isOverallFastest ? '#9c27b0' : (lap.is_valid ? 'var(--text-primary)' : 'rgba(255,24,1,0.4)') }}>
                                                                                     {formatLapTime(lap.lap_time_ms)}
                                                                                 </td>
-                                                                                <td className="hide-mobile" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{lap.sector1_ms ? formatLapTime(lap.sector1_ms) : '-'}</td>
-                                                                                <td className="hide-mobile" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{lap.sector2_ms ? formatLapTime(lap.sector2_ms) : '-'}</td>
-                                                                                <td className="hide-mobile" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{lap.sector3_ms ? formatLapTime(lap.sector3_ms) : '-'}</td>
+                                                                                <td className="hide-mobile text-mono" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{lap.sector1_ms ? formatLapTime(lap.sector1_ms) : '-'}</td>
+                                                                                <td className="hide-mobile text-mono" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{lap.sector2_ms ? formatLapTime(lap.sector2_ms) : '-'}</td>
+                                                                                <td className="hide-mobile text-mono" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{lap.sector3_ms ? formatLapTime(lap.sector3_ms) : '-'}</td>
                                                                                 <td>
                                                                                     {lap.tyre_compound ? <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: getTyreInfo(lap.tyre_compound).color, border: '1px solid rgba(255,255,255,0.2)' }} /> : '-'}
                                                                                 </td>

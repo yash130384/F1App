@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Outfit:wght@400;600;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Outfit:wght@400;600;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
 :root {
   /* Colors - Ultimate F1 Palette */
@@ -22,8 +22,9 @@
   --text-muted: #626266;
 
   /* Typography */
-  --font-display: 'Outfit', sans-serif;
+  --font-display: 'Space Grotesk', 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 
   /* Glassmorphism */
   --glass-bg: rgba(255, 255, 255, 0.03);
@@ -61,11 +62,11 @@ body::before {
   position: fixed;
   inset: 0;
   background: 
-    linear-gradient(to bottom, rgba(5, 5, 7, 0.75), rgba(5, 5, 7, 0.95)),
+    linear-gradient(to bottom, rgba(5, 5, 7, 0.45), rgba(5, 5, 7, 0.75)),
     url('/f1_atmosphere_background_1774657487988.png') center/cover no-repeat;
   pointer-events: none;
   z-index: -10;
-  filter: brightness(0.8) contrast(1.2) saturate(1.1);
+  filter: brightness(1.0) contrast(1.1) saturate(1.1);
 }
 
 /* Layout Utilities */
@@ -107,6 +108,11 @@ body::before {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+.text-mono {
+  font-family: var(--font-mono);
+  letter-spacing: -0.02em;
 }
 
 /* Base Components - The "Kinetic Monolith" Look */
@@ -320,4 +326,74 @@ body::before {
 
 .animate-slide-up {
   animation: slideUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+/* F1 Table Styles */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 0;
+}
+
+.f1-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.9rem;
+}
+
+.f1-table th {
+  text-align: left;
+  padding: 1rem 1.5rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  letter-spacing: 0.1em;
+  font-size: 0.7rem;
+  border-bottom: 2px solid var(--surface-highest);
+  background: var(--surface-low);
+}
+
+.f1-table td {
+  padding: 1.25rem 1.5rem;
+  vertical-align: middle;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  transition: var(--transition-smooth);
+}
+
+.f1-table tr {
+  background: var(--surface-mid);
+}
+
+.f1-table tr:nth-child(even) {
+  background: var(--surface-low);
+}
+
+.f1-table tr:hover td {
+  background: var(--surface-high);
+}
+
+.f1-table .pos-number {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-style: italic;
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  width: 60px;
+}
+
+.f1-table .text-right {
+  text-align: right;
+}
+
+.f1-table .text-center {
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
 }
