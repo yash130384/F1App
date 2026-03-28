@@ -1,3 +1,4 @@
+import 'server-only';
 import { neon } from '@neondatabase/serverless';
 import { drizzle as drizzleNeon } from 'drizzle-orm/neon-http';
 import { drizzle as drizzleSqlite } from 'drizzle-orm/better-sqlite3';
@@ -48,9 +49,8 @@ export async function query<T>(sqlStr: string, params: any[] = []): Promise<T[]>
   pSql = pSql.replace('lower(hex(randomblob(16)))', 'gen_random_uuid()');
 
   try {
-    // Falls wir Neon nutzen, verwenden wir die native query Funktion, die auch Strings erlaubt.
-    // Falls die Typen hier Probleme machen, nutzen wir 'as any' zur Laufzeit-Kompatibilit\u00e4t.
-    const result = await (sqlConnection as any)(pSql, params);
+    // Falls wir Neon nutzen, verwenden wir .query() f\u00fcr herk\u00f6mmliche Platzhalter-Abfragen ($1, $2).
+    const result = await (sqlConnection as any).query(pSql, params);
     return result as T[];
   } catch (err) {
     console.error('Neon Query Fehler:', err);
@@ -77,7 +77,7 @@ export async function run(sqlStr: string, params: any[] = []): Promise<void> {
   pSql = pSql.replace(/\?/g, () => `$${counter++}`);
 
   try {
-    await (sqlConnection as any)(pSql, params);
+    await (sqlConnection as any).query(pSql, params);
   } catch (err) {
     console.error('Neon Run Fehler:', err);
     throw err;
