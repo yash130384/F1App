@@ -58,10 +58,12 @@ export function startUdpListener(config: AppConfig, onStatusUpdate?: (status: St
     // Startet die HTTP-Übermittlungsschleife im Hintergrund
     startSender(config, state);
 
-    // Dashboard-UI alle 500ms im Terminal aktualisieren
+    // Dashboard-UI deaktiviert (User requested noise reduction)
+    /*
     setInterval(() => {
         renderDashboard(config, state.getDashboardState());
     }, 500);
+    */
 
     // Fehlerbehandlung für den UDP-Socket
     server.on('error', (err) => {
@@ -81,12 +83,10 @@ export function startUdpListener(config: AppConfig, onStatusUpdate?: (status: St
             const header = parseHeader(msg);
 
             // --- LOKALE AUFZEICHNUNG (BACKUP) ---
-            // Wenn eine neue Session-ID erkannt wird, starten wir eine neue Datei.
             if (header.sessionUID !== currentSessionUID) {
                 if (recordingStream) {
                     recordingStream.end();
                     recordingStream = null;
-                    console.log(`⏹️ Recording für Session ${currentSessionUID} beendet.`);
                 }
                 
                 currentSessionUID = header.sessionUID;
@@ -95,28 +95,26 @@ export function startUdpListener(config: AppConfig, onStatusUpdate?: (status: St
                 
                 if (currentSessionUID !== BigInt(0)) {
                     startTimeStr = new Date().toISOString().replace(/[:.]/g, '-');
-                    // Temporäre Datei verwenden, bis wir Track- und Session-Namen kennen
                     tempRecordingFilename = path.join(recordingsDir, `_temp_session_${currentSessionUID}_${startTimeStr}.bin`);
                     recordingStream = fs.createWriteStream(tempRecordingFilename, { flags: 'a' });
-                    console.log(`🎥 Gestartet: Neues Recording (Temporär: ${path.basename(tempRecordingFilename)})`);
+                    console.log(`🎥 Telemetrie-Recording gestartet [UID: ${currentSessionUID}]`);
                 }
             }
 
-            // Paket in die lokale Datei schreiben (mit eigenem Mini-Header für die Wiederverarbeitung)
+            // Paket in die lokale Datei schreiben
             if (recordingStream && currentSessionUID !== BigInt(0)) {
                 const fileHeader = Buffer.alloc(6);
-                fileHeader.writeUInt32LE(0, 0); // Preamble (0000)
-                fileHeader.writeUInt16LE(msg.length, 4); // Reale Paketlänge
+                fileHeader.writeUInt32LE(0, 0); 
+                fileHeader.writeUInt16LE(msg.length, 4); 
                 recordingStream.write(fileHeader);
                 recordingStream.write(msg);
 
-                // Datei umbenennen auf sprechenden Namen (z.B. Brazil_Race_...), sobald Daten vorliegen
+                // Datei umbenennen auf sprechenden Namen
                 if (tempRecordingFilename && !finalRecordingFilename && state.trackName !== 'Unknown' && state.sessionType !== 'Unknown') {
                     const humans = state.getHumanCount();
-                    // Wir benennen um, wenn wir menschliche Spieler gefunden haben oder genug Daten (1000 Pakete) gesammelt wurden
                     if (humans > 0 || state.packetCount > 1000) {
                         const anzahl = humans > 0 ? humans : 0;
-                        const validOrt = state.trackName.replace(/[^a-z0-9]/gi, ''); // Dateisystem-sicherer Name
+                        const validOrt = state.trackName.replace(/[^a-z0-9]/gi, ''); 
                         const validSession = state.sessionType.replace(/[^a-z0-9 ]/gi, '').trim().replace(/ /g, '');
                         finalRecordingFilename = path.join(recordingsDir, `${validOrt}_${validSession}_${startTimeStr}_${anzahl}.bin`);
                         
@@ -126,9 +124,9 @@ export function startUdpListener(config: AppConfig, onStatusUpdate?: (status: St
                             const newStream = fs.createWriteStream(finalRecordingFilename, { flags: 'a' });
                             recordingStream.end();
                             recordingStream = newStream;
-                            console.log(`✅ Recording Datei präzise benannt: ${path.basename(finalRecordingFilename)}`);
+                            console.log(`✅ Session identifiziert: ${state.trackName} - ${state.sessionType}`);
                         } catch (err: any) {
-                            console.error(`Fehler beim Umbenennen der Recording-Datei: ${err.message}`);
+                            console.error(`Fehler beim Umbenennen: ${err.message}`);
                         }
                     }
                 }

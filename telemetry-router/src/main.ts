@@ -1,10 +1,14 @@
 import { app, Tray, Menu, nativeImage, ipcMain, BrowserWindow } from 'electron';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import isDev from 'electron-is-dev';
 import AutoLaunch from 'auto-launch';
 import { ConfigManager } from './config';
 import { startUdpListener } from './udpListener';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class TelemetryApp {
     private tray: Tray | null = null;
@@ -12,10 +16,16 @@ class TelemetryApp {
     private autoLauncher: AutoLaunch;
     private settingsWindow: BrowserWindow | null = null;
 
-    // Einfache farbige Icons als Base64 (16x16 Pixel)
-    private iconIdle = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAABMSURBVHgB7ZJBCsAwCAT9/6f7gaLQS8FCH8p6McYSu8Ym0fX0vAn67p4A8Id9AnatS9oK/AbcAhS9CggKKCAooICggAKCAv7iAnw9LgF0l96K9B60tAAAAABJRU5ErkJggg==');
-    private iconActive = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAABMSURBVHgB7ZJBCsAwCAT9/6f7gaLQS8FCH8p6McYSu8Ym0fX0vAn67p4A8Id9AnatS9oK/AbcAhS9CggKKCAooICggAKCAv7iAnw9LgFv29+KzO68HAAAAABJRU5ErkJggg==');
-    // Note: These are base64 placeholders. In a real build, we'd use themed PNG files.
+    private getIcon(name: string) {
+        // use __dirname to be absolute relative to the source file
+        const iconPath = path.resolve(__dirname, '..', 'assets', `${name}.png`);
+        if (fs.existsSync(iconPath)) {
+            const icon = nativeImage.createFromPath(iconPath);
+            return icon.resize({ width: 16, height: 16 });
+        }
+        console.error('Icon not found at:', iconPath);
+        return nativeImage.createEmpty();
+    }
 
     constructor() {
         this.configManager = new ConfigManager();
@@ -28,7 +38,6 @@ class TelemetryApp {
     }
 
     private initApp() {
-        // App Lifecycle
         app.whenReady().then(() => {
             this.createTray();
             this.startServices();
@@ -36,17 +45,18 @@ class TelemetryApp {
         });
 
         app.on('window-all-closed', () => {
-            // Verhindert das Beenden der App, wenn Fenster geschlossen werden (Tray-Modus)
-            if (process.platform !== 'darwin') {
-                // Auf Windows/Linux bleiben wir im Tray
-            }
+            // Keep app running in tray
         });
 
-        // IPC Handlers for Settings GUI
         ipcMain.handle('get-config', () => this.configManager.getConfig());
         ipcMain.handle('save-config', (_, newConfig) => {
-            this.configManager.setConfig(newConfig);
-            this.handleAutoStart(); // Update Autostart if changed
+            // Map 'url' from 'apiUrl' if UI sends it that way
+            const actualConfig = { ...newConfig };
+            if (newConfig.apiUrl) {
+                actualConfig.url = newConfig.apiUrl;
+            }
+            this.configManager.setConfig(actualConfig);
+            this.handleAutoStart();
             return { success: true };
         });
 
@@ -58,7 +68,7 @@ class TelemetryApp {
     }
 
     private createTray() {
-        this.tray = new Tray(this.iconIdle);
+        this.tray = new Tray(this.getIcon('icon_idle'));
         this.updateTrayMenu('Standby (Warte auf Daten...)');
         this.tray.setToolTip('F1 Telemetry Router');
     }
@@ -81,20 +91,28 @@ class TelemetryApp {
             return;
         }
 
+        const uiPath = path.resolve(__dirname, 'ui');
+        const preloadPath = path.join(uiPath, 'preload.cjs');
+        
+        console.log('Opening settings UI from:', uiPath);
+        console.log('Using preload at:', preloadPath);
+
         this.settingsWindow = new BrowserWindow({
             width: 800,
             height: 600,
             title: 'F1 Telemetry Router Settings',
             webPreferences: {
-                preload: path.join(__dirname, 'ui', 'preload.js'),
+                preload: preloadPath,
                 nodeIntegration: false,
-                contextIsolation: true
+                contextIsolation: true,
+                sandbox: false // needed for ts-node/tsx interaction sometimes
             },
             backgroundColor: '#111111',
-            // icon: path.join(__dirname, 'assets', 'icon.png')
+            autoHideMenuBar: true
         });
 
-        this.settingsWindow.loadFile(path.join(__dirname, 'ui', 'index.html'));
+        this.settingsWindow.loadFile(path.join(uiPath, 'index.html'));
+        
         this.settingsWindow.on('closed', () => {
             this.settingsWindow = null;
         });
@@ -140,10 +158,10 @@ class TelemetryApp {
         // Farbe ändern (Grün wenn aktiv, Grau wenn Standby)
         if (isRecording) {
             this.tray?.setToolTip(`F1 Router: ${trackName} - ${sessionType}`);
-            this.tray?.setImage(this.iconActive);
+            this.tray?.setImage(this.getIcon('icon_active'));
         } else {
             this.tray?.setToolTip('F1 Router: Standby');
-            this.tray?.setImage(this.iconIdle);
+            this.tray?.setImage(this.getIcon('icon_idle'));
         }
     }
 }

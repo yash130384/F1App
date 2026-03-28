@@ -4,9 +4,9 @@ import { app } from 'electron';
 import { AppConfig } from './types/config';
 
 const DEFAULT_CONFIG: AppConfig = {
-    leagueId: 'MyLeague',
+    leagueId: 'F1Suite',
     url: 'https://f1-app-lknx.vercel.app/api/telemetry',
-    port: 20777,
+    port: 20888,
     intervalMs: 5000,
     autostart: true,
     transmissionMode: 'Balanced (5s)'

@@ -224,35 +224,52 @@
         const saveBtn = document.getElementById('btn-save');
         const closeBtn = document.getElementById('btn-close');
 
-        // Initialdaten laden
-        window.api.getConfig().then(config => {
-            portInput.value = config.port || 20777;
-            apiInput.value = config.apiUrl || '';
-            autostartInput.checked = !!config.autostart;
-        });
+        if (!window.api) {
+            document.body.innerHTML = `
+                <div style="padding: 50px; text-align: center; color: #ff4d4d;">
+                    <h1 style="color: #ff4d4d;">ELECTRON BRIDGE ERROR</h1>
+                    <p>Die Verbindung zum Hauptprozess konnte nicht hergestellt werden.</p>
+                    <p style="font-size: 0.8rem; color: #888;">Bitte prüfe die Konsole des Hauptprozesses für Details zum Preload-Skript.</p>
+                </div>
+            `;
+        } else {
+            // Initialdaten laden
+            window.api.getConfig().then(config => {
+                portInput.value = config.port || 20888;
+                apiInput.value = config.url || '';
+                autostartInput.checked = !!config.autostart;
+            }).catch(err => {
+                console.error('Failed to load config:', err);
+            });
 
-        saveBtn.addEventListener('click', async () => {
-            const config = {
-                port: parseInt(portInput.value),
-                apiUrl: apiInput.value,
-                autostart: autostartInput.checked
-            };
-            
-            saveBtn.innerText = 'Speichere...';
-            saveBtn.disabled = true;
-            
-            await window.api.saveConfig(config);
-            
-            setTimeout(() => {
-                saveBtn.innerText = 'Gespeichert!';
-                saveBtn.disabled = false;
-                setTimeout(() => saveBtn.innerText = 'Einstellungen Speichern', 1500);
-            }, 500);
-        });
+            saveBtn.addEventListener('click', async () => {
+                const config = {
+                    port: parseInt(portInput.value),
+                    url: apiInput.value,
+                    autostart: autostartInput.checked
+                };
+                
+                saveBtn.innerText = 'Speichere...';
+                saveBtn.disabled = true;
+                
+                try {
+                    await window.api.saveConfig(config);
+                    setTimeout(() => {
+                        saveBtn.innerText = 'Gespeichert!';
+                        saveBtn.disabled = false;
+                        setTimeout(() => saveBtn.innerText = 'Einstellungen Speichern', 1500);
+                    }, 500);
+                } catch (err) {
+                    saveBtn.innerText = 'FEHLER!';
+                    saveBtn.disabled = false;
+                    console.error('Save failed:', err);
+                }
+            });
 
-        closeBtn.addEventListener('click', () => {
-            window.api.closeWindow();
-        });
+            closeBtn.addEventListener('click', () => {
+                window.api.closeWindow();
+            });
+        }
     </script>
 </body>
 </html>
