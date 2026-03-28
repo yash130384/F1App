@@ -47,22 +47,21 @@ const COMPOUND_NAMES: Record<number, string> = {
 
 export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChartProps) {
     // Aggressively group participants by driver to ensure ONE ROW PER DRIVER
-    const groupedParticipants = React.useMemo(() => {
+    const sortedParticipants = React.useMemo(() => {
         const driverMap = new Map<string, Participant>();
 
+        // Ensure we group stints by driver
         participants.forEach(p => {
             const name = p.driver_name || p.game_name;
             if (!driverMap.has(name)) {
                 driverMap.set(name, { ...p, stints: [...p.stints] });
             } else {
                 const existing = driverMap.get(name)!;
-                // Add stints that aren't already there
                 p.stints.forEach(s => {
                     if (!existing.stints.find(es => es.start_lap === s.start_lap)) {
                         existing.stints.push(s);
                     }
                 });
-                // Keep the best position
                 if (p.position < existing.position) existing.position = p.position;
             }
         });
@@ -88,14 +87,15 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
 
     const effectiveMaxLaps = React.useMemo(() => {
         let max = 0;
-        groupedParticipants.forEach(p => {
+        sortedParticipants.forEach(p => {
             p.mergedStints.forEach(s => {
                 if (s.end_lap && s.end_lap > max) max = s.end_lap;
             });
         });
         return max || totalLaps;
-    }, [groupedParticipants, totalLaps]);
+    }, [sortedParticipants, totalLaps]);
 
+    // Generate lap scale ticks (4-5 ticks)
     const ticks = React.useMemo(() => {
         const count = 5;
         const result = [];
@@ -108,7 +108,7 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
 
     return (
         <div className="flex flex-col gap-large w-full p-large glass-panel" style={{ background: 'rgba(5,5,7,0.85)', minHeight: '400px' }}>
-            {/* Header - Synced with dashboard style (Red/0.75rem/Uppercase) */}
+            {/* Header - Synced exactly with "POSITION EVOLUTION" style */}
             <h3 className="text-f1-bold mb-large" style={{ fontSize: '0.75rem', color: 'var(--f1-red)', letterSpacing: '2px' }}>
                 TYRE STRATEGY ANALYSIS
             </h3>
@@ -127,7 +127,7 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
 
             {/* Chart Grid */}
             <div className="flex flex-col gap-medium">
-                {groupedParticipants.map((p) => (
+                {sortedParticipants.map((p) => (
                     <div key={p.game_name} className="grid items-center" style={{ gridTemplateColumns: '180px 1fr', gap: '2rem' }}>
                         {/* Driver Name (Right Aligned) */}
                         <div className="text-right">
@@ -136,32 +136,34 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
                             </span>
                         </div>
 
-                        {/* Strategy Bar (Full Width - Single Row) */}
-                        <div className="relative h-7 w-full bg-white/5 overflow-hidden" style={{ border: 'none' }}>
+                        {/* Strategy Bar (Force Single Row using Flexbox) */}
+                        <div className="flex h-7 w-full bg-white/5 overflow-hidden" style={{ border: 'none' }}>
                             {p.mergedStints.map((stint, idx) => {
-                                const start = stint.start_lap;
-                                const end = stint.end_lap || effectiveMaxLaps;
-                                const duration = end - start + 1;
-                                const left = ((start - 1) / effectiveMaxLaps) * 100;
-                                const width = (duration / effectiveMaxLaps) * 100;
+                                // Add a spacer if there's a gap before the first stint or between stints
+                                const prevEnd = idx > 0 ? p.mergedStints[idx-1].end_lap! : 0;
+                                const gap = stint.start_lap - (prevEnd + 1);
+                                
+                                const duration = (stint.end_lap || effectiveMaxLaps) - stint.start_lap + 1;
+                                const widthPct = (duration / effectiveMaxLaps) * 100;
+                                const gapPct = gap > 0 ? (gap / effectiveMaxLaps) * 100 : 0;
 
                                 return (
-                                    <div 
-                                        key={idx}
-                                        className="absolute h-full flex items-center px-3"
-                                        style={{
-                                            left: `${left}%`,
-                                            width: `${width}%`,
-                                            background: COMPOUND_COLORS[stint.visual_compound],
-                                            color: stint.visual_compound === 18 ? '#000' : '#fff',
-                                            borderRight: '1px solid rgba(0,0,0,0.15)',
-                                            transition: 'all 0.4s ease'
-                                        }}
-                                    >
-                                        <span className="text-mono font-black" style={{ fontSize: '0.75rem', opacity: 0.9 }}>
-                                            {COMPOUND_LABELS[stint.visual_compound]}
-                                        </span>
-                                    </div>
+                                    <React.Fragment key={idx}>
+                                        {gapPct > 0 && <div style={{ width: `${gapPct}%`, height: '100%' }} />}
+                                        <div 
+                                            className="h-full flex items-center px-3 flex-shrink-0"
+                                            style={{
+                                                width: `${widthPct}%`,
+                                                background: COMPOUND_COLORS[stint.visual_compound],
+                                                color: stint.visual_compound === 18 ? '#000' : '#fff',
+                                                borderRight: '1px solid rgba(0,0,0,0.15)',
+                                            }}
+                                        >
+                                            <span className="text-mono font-black" style={{ fontSize: '0.75rem', opacity: 0.9 }}>
+                                                {COMPOUND_LABELS[stint.visual_compound]}
+                                            </span>
+                                        </div>
+                                    </React.Fragment>
                                 );
                             })}
                         </div>
@@ -173,7 +175,7 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
             <div className="grid mt-medium" style={{ gridTemplateColumns: '180px 1fr', gap: '2rem' }}>
                 <div />
                 <div className="relative h-6">
-                    {ticks.map((lap, i) => {
+                    {ticks.map((lap) => {
                         const left = ((lap - 1) / effectiveMaxLaps) * 100;
                         return (
                             <div 
