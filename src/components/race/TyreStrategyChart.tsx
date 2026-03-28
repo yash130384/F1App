@@ -49,27 +49,18 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
     }, [participants, totalLaps]);
 
     return (
-        <div className="p-6 f1-card" style={{ height: 'auto', overflowX: 'auto' }}>
-            <div className="flex flex-col justify-start items-start mb-6">
-                <h3 className="text-white font-bold text-lg">Race Tyre Strategy</h3>
-                <p className="text-slate-500 text-xs uppercase font-bold">Reifenstrategie Übersicht</p>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+        <div className="flex flex-col gap-small w-full overflow-x-auto">
+            <div className="flex flex-col gap-small min-w-[600px]">
                 {participantsWithMergedStints.map((p, i) => (
-                    <div key={p.game_name} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ width: 120, fontSize: 11, color: '#aaa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            <span style={{ fontWeight: 800, color: '#fff', marginRight: 6 }}>P{p.position}</span>
-                            {p.driver_name || p.game_name}
+                    <div key={p.game_name} className="flex items-center gap-medium">
+                        <div className="flex items-center gap-small" style={{ width: '160px', flexShrink: 0 }}>
+                            <span className="text-f1-bold" style={{ width: '30px', color: 'var(--f1-red)', fontSize: '0.75rem' }}>P{p.position}</span>
+                            <span className="text-f1-bold truncate" style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                                {p.driver_name || p.game_name}
+                            </span>
                         </div>
-                        <div style={{ 
-                            flex: 1, 
-                            height: 20, 
-                            background: 'rgba(255,255,255,0.02)', 
-                            borderRadius: 4, 
-                            position: 'relative',
-                            display: 'flex',
-                        }}>
+                        <div className="relative flex-1 flex h-6 bg-glass-surface rounded-sm overflow-hidden" 
+                             style={{ border: '1px solid var(--glass-border)' }}>
                             {p.mergedStints.map((stint, idx) => {
                                 const start = stint.start_lap;
                                 const end = stint.end_lap || totalLaps;
@@ -80,30 +71,25 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
                                 return (
                                     <div 
                                         key={idx}
+                                        className="absolute flex items-center justify-center text-f1-bold"
                                         style={{
-                                            position: 'absolute',
                                             left: `${left}%`,
                                             width: `${width}%`,
                                             height: '100%',
-                                            background: COMPOUND_COLORS[stint.visual_compound] || '#444',
-                                            borderLeft: idx > 0 ? '2px solid #1a1a2e' : 'none',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            fontSize: 9,
-                                            fontWeight: 900,
+                                            background: COMPOUND_COLORS[stint.visual_compound] || 'var(--text-muted)',
                                             color: '#000',
-                                            opacity: 0.9,
-                                            borderRadius: idx === 0 ? '4px 0 0 4px' : idx === p.mergedStints.length - 1 ? '0 4px 4px 0' : '0',
+                                            fontSize: '0.65rem',
+                                            opacity: 0.95,
+                                            borderRight: '1px solid rgba(0,0,0,0.1)'
                                         }}
                                         title={`Stint ${idx + 1}: Lap ${start}-${end} (${COMPOUND_LABELS[stint.visual_compound]})`}
                                     >
-                                        {duration > 1 && COMPOUND_LABELS[stint.visual_compound]}
+                                        {width > 3 && COMPOUND_LABELS[stint.visual_compound]}
                                     </div>
                                 );
                             })}
                         </div>
-                        <div style={{ width: 40, fontSize: 10, color: '#666', textAlign: 'right' }}>
+                        <div className="stat-label" style={{ width: '40px', textAlign: 'right', fontSize: '0.65rem' }}>
                             {p.mergedStints.length - 1} 🛑
                         </div>
                     </div>
@@ -111,10 +97,10 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
             </div>
 
             {/* Lap scale at bottom */}
-            <div style={{ display: 'flex', marginLeft: 132, marginTop: 12, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 4 }}>
+            <div className="flex pt-small mt-small" style={{ marginLeft: '160px', borderTop: '1px solid var(--glass-border)' }}>
                 {[0, 0.25, 0.5, 0.75, 1].map(pct => (
-                    <div key={pct} style={{ flex: 1, fontSize: 9, color: '#444', textAlign: 'left' }}>
-                        Lap {Math.round(pct * totalLaps)}
+                    <div key={pct} className="flex-1 stat-label" style={{ fontSize: '0.6rem' }}>
+                        L{Math.round(pct * totalLaps)}
                     </div>
                 ))}
             </div>

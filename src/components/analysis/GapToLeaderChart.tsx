@@ -21,118 +21,116 @@ interface GapToLeaderChartProps {
 
 export default function GapToLeaderChart({ laps }: GapToLeaderChartProps) {
     // 1. Calculate accumulated time for each driver
-    const totalTimes = new Map<string, Map<number, number>>(); // driver -> lap -> totalTime
-    const drivers = new Map<string, { name: string, color: string }>();
+    const { chartData, drivers } = React.useMemo(() => {
+        const totalTimes = new Map<string, Map<number, number>>(); // driver -> lap -> totalTime
+        const driversMap = new Map<string, { name: string, color: string }>();
 
-    // Sort by lap number first to ensure accumulation works
-    const sortedLaps = [...laps].sort((a,b) => a.lap_number - b.lap_number);
+        // Sort by lap number first to ensure accumulation works
+        const sortedLaps = [...laps].sort((a,b) => a.lap_number - b.lap_number);
 
-    sortedLaps.forEach(l => {
-        const name = l.driver_name || l.game_name;
-        drivers.set(name, { name, color: l.driver_color || '#888' });
+        sortedLaps.forEach(l => {
+            const name = l.driver_name || l.game_name;
+            driversMap.set(name, { name, color: l.driver_color || 'var(--text-muted)' });
 
-        if (!totalTimes.has(name)) totalTimes.set(name, new Map());
-        
-        // Find previous total time for this driver
-        let prevTotal = 0;
-        const driverLaps = totalTimes.get(name)!;
-        if (l.lap_number > 1) {
-            // Find the most recent lap total we have
-            for (let i = l.lap_number - 1; i >= 0; i--) {
-                if (driverLaps.has(i)) {
-                    prevTotal = driverLaps.get(i)!;
-                    break;
+            if (!totalTimes.has(name)) totalTimes.set(name, new Map());
+            
+            let prevTotal = 0;
+            const driverLaps = totalTimes.get(name)!;
+            if (l.lap_number > 1) {
+                for (let i = l.lap_number - 1; i >= 0; i--) {
+                    if (driverLaps.has(i)) {
+                        prevTotal = driverLaps.get(i)!;
+                        break;
+                    }
                 }
             }
-        }
-
-        driverLaps.set(l.lap_number, prevTotal + l.lap_time_ms);
-    });
-
-    // 2. Identify leader for each lap and calculate gaps
-    const dataByLap: Record<number, any> = {};
-    const ALL_LAPS = [...new Set(laps.map(l => l.lap_number))].sort((a,b) => a-b);
-    
-    // Skip lap 0
-    const relevantLaps = ALL_LAPS.filter(l => l > 0);
-
-    relevantLaps.forEach(lap => {
-        let leaderTime = Infinity;
-        
-        // Find leader's total time at this lap
-        totalTimes.forEach((lapMap) => {
-            const time = lapMap.get(lap);
-            if (time !== undefined && time < leaderTime) leaderTime = time;
+            driverLaps.set(l.lap_number, prevTotal + l.lap_time_ms);
         });
 
-        if (leaderTime === Infinity) return;
+        // 2. Identify leader for each lap and calculate gaps
+        const dataByLap: Record<number, any> = {};
+        const ALL_LAPS = [...new Set(laps.map(l => l.lap_number))].sort((a,b) => a-b);
+        const relevantLaps = ALL_LAPS.filter(l => l > 0);
 
-        dataByLap[lap] = { lap };
-        
-        totalTimes.forEach((lapMap, driverName) => {
-            // Wir berechnen den Abstand nur, wenn der Fahrer diese Runde auch beendet hat
-            // (Um zu verhindern, dass die Linie am Ende auf 0 fällt, nur weil keine neuen Daten kommen)
-            const driverFinishedThisLap = laps.some(l => (l.driver_name || l.game_name) === driverName && l.lap_number === lap);
+        relevantLaps.forEach(lap => {
+            let leaderTime = Infinity;
+            totalTimes.forEach((lapMap) => {
+                const time = lapMap.get(lap);
+                if (time !== undefined && time < leaderTime) leaderTime = time;
+            });
+
+            if (leaderTime === Infinity) return;
+            dataByLap[lap] = { lap };
             
-            const time = lapMap.get(lap);
-            if (time !== undefined && driverFinishedThisLap) {
-                const gap = (time - leaderTime) / 1000;
-                dataByLap[lap][driverName] = parseFloat(gap.toFixed(3));
-            }
+            totalTimes.forEach((lapMap, driverName) => {
+                const driverFinishedThisLap = laps.some(l => (l.driver_name || l.game_name) === driverName && l.lap_number === lap);
+                const time = lapMap.get(lap);
+                if (time !== undefined && driverFinishedThisLap) {
+                    const gap = (time - leaderTime) / 1000;
+                    dataByLap[lap][driverName] = parseFloat(gap.toFixed(3));
+                }
+            });
         });
-    });
 
-    const chartData = Object.values(dataByLap).sort((a, b) => a.lap - b.lap);
-    const sortedDrivers = Array.from(drivers.values()).sort((a,b) => a.name.localeCompare(b.name));
+        return {
+            chartData: Object.values(dataByLap).sort((a, b) => a.lap - b.lap),
+            drivers: Array.from(driversMap.values()).sort((a,b) => a.name.localeCompare(b.name))
+        };
+    }, [laps]);
 
     return (
-        <div className="p-6 f1-card" style={{ height: 500 }}>
-             <div className="mb-6">
-                <h3 className="text-white font-bold text-lg">Gap to Leader</h3>
-                <p className="text-slate-500 text-xs uppercase font-bold">Zeitabstand zum Führenden in Sekunden (Positiv = Rückstand)</p>
-            </div>
-
-            <ResponsiveContainer width="100%" height="80%">
-                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                    <XAxis 
-                        dataKey="lap" 
-                        stroke="#666" 
-                        fontSize={10} 
-                        tickLine={false}
-                        label={{ value: 'RUNDE', position: 'insideBottomRight', offset: -5, fontSize: 9, fill: '#666' }}
+        <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--glass-border)" vertical={false} opacity={0.3} />
+                <XAxis 
+                    dataKey="lap" 
+                    stroke="var(--text-muted)" 
+                    fontSize={10} 
+                    tickLine={false}
+                    axisLine={false}
+                    label={{ value: 'LAP', position: 'insideBottomRight', offset: 0, fontSize: 9, fill: 'var(--text-muted)', fontWeight: 800 }}
+                />
+                <YAxis 
+                    reversed
+                    stroke="var(--text-muted)" 
+                    fontSize={10} 
+                    tickLine={false}
+                    axisLine={false}
+                    domain={[0, 'auto']}
+                    tickFormatter={(v) => `+${v}s`}
+                    label={{ value: 'GAP (S)', angle: -90, position: 'insideLeft', fontSize: 9, fill: 'var(--text-muted)', offset: 10, fontWeight: 800 }}
+                />
+                <Tooltip 
+                    contentStyle={{ 
+                        background: 'rgba(11, 11, 14, 0.95)', 
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid var(--glass-border)', 
+                        borderRadius: '4px', 
+                        fontSize: '10px',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+                    }}
+                    itemStyle={{ padding: '2px 0' }}
+                    labelFormatter={(l) => `LAP ${l}`}
+                    formatter={(v: any) => [`+${v}s`, 'GAP']}
+                />
+                <Legend 
+                    iconType="circle" 
+                    wrapperStyle={{ fontSize: '9px', fontWeight: 800, paddingTop: '20px', textTransform: 'uppercase', color: 'var(--text-muted)' }} 
+                />
+                {drivers.map(d => (
+                    <Line
+                        key={d.name}
+                        type="monotone"
+                        dataKey={d.name}
+                        stroke={d.color}
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4, strokeWidth: 0 }}
+                        connectNulls={true}
+                        isAnimationActive={false}
                     />
-                    <YAxis 
-                        reversed
-                        stroke="#666" 
-                        fontSize={10} 
-                        tickLine={false}
-                        domain={[0, 'auto']}
-                        tickFormatter={(v) => `+${v}s`}
-                        label={{ value: 'GAP (S)', angle: -90, position: 'insideLeft', fontSize: 9, fill: '#666' }}
-                    />
-                    <Tooltip 
-                        contentStyle={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11 }}
-                        itemStyle={{ padding: '2px 0' }}
-                        formatter={(v: any) => [`+${v}s`, 'Abstand']}
-                        labelFormatter={(l) => `Runde ${l}`}
-                    />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: 10, paddingTop: 15 }} />
-                    {sortedDrivers.map(d => (
-                        <Line
-                            key={d.name}
-                            type="monotone"
-                            dataKey={d.name}
-                            stroke={d.color}
-                            strokeWidth={2}
-                            dot={false}
-                            activeDot={{ r: 4 }}
-                            connectNulls={true}
-                            isAnimationActive={true}
-                        />
-                    ))}
-                </LineChart>
-            </ResponsiveContainer>
-        </div>
+                ))}
+            </LineChart>
+        </ResponsiveContainer>
     );
 }

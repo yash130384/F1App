@@ -414,74 +414,82 @@ export default function AdminHub() {
 
     if (!isLoggedIn) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-cover bg-center" style={{ backgroundImage: 'url("/assets/login-bg.jpg")', backgroundColor: '#111' }}>
-                <div className="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
-                <div className="relative z-10 f1-card animate-scale-in" style={{ maxWidth: '450px', width: '100%', padding: '3rem', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
-                    <div className="text-center mb-8">
-                        <h1 className="text-f1 text-gradient mb-2" style={{ fontSize: '2.5rem', lineHeight: 1 }}>ADMIN ACCESS</h1>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--silver)', letterSpacing: '3px', fontWeight: 700 }}>RESTRICTED AREA</p>
+            <div className="flex items-center justify-center min-h-screen relative overflow-hidden" 
+                 style={{ background: 'var(--f1-carbon-dark)' }}>
+                {/* Background effects */}
+                <div className="absolute inset-0 opacity-20" 
+                     style={{ 
+                        backgroundImage: 'radial-gradient(circle at 50% 50%, var(--f1-red) 0%, transparent 70%)',
+                        filter: 'blur(100px)' 
+                     }}></div>
+                
+                <div className="relative z-10 glass-panel animate-scale-in" 
+                     style={{ maxWidth: '480px', width: '90%', padding: '3.5rem 2.5rem', border: '1px solid var(--glass-border)' }}>
+                    
+                    <div className="text-center mb-large">
+                        <div className="inline-block mb-small">
+                            <span className="text-f1-bold" style={{ fontSize: '0.7rem', color: 'var(--f1-red)', letterSpacing: '4px' }}>ACCESS RESTRICTED</span>
+                        </div>
+                        <h1 className="h1 text-gradient mb-xsmall" style={{ fontSize: '3rem', lineHeight: 1 }}>ADMIN HUB</h1>
+                        <p className="stat-label">AUTHENTICATION REQUIRED FOR LEAGUE CONTROL</p>
                     </div>
 
-                    <form onSubmit={handleLogin} className="flex flex-col gap-5">
-                        <div className="flex flex-col gap-2">
-                            <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--silver)', letterSpacing: '1px' }}>SELECT LEAGUE</label>
+                    <form onSubmit={handleLogin} className="flex flex-col gap-medium">
+                        <div className="flex flex-col gap-xsmall">
+                            <label className="text-f1-bold" style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '1px' }}>SELECT LEAGUE</label>
                             <select
                                 value={leagueName}
                                 onChange={e => setLeagueName(e.target.value)}
                                 required
+                                className="glass-panel"
                                 style={{
                                     padding: '1rem',
-                                    background: 'rgba(255, 255, 255, 0.05)',
-                                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                                    borderRadius: '8px',
-                                    color: 'white',
+                                    width: '100%',
+                                    background: 'var(--glass-surface)',
+                                    color: 'var(--text-primary)',
+                                    borderRadius: '4px',
                                     outline: 'none',
+                                    appearance: 'none', // Custom arrow if needed
                                     cursor: 'pointer'
                                 }}
                             >
-                                <option value="" disabled>Select your league...</option>
+                                <option value="" disabled>CHOOSE SESSION...</option>
                                 {leaguesList.map(l => (
                                     <option key={l.id} value={l.name} style={{ color: 'black' }}>{l.name}</option>
                                 ))}
                             </select>
                         </div>
-                        <div className="flex flex-col gap-2">
-                            <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--silver)', letterSpacing: '1px' }}>PASSWORD</label>
+                        <div className="flex flex-col gap-xsmall">
+                            <label className="text-f1-bold" style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '1px' }}>SECURITY CLEARANCE</label>
                             <input
                                 type="password"
                                 value={adminPass}
                                 onChange={e => setAdminPass(e.target.value)}
                                 placeholder="••••••••"
                                 required
+                                className="glass-panel"
                                 style={{
                                     padding: '1rem',
-                                    background: 'rgba(255, 255, 255, 0.05)',
-                                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                                    borderRadius: '8px',
-                                    color: 'white',
+                                    background: 'var(--glass-surface)',
+                                    color: 'var(--text-primary)',
+                                    borderRadius: '4px',
                                     outline: 'none'
                                 }}
                             />
                         </div>
                         <button
                             type="submit"
-                            className="btn-primary mt-4"
-                            style={{
-                                width: '100%',
-                                justifyContent: 'center',
-                                padding: '1rem',
-                                fontSize: '1rem',
-                                letterSpacing: '2px'
-                            }}
+                            className="btn btn-primary w-full mt-small"
+                            style={{ padding: '1.25rem', fontSize: '0.9rem', justifyContent: 'center' }}
                             disabled={loading}
                         >
-                            {loading ? 'VERIFYING...' : 'ENTER HUB'}
+                            {loading ? 'SYNCHRONIZING...' : 'ESTABLISH CONNECTION'}
                         </button>
                     </form>
 
-                    <div className="text-center mt-8 pt-6 border-t border-white/10">
-                        <Link href="/" className="hover:text-f1-red transition-colors" style={{ fontSize: '0.75rem', color: 'var(--silver)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                            <span>&larr;</span> RETURN TO DASHBOARD
+                    <div className="text-center mt-large pt-medium" style={{ borderTop: '1px solid var(--glass-border)' }}>
+                        <Link href="/" className="stat-label hover-f1" style={{ textDecoration: 'none', transition: 'all 0.3s' }}>
+                            &larr; ABORT AND RETURN TO DASHBOARD
                         </Link>
                     </div>
                 </div>
@@ -490,773 +498,861 @@ export default function AdminHub() {
     }
 
     return (
-        <div className="container py-8 animate-fade-in">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                <div>
-                    <h1 className="text-f1 text-gradient" style={{ fontSize: '3rem', letterSpacing: '-2px', marginBottom: '0.5rem' }}>ADMIN HUB</h1>
-                    <div className="flex items-center gap-4 mt-1">
-                        <span className="status-badge badge-silver" style={{ padding: '6px 16px', borderRadius: '4px', fontSize: '0.7rem', letterSpacing: '2px' }}>
-                            {`${leagueName.toUpperCase()} ADMIN`}
-                        </span>
-                        <button
-                            onClick={handleLogout}
-                            className="btn-secondary"
-                            style={{
-                                fontSize: '0.65rem',
-                                padding: '6px 14px',
-                                borderRadius: '4px',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                background: 'rgba(255,10,10,0.1)',
-                                color: 'var(--f1-red)',
-                                fontWeight: 900,
-                                letterSpacing: '1px'
-                            }}
-                        >
-                            SIGN OUT
-                        </button>
+        <div className="animate-fade-in relative pb-large">
+            {/* ── HEADER ── */}
+            <div className="glass-panel" style={{ borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderRadius: 0, marginBottom: '2rem' }}>
+                <div className="container" style={{ padding: '2.5rem 1.5rem' }}>
+                    <div className="flex justify-between items-start md:items-end flex-wrap gap-large">
+                        <div>
+                            <div className="flex items-center gap-small mb-small">
+                                <span className="text-f1-bold badge-silver" style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '2px', color: 'var(--f1-red)' }}>
+                                    SYSTEM OVERRIDE
+                                </span>
+                                <span className="stat-label">// {leagueName.toUpperCase()} CONTROL PANEL</span>
+                            </div>
+                            <h1 className="h1 text-gradient" style={{ fontSize: '4rem', marginBottom: 0 }}>
+                                ADMIN HUB
+                            </h1>
+                        </div>
+                        
+                        <div className="flex items-center gap-medium">
+                            <nav className="flex gap-xsmall bg-black/30 p-1 rounded-sm border border-white/5">
+                                {[
+                                    { id: 'races', label: 'RACE PLANNER' },
+                                    { id: 'drivers', label: 'DRIVERS & TEAMS' },
+                                    { id: 'points', label: 'LEAGUE SPECS' },
+                                    { id: 'telemetry', label: 'TELEMETRY' }
+                                ].map(tab => (
+                                    <button 
+                                        key={tab.id}
+                                        onClick={() => { setActiveTab(tab.id as any); setManagingSession(null); }}
+                                        className={`px-4 py-2 text-f1-bold transition-all ${activeTab === tab.id ? 'bg-f1-red text-white' : 'text-text-secondary hover:text-white'}`}
+                                        style={{ fontSize: '0.7rem', borderRadius: '1px' }}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </nav>
+                            
+                            <button
+                                onClick={handleLogout}
+                                className="btn btn-secondary"
+                                style={{ fontSize: '0.7rem', padding: '0.5rem 1rem' }}
+                            >
+                                TERMINATE
+                            </button>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <nav className="f1-tabs flex flex-wrap gap-2">
-                    <button className={activeTab === 'races' ? 'active' : ''} onClick={() => setActiveTab('races')}>RACE MANAGEMENT</button>
-                    <button className={activeTab === 'drivers' ? 'active' : ''} onClick={() => setActiveTab('drivers')}>DRIVERS</button>
-                    <button className={activeTab === 'points' ? 'active' : ''} onClick={() => setActiveTab('points')}>POINTS</button>
-                    <button className={activeTab === 'telemetry' ? 'active' : ''} onClick={() => { setActiveTab('telemetry'); setManagingSession(null); }}>TELEMETRY</button>
-                </nav>
-            </header>
-
-            <main>
+            <main className="container animate-fade-in">
                 {/* RACE ENTRY TAB */}
                 {activeTab === 'races' && (
-                    <div className="flex flex-col gap-6 animate-fade-in">
+                    <div className="flex flex-col gap-large">
                         {editingRaceId ? (
-                            <div className="flex flex-col gap-6">
-                                <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-                                    <div>
-                                        <h2 className="text-f1 text-gradient" style={{ fontSize: '2.5rem', letterSpacing: '-2px' }}>EDIT RESULTS</h2>
-                                        <p style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Update positions and bonuses for this race.</p>
+                            <div className="flex flex-col gap-large animate-scale-in">
+                                <div className="glass-panel" style={{ padding: '2rem' }}>
+                                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-medium">
+                                        <div>
+                                            <h2 className="h2 text-gradient mb-xsmall">EDIT RACE DATA</h2>
+                                            <p className="stat-label">OVERRIDE STANDINGS AND BONUSES FOR THIS EVENT</p>
+                                        </div>
+                                        <div className="flex flex-col gap-xsmall" style={{ minWidth: '280px' }}>
+                                            <label className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--f1-red)', letterSpacing: '1px' }}>RACE LOCATION</label>
+                                            <div className="glass-panel" style={{ padding: '0.75rem 1rem', background: 'var(--glass-surface)', color: 'var(--text-secondary)', fontWeight: 800, fontSize: '0.9rem' }}>
+                                                {editingRaceTrack.toUpperCase()}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="flex flex-col gap-2" style={{ minWidth: '300px' }}>
-                                        <label style={{ color: 'var(--f1-red)', fontSize: '0.7rem', fontWeight: 900 }}>RACE LOCATION (READ-ONLY)</label>
-                                        <input
-                                            value={editingRaceTrack}
-                                            disabled
-                                            style={{
-                                                padding: '0.8rem',
-                                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                                background: 'rgba(255, 255, 255, 0.05)',
-                                                borderRadius: '4px',
-                                                color: 'var(--silver)',
-                                                width: '100%',
-                                                cursor: 'not-allowed',
-                                                fontWeight: 'bold'
-                                            }}
-                                        />
-                                    </div>
-                                </header>
+                                </div>
 
-                                <div className="flex flex-col gap-3">
+                                <div className="flex flex-col gap-xsmall">
                                     {editResults.sort((a, b) => a.position - b.position).map((res) => (
-                                        <div key={res.driver_id} className="f1-card flex flex-col md:flex-row justify-between items-start md:items-center gap-4" style={{ padding: '1.2rem 1.5rem', borderLeft: '4px solid var(--f1-red)' }}>
-                                            <div>
-                                                <span className="text-f1" style={{ fontSize: '1.1rem' }}>{res.driver_name}</span>
-                                                <div style={{ fontSize: '0.7rem', color: 'var(--silver)' }}>Position in standings updated automatically</div>
+                                        <div key={res.driver_id} 
+                                             className="glass-panel flex flex-col md:flex-row justify-between items-center gap-medium" 
+                                             style={{ padding: '0.75rem 1.5rem', background: 'var(--f1-carbon-dark)', borderLeft: '4px solid var(--f1-red)' }}>
+                                            
+                                            <div style={{ minWidth: '200px' }}>
+                                                <span className="text-f1-bold" style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>{res.driver_name.toUpperCase()}</span>
                                             </div>
 
-                                            <div className="flex flex-wrap gap-4 items-center w-full md:w-auto">
-                                                <div className="flex items-center gap-2">
-                                                    <span style={{ fontSize: '0.7rem', fontWeight: 900, color: 'var(--silver)' }}>P</span>
+                                            <div className="flex flex-wrap gap-large items-center justify-end flex-grow">
+                                                <div className="flex items-center gap-small">
+                                                    <span className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>P</span>
                                                     <input
                                                         type="number"
                                                         min="1" max="25"
                                                         value={res.position}
                                                         onChange={e => handleUpdateEditResult(res.driver_id, 'position', parseInt(e.target.value))}
-                                                        style={{ width: '60px', padding: '0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white', textAlign: 'center', fontWeight: 'bold' }}
+                                                        className="glass-panel text-center"
+                                                        style={{ width: '50px', padding: '0.4rem', background: 'rgba(255,255,255,0.05)', color: 'white', fontWeight: 800, borderRadius: '2px' }}
                                                     />
                                                 </div>
 
-                                                <div className="flex items-center gap-2">
-                                                    <span style={{ fontSize: '0.7rem', fontWeight: 900, color: 'var(--silver)' }}>Q P</span>
+                                                <div className="flex items-center gap-small">
+                                                    <span className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>QP</span>
                                                     <input
                                                         type="number"
                                                         min="0" max="25"
                                                         value={res.quali_position || 0}
                                                         onChange={e => handleUpdateEditResult(res.driver_id, 'quali_position', parseInt(e.target.value))}
-                                                        style={{ width: '60px', padding: '0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white', textAlign: 'center', fontWeight: 'bold' }}
+                                                        className="glass-panel text-center"
+                                                        style={{ width: '50px', padding: '0.4rem', background: 'rgba(255,255,255,0.05)', color: 'white', fontWeight: 800, borderRadius: '2px' }}
                                                     />
                                                 </div>
 
-                                                <label className="checkbox-container">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={!!res.fastest_lap}
-                                                        onChange={e => handleUpdateEditResult(res.driver_id, 'fastest_lap', e.target.checked)}
-                                                    />
-                                                    <span className="checkmark fastest"></span>
-                                                    <span style={{ fontSize: '0.75rem', fontWeight: 900 }}>FL</span>
-                                                </label>
+                                                {/* Checklist-style status bits */}
+                                                <div className="flex gap-medium">
+                                                    {[
+                                                        { key: 'fastest_lap', label: 'FL', color: 'var(--f1-red)' },
+                                                        { key: 'clean_driver', label: 'CD', color: '#00ffaa' },
+                                                        { key: 'is_dnf', label: 'DNF', color: '#ffaa00' }
+                                                    ].map(bit => (
+                                                        <label key={bit.key} className="flex items-center gap-xsmall cursor-pointer group">
+                                                            <input
+                                                                type="checkbox"
+                                                                className="hidden"
+                                                                checked={!!res[bit.key as keyof typeof res]}
+                                                                onChange={e => handleUpdateEditResult(res.driver_id, bit.key, e.target.checked)}
+                                                            />
+                                                            <div className={`w-8 h-8 flex items-center justify-center text-f1-bold border transition-all ${res[bit.key as keyof typeof res] ? 'bg-white text-black' : 'border-white/10 text-white/20 group-hover:border-white/40'}`}
+                                                                 style={{ fontSize: '0.6rem', borderRadius: '1px' }}>
+                                                                {bit.label}
+                                                            </div>
+                                                        </label>
+                                                    ))}
+                                                </div>
 
-                                                <label className="checkbox-container">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={!!res.clean_driver}
-                                                        onChange={e => handleUpdateEditResult(res.driver_id, 'clean_driver', e.target.checked)}
-                                                    />
-                                                    <span className="checkmark clean"></span>
-                                                    <span style={{ fontSize: '0.75rem', fontWeight: 900 }}>CD</span>
-                                                </label>
-
-                                                <label className="checkbox-container">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={!!res.is_dnf}
-                                                        onChange={e => handleUpdateEditResult(res.driver_id, 'is_dnf', e.target.checked)}
-                                                    />
-                                                    <span className="checkmark dnf"></span>
-                                                    <span style={{ fontSize: '0.75rem', fontWeight: 900 }}>DNF</span>
-                                                </label>
-
-                                                <div style={{ minWidth: '90px', textAlign: 'right', fontWeight: 900, fontSize: '1.2rem', color: 'var(--white)' }}>
-                                                    {formatPoints(calculatePoints({ position: res.position, qualiPosition: res.quali_position || 0, fastestLap: res.fastest_lap, cleanDriver: res.clean_driver, isDnf: res.is_dnf }, pointsConfig))} <span style={{ fontSize: '0.6rem', color: 'var(--silver)' }}>PTS</span>
+                                                <div className="flex flex-col items-end" style={{ minWidth: '80px' }}>
+                                                    <span className="stat-value" style={{ fontSize: '1.4rem', color: 'var(--f1-red)' }}>
+                                                        {formatPoints(calculatePoints({ position: res.position, qualiPosition: res.quali_position || 0, fastestLap: res.fastest_lap, cleanDriver: res.clean_driver, isDnf: res.is_dnf }, pointsConfig))}
+                                                    </span>
+                                                    <span className="text-f1-bold" style={{ fontSize: '0.5rem', color: 'var(--text-muted)', letterSpacing: '1px' }}>POINTS</span>
                                                 </div>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
 
-                                <div className="flex gap-4 mt-8">
+                                <div className="flex gap-medium">
                                     <button
                                         onClick={handleSaveEdit}
                                         disabled={submitting}
-                                        className="btn-primary"
-                                        style={{ flex: 1, justifyContent: 'center', height: '4rem', fontSize: '1.2rem' }}
+                                        className="btn btn-primary"
+                                        style={{ flex: 1, padding: '1.5rem', justifyContent: 'center' }}
                                     >
-                                        {submitting ? 'UPDATING...' : 'SAVE CHANGES'}
+                                        {submitting ? 'SYNCHRONIZING...' : 'COMMIT CHANGES'}
                                     </button>
                                     <button
                                         onClick={() => setEditingRaceId(null)}
-                                        className="btn-secondary"
-                                        style={{ padding: '0 2rem' }}
+                                        className="btn btn-secondary px-xlarge"
                                     >
-                                        CANCEL
+                                        ABORT
                                     </button>
                                 </div>
                             </div>
                         ) : (
-                            <div className="flex flex-col gap-8">
-                                <div className="f1-card hover-f1 flex flex-col gap-4">
-                                    <h2 className="text-f1">MANUAL ENTRY</h2>
-                                    <p style={{ color: 'var(--silver)', fontSize: '0.9rem', marginBottom: '1rem' }}>Quickly enter results by hand for maximum control.</p>
-                                    <Link href="/admin/results" className="btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>MANUAL INPUT</Link>
+                            <div className="grid grid-2 gap-large animate-fade-in">
+                                {/* Manual Entry Quick Card */}
+                                <div className="glass-panel hover-f1 flex flex-col justify-between" style={{ padding: '2rem' }}>
+                                    <div>
+                                        <div className="flex items-center gap-small mb-small">
+                                            <div className="w-2 h-8 bg-f1-red"></div>
+                                            <h2 className="h2 text-gradient">LEGACY ENTRY</h2>
+                                        </div>
+                                        <p className="stat-label mb-medium">QUICKLY ENTER RESULTS BY HAND FOR MAXIMUM CONTROL OVER STANDINGS.</p>
+                                    </div>
+                                    <Link href="/admin/results" className="btn btn-secondary w-full" style={{ justifyContent: 'center' }}>
+                                        LAUNCH MANUAL INPUT
+                                    </Link>
                                 </div>
 
-                                <form onSubmit={handleUpdatePointsConfig} className="f1-card hover-f1" style={{ gridColumn: 'span 2' }}>
-                                    <h2 className="text-f1 mb-4" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        LEAGUE SETTINGS
-                                        <button type="submit" disabled={submitting} className="btn-primary" style={{ fontSize: '0.7rem', height: 'auto', padding: '0.5rem 1rem' }}>
-                                            {submitting ? 'SAVING...' : 'SAVE CONFIG'}
-                                        </button>
-                                    </h2>
-                                    <div className="grid grid-2 gap-4 mb-6 pr-4">
-                                        <div className="input-group">
-                                            <label>TOTAL RACES IN LEAGUE</label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                value={pointsConfig.totalRaces || 0}
-                                                onChange={e => setPointsConfig({ ...pointsConfig, totalRaces: parseInt(e.target.value) || 0 })}
-                                                style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white', width: '100%' }}
-                                            />
-                                        </div>
-                                        <div className="input-group">
-                                            <label>DROP WORST RESULTS (MAX 25%)</label>
-                                            <input
-                                                type="number"
-                                                title={`Max Allowed: ${Math.floor((pointsConfig.totalRaces || 0) * 0.25)}`}
-                                                max={Math.floor((pointsConfig.totalRaces || 0) * 0.25)}
-                                                min="0"
-                                                value={pointsConfig.dropResultsCount || 0}
-                                                onChange={e => {
-                                                    let v = parseInt(e.target.value) || 0;
-                                                    const max = Math.floor((pointsConfig.totalRaces || 0) * 0.25);
-                                                    if (v > max) v = max;
-                                                    setPointsConfig({ ...pointsConfig, dropResultsCount: v });
-                                                }}
-                                                style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white', width: '100%' }}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="input-group mb-8">
-                                        <label>TRACK POOL (Select tracks for this league)</label>
-                                        <div style={{ padding: '1rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', maxHeight: '150px', overflowY: 'auto' }}>
-                                            <div className="grid grid-3 gap-2">
-                                                {F1_TRACKS_2025.map(track => {
-                                                    const isSelected = pointsConfig.trackPool?.includes(track);
-                                                    return (
-                                                        <label key={track} className="flex items-center gap-2" style={{ fontSize: '0.8rem', cursor: 'pointer', color: isSelected ? 'white' : 'var(--silver)' }}>
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={isSelected}
-                                                                onChange={(e) => {
-                                                                    const current = pointsConfig.trackPool || [];
-                                                                    const trackPool = e.target.checked ? [...current, track] : current.filter(t => t !== track);
-                                                                    setPointsConfig({ ...pointsConfig, trackPool });
-                                                                }}
-                                                            />
-                                                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{track}</span>
-                                                        </label>
-                                                    );
-                                                })}
+                                {/* League Settings Card */}
+                                <div className="glass-panel" style={{ padding: '2rem', gridColumn: 'span 2' }}>
+                                    <form onSubmit={handleUpdatePointsConfig}>
+                                        <div className="flex justify-between items-center mb-large">
+                                            <div className="flex items-center gap-small">
+                                                <div className="w-2 h-8 bg-f1-red"></div>
+                                                <h2 className="h2 text-gradient">LEAGUE CONFIGURATION</h2>
                                             </div>
-                                        </div>
-                                        <div style={{ fontSize: '0.7rem', color: 'var(--silver)', marginTop: '0.5rem', textAlign: 'right' }}>
-                                            {pointsConfig.trackPool?.length || 0} / {pointsConfig.totalRaces || 0} Tracks Selected
-                                        </div>
-                                    </div>
-
-                                    <div className="flex flex-col gap-4 p-4 bg-white/5 rounded-lg border border-white/5 mb-8">
-                                        <h3 style={{ fontSize: '0.8rem', fontWeight: 900, color: 'var(--f1-red)', letterSpacing: '1px' }}>LEAGUE SETTINGS</h3>
-                                        <label className="checkbox-container flex items-center gap-3 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={pointsConfig.teamCompetition}
-                                                onChange={e => setPointsConfig({ ...pointsConfig, teamCompetition: e.target.checked })}
-                                            />
-                                            <span className="checkmark"></span>
-                                            <span style={{ fontSize: '0.85rem', fontWeight: 900 }}>
-                                                ENABLE TEAM COMPETITION
-                                            </span>
-                                        </label>
-                                        <p style={{ fontSize: '0.75rem', color: 'var(--silver)' }}>
-                                            If enabled, you can create custom teams and assign drivers to them. Results will contribute to a Team Standings leaderboard.
-                                        </p>
-                                    </div>
-
-                                    <hr style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '2rem 0' }} />
-
-                                    <h2 className="text-f1 mb-4">RACE PLANNER</h2>
-                                    <p className="mb-4" style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Schedule upcoming races for your league.</p>
-                                    <form onSubmit={handleScheduleRace} className="flex flex-col gap-4 mb-8">
-                                        <div className="grid grid-3 gap-4 items-end">
-                                            <div className="input-group">
-                                                <label>SELECT TRACK</label>
-                                                <select
-                                                    value={scheduleTrack}
-                                                    onChange={e => {
-                                                        setScheduleTrack(e.target.value);
-                                                        if (e.target.value !== 'RANDOM') setIsRandomTrack(false);
-                                                    }}
-                                                    disabled={isRandomTrack}
-                                                    style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white', opacity: isRandomTrack ? 0.5 : 1 }}
-                                                >
-                                                    {F1_TRACKS_2025.map(t => <option key={t} value={t}>{t}</option>)}
-                                                </select>
-                                            </div>
-                                            <div className="input-group">
-                                                <label>DATE & TIME</label>
-                                                <input
-                                                    type="datetime-local"
-                                                    value={scheduleDate}
-                                                    onChange={e => setScheduleDate(e.target.value)}
-                                                    required
-                                                    style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
-                                                />
-                                            </div>
-                                            <button type="submit" disabled={submitting} className="btn-primary" style={{ height: '46px', justifyContent: 'center' }}>
-                                                {submitting ? 'SCHEDULING...' : 'SCHEDULE EVENT'}
+                                            <button type="submit" disabled={submitting} className="btn btn-primary" style={{ fontSize: '0.7rem' }}>
+                                                {submitting ? 'SYNCING...' : 'SAVE SETTINGS'}
                                             </button>
                                         </div>
 
-                                        <div className="flex flex-wrap gap-6 items-center p-4 bg-white/5 rounded-lg border border-white/5">
-                                            <label className="checkbox-container flex items-center gap-3 cursor-pointer">
+                                        <div className="grid grid-2 gap-medium mb-large">
+                                            <div className="flex flex-col gap-xsmall">
+                                                <label className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>SEASON LENGTH (RACES)</label>
                                                 <input
-                                                    type="checkbox"
-                                                    checked={isRandomTrack}
-                                                    onChange={e => setIsRandomTrack(e.target.checked)}
+                                                    type="number"
+                                                    min="0"
+                                                    value={pointsConfig.totalRaces || 0}
+                                                    onChange={e => setPointsConfig({ ...pointsConfig, totalRaces: parseInt(e.target.value) || 0 })}
+                                                    className="glass-panel"
+                                                    style={{ padding: '0.8rem', background: 'var(--glass-surface)', color: 'white' }}
                                                 />
-                                                <span className="checkmark"></span>
-                                                <span style={{ fontSize: '0.85rem', fontWeight: 900, color: isRandomTrack ? 'var(--f1-red)' : 'white' }}>
-                                                    🎲 RANDOM TRACK FROM POOL
-                                                </span>
-                                            </label>
-
-                                            {isRandomTrack && (
-                                                <div className="flex items-center gap-3 animate-fade-in">
-                                                    <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--silver)' }}>REVEAL TRACK</label>
-                                                    <div className="flex items-center gap-2">
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            max="168"
-                                                            value={revealHours}
-                                                            onChange={e => setRevealHours(parseInt(e.target.value) || 0)}
-                                                            style={{ width: '60px', padding: '0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white', textAlign: 'center', fontWeight: 'bold' }}
-                                                        />
-                                                        <span style={{ fontSize: '0.8rem', color: 'var(--silver)' }}>Hours before race</span>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </form>
-
-                                    <div className="grid grid-2 gap-8">
-                                        <div>
-                                            <h3 className="text-f1 mb-4" style={{ fontSize: '0.9rem', color: 'var(--f1-red)' }}>UPCOMING RACES</h3>
-                                            <div className="flex flex-col gap-2">
-                                                {upcomingRaces.map(r => (
-                                                    <div key={r.id} className="flex justify-between items-center p-3 bg-white/5 rounded border border-white/5">
-                                                        <div>
-                                                            <div className="text-f1" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                                {r.track}
-                                                                {r.is_random && (
-                                                                    <span title={`Random Choice (Reveals ${r.reveal_hours_before}h before)`} style={{ fontSize: '0.7rem', cursor: 'help' }}>🎲</span>
-                                                                )}
-                                                            </div>
-                                                            <div style={{ fontSize: '0.7rem', color: 'var(--silver)' }}>{new Date(r.scheduled_date || '').toLocaleString()}</div>
-                                                        </div>
-                                                        <button onClick={() => handleDeleteScheduledRace(r.id, r.track)} className="btn-danger-text">CANCEL</button>
-                                                    </div>
-                                                ))}
-                                                {upcomingRaces.length === 0 && <p style={{ fontSize: '0.8rem', color: 'var(--silver)' }}>No races scheduled.</p>}
+                                            </div>
+                                            <div className="flex flex-col gap-xsmall">
+                                                <label className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>DROP RESULTS (STREICHRESULTATE)</label>
+                                                <input
+                                                    type="number"
+                                                    title={`Max Allowed: ${Math.floor((pointsConfig.totalRaces || 0) * 0.25)}`}
+                                                    max={Math.floor((pointsConfig.totalRaces || 0) * 0.25)}
+                                                    min="0"
+                                                    value={pointsConfig.dropResultsCount || 0}
+                                                    onChange={e => {
+                                                        let v = parseInt(e.target.value) || 0;
+                                                        const max = Math.floor((pointsConfig.totalRaces || 0) * 0.25);
+                                                        if (v > max) v = max;
+                                                        setPointsConfig({ ...pointsConfig, dropResultsCount: v });
+                                                    }}
+                                                    className="glass-panel"
+                                                    style={{ padding: '0.8rem', background: 'var(--glass-surface)', color: 'white' }}
+                                                />
                                             </div>
                                         </div>
-                                        <div>
-                                            <h3 className="text-f1 mb-4" style={{ fontSize: '0.9rem' }}>FINISHED RACES</h3>
-                                            <div className="flex flex-col gap-2">
-                                                {finishedRaces.map(r => (
-                                                    <div key={r.id} className="flex justify-between items-center p-3 bg-white/5 rounded border border-white/5">
-                                                        <div>
-                                                            <div className="text-f1" style={{ fontSize: '0.8rem' }}>{r.track}</div>
-                                                            <div style={{ fontSize: '0.7rem', color: 'var(--silver)' }}>{new Date(r.race_date || '').toLocaleDateString()}</div>
-                                                        </div>
-                                                        <div className="flex gap-2">
-                                                            <button onClick={() => handleStartEdit(r.id, r.track)} className="btn-secondary" style={{ padding: '4px 12px', fontSize: '0.65rem' }}>EDIT</button>
-                                                            <button onClick={() => handleDeleteRace(r.id, r.track)} className="btn-danger-text">DELETE</button>
-                                                        </div>
+
+                                        <div className="flex flex-col gap-xsmall mb-large">
+                                            <label className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>ACTIVE TRACK POOL</label>
+                                            <div className="glass-panel" style={{ padding: '1.5rem', background: 'rgba(0,0,0,0.2)', maxHeight: '200px', overflowY: 'auto' }}>
+                                                <div className="grid grid-4 gap-small">
+                                                    {F1_TRACKS_2025.map(track => {
+                                                        const isSelected = pointsConfig.trackPool?.includes(track);
+                                                        return (
+                                                            <label key={track} className="flex items-center gap-small cursor-pointer group">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    className="hidden"
+                                                                    checked={isSelected}
+                                                                    onChange={(e) => {
+                                                                        const current = pointsConfig.trackPool || [];
+                                                                        const trackPool = e.target.checked ? [...current, track] : current.filter(t => t !== track);
+                                                                        setPointsConfig({ ...pointsConfig, trackPool });
+                                                                    }}
+                                                                />
+                                                                <div className={`w-4 h-4 border transition-all ${isSelected ? 'bg-f1-red border-f1-red' : 'border-white/20 group-hover:border-white/40'}`}></div>
+                                                                <span className="text-f1-bold" style={{ fontSize: '0.65rem', color: isSelected ? 'white' : 'var(--text-muted)' }}>
+                                                                    {track.toUpperCase()}
+                                                                </span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                            <div className="text-right mt-xsmall">
+                                                <span className="stat-label" style={{ color: 'var(--f1-red)' }}>{pointsConfig.trackPool?.length || 0} / {pointsConfig.totalRaces || 0} TRACKS CONFIGURED</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="glass-panel" style={{ padding: '1.5rem', background: 'rgba(255,25,25,0.05)', border: '1px solid rgba(255,25,25,0.1)' }}>
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <h3 className="text-f1-bold" style={{ fontSize: '0.9rem', color: 'var(--f1-red)' }}>TEAM COMPETITION</h3>
+                                                    <p className="stat-label">ENABLE CONSTRUCTOR STANDINGS AND CUSTOM TEAMS.</p>
+                                                </div>
+                                                <label className="flex items-center gap-medium cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="hidden"
+                                                        checked={pointsConfig.teamCompetition}
+                                                        onChange={e => setPointsConfig({ ...pointsConfig, teamCompetition: e.target.checked })}
+                                                    />
+                                                    <div className={`w-12 h-6 rounded-full relative transition-all ${pointsConfig.teamCompetition ? 'bg-f1-red' : 'bg-white/10'}`}>
+                                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${pointsConfig.teamCompetition ? 'left-7' : 'left-1'}`}></div>
                                                     </div>
-                                                ))}
-                                                {finishedRaces.length === 0 && <p style={{ fontSize: '0.8rem', color: 'var(--silver)' }}>No finished races yet.</p>}
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+
+                                    <div className="flex flex-col gap-large" style={{ gridColumn: 'span 2' }}>
+                                        <div className="glass-panel" style={{ padding: '2rem' }}>
+                                            <div className="flex items-center gap-small mb-medium">
+                                                <div className="w-2 h-8 bg-f1-red"></div>
+                                                <h2 className="h2 text-gradient">RACE PLANNER</h2>
+                                            </div>
+                                            <p className="stat-label mb-large">SCHEDULE UPCOMING EVENTS FOR YOUR LEAGUE SEASON.</p>
+
+                                            <form onSubmit={handleScheduleRace} className="flex flex-col gap-medium">
+                                                <div className="grid grid-3 gap-medium items-end">
+                                                    <div className="flex flex-col gap-xsmall">
+                                                        <label className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>SELECT TRACK</label>
+                                                        <select
+                                                            value={scheduleTrack}
+                                                            onChange={e => {
+                                                                setScheduleTrack(e.target.value);
+                                                                if (e.target.value !== 'RANDOM') setIsRandomTrack(false);
+                                                            }}
+                                                            disabled={isRandomTrack}
+                                                            className="glass-panel"
+                                                            style={{ padding: '0.8rem', background: 'var(--glass-surface)', color: 'white', opacity: isRandomTrack ? 0.5 : 1 }}
+                                                        >
+                                                            {F1_TRACKS_2025.map(t => <option key={t} value={t} style={{ color: 'black' }}>{t.toUpperCase()}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    <div className="flex flex-col gap-xsmall">
+                                                        <label className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>DATE & TIME</label>
+                                                        <input
+                                                            type="datetime-local"
+                                                            value={scheduleDate}
+                                                            onChange={e => setScheduleDate(e.target.value)}
+                                                            required
+                                                            className="glass-panel"
+                                                            style={{ padding: '0.8rem', background: 'var(--glass-surface)', color: 'white' }}
+                                                        />
+                                                    </div>
+                                                    <button type="submit" disabled={submitting} className="btn btn-primary" style={{ height: '46px', justifyContent: 'center' }}>
+                                                        {submitting ? 'SYNCHRONIZING...' : 'SCHEDULE EVENT'}
+                                                    </button>
+                                                </div>
+
+                                                <div className="glass-panel" style={{ padding: '1rem', background: 'rgba(255,255,255,0.02)' }}>
+                                                    <div className="flex flex-wrap gap-large items-center">
+                                                        <label className="flex items-center gap-small cursor-pointer group">
+                                                            <input
+                                                                type="checkbox"
+                                                                className="hidden"
+                                                                checked={isRandomTrack}
+                                                                onChange={e => setIsRandomTrack(e.target.checked)}
+                                                            />
+                                                            <div className={`w-4 h-4 border transition-all ${isRandomTrack ? 'bg-f1-red border-f1-red' : 'border-white/20 group-hover:border-white/40'}`}></div>
+                                                            <span className="text-f1-bold" style={{ fontSize: '0.7rem', color: isRandomTrack ? 'var(--f1-red)' : 'var(--text-muted)' }}>
+                                                                RANDOM TRACK FROM POOL
+                                                            </span>
+                                                        </label>
+
+                                                        {isRandomTrack && (
+                                                            <div className="flex items-center gap-medium animate-fade-in pl-medium" style={{ borderLeft: '1px solid var(--glass-border)' }}>
+                                                                <label className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>REVEAL WINDOW</label>
+                                                                <div className="flex items-center gap-small">
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0" max="168"
+                                                                        value={revealHours}
+                                                                        onChange={e => setRevealHours(parseInt(e.target.value) || 0)}
+                                                                        className="glass-panel text-center"
+                                                                        style={{ width: '60px', padding: '0.4rem', background: 'var(--glass-surface)', color: 'white', fontWeight: 800 }}
+                                                                    />
+                                                                    <span className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>HOURS BEFORE RACE</span>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </div>
+
+                                        <div className="grid grid-2 gap-large">
+                                            {/* UPCOMING RACES LIST */}
+                                            <div className="glass-panel" style={{ padding: '2rem' }}>
+                                                <h3 className="text-f1-bold mb-medium" style={{ fontSize: '0.8rem', color: 'var(--f1-red)', letterSpacing: '2px' }}>UPCOMING SESSIONS</h3>
+                                                <div className="flex flex-col gap-xsmall">
+                                                    {upcomingRaces.map(r => (
+                                                        <div key={r.id} className="flex justify-between items-center p-medium glass-panel" style={{ background: 'var(--f1-carbon-dark)', padding: '0.75rem 1rem' }}>
+                                                            <div>
+                                                                <div className="text-f1-bold" style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                    {r.track.toUpperCase()}
+                                                                    {r.is_random && (
+                                                                        <span title={`Random Choice (Reveals ${r.reveal_hours_before}h before)`} style={{ fontSize: '0.8rem', cursor: 'help' }}>🎲</span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="stat-label" style={{ fontSize: '0.6rem' }}>{new Date(r.scheduled_date || '').toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }).toUpperCase()}</div>
+                                                            </div>
+                                                            <button onClick={() => handleDeleteScheduledRace(r.id, r.track)} className="btn-danger-text">CANCEL</button>
+                                                        </div>
+                                                    ))}
+                                                    {upcomingRaces.length === 0 && <p className="stat-label text-center py-medium">NO RACES SCHEDULED</p>}
+                                                </div>
+                                            </div>
+
+                                            {/* FINISHED RACES LIST */}
+                                            <div className="glass-panel" style={{ padding: '2rem' }}>
+                                                <h3 className="text-f1-bold mb-medium" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', letterSpacing: '2px' }}>COMPLETED EVENTS</h3>
+                                                <div className="flex flex-col gap-xsmall">
+                                                    {finishedRaces.map(r => (
+                                                        <div key={r.id} className="flex justify-between items-center p-medium glass-panel" style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem 1rem' }}>
+                                                            <div>
+                                                                <div className="text-f1-bold" style={{ fontSize: '0.9rem' }}>{r.track.toUpperCase()}</div>
+                                                                <div className="stat-label" style={{ fontSize: '0.6rem' }}>{new Date(r.race_date || r.created_at || '').toLocaleDateString([], { dateStyle: 'medium' }).toUpperCase()}</div>
+                                                            </div>
+                                                            <div className="flex gap-small">
+                                                                <button onClick={() => handleStartEdit(r.id, r.track)} className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.65rem' }}>MODIFY</button>
+                                                                <button onClick={() => handleDeleteRace(r.id, r.track)} className="btn-danger-text">WIPE</button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {finishedRaces.length === 0 && <p className="stat-label text-center py-medium">NO DATA RECORDED</p>}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </form>
-                            </div>
-                        )}
-                    </div>
-                )}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                 {/* DRIVERS TAB */}
                 {activeTab === 'drivers' && (
-                    <div className="grid grid-2 gap-8 animate-fade-in">
-                        <div className="f1-card">
-                            <h2 className="text-f1 mb-4">DRIVERS LIST</h2>
-                            <div className="flex flex-col gap-2">
-                                {drivers.map(d => (
-                                    <div key={d.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-white/5 rounded border border-white/5 gap-4">
-                                        <div className="w-full md:w-auto">
-                                            <div className="text-f1" style={{ fontSize: '1rem' }}>{d.name}</div>
-                                            <div className="flex flex-col md:flex-row md:items-center gap-2 mt-2">
-                                                <div className="flex items-center gap-2">
-                                                    <span style={{ fontSize: '0.75rem', color: 'var(--silver)' }}>{d.team || 'Independent'}</span>
-                                                    <span className="hidden md:inline" style={{ fontSize: '0.75rem', color: 'var(--f1-red)' }}>|</span>
+                    <div className="flex flex-col gap-large animate-fade-in">
+                        <div className="grid grid-2 gap-large">
+                            {/* DRIVERS LIST */}
+                            <div className="glass-panel" style={{ padding: '2rem' }}>
+                                <div className="flex items-center gap-small mb-medium">
+                                    <div className="w-2 h-8 bg-f1-red"></div>
+                                    <h2 className="h2 text-gradient">DRIVERS REGISTRY</h2>
+                                </div>
+                                <p className="stat-label mb-large">MANAGE ALL REGISTERED ATHLETES AND THEIR TELEMETRY MAPPINGS.</p>
+
+                                <div className="flex flex-col gap-xsmall">
+                                    {drivers.map(d => (
+                                        <div key={d.id} className="glass-panel" style={{ background: 'var(--f1-carbon-dark)', padding: '1.25rem' }}>
+                                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-medium">
+                                                <div className="flex items-center gap-medium">
+                                                    <div className="w-8 h-8 rounded-sm" style={{ background: d.color || '#fff', border: '2px solid rgba(255,255,255,0.1)' }}></div>
+                                                    <div>
+                                                        <div className="text-f1-bold" style={{ fontSize: '1.1rem' }}>{d.name.toUpperCase()}</div>
+                                                        <div className="stat-label" style={{ fontSize: '0.65rem', color: 'var(--f1-red)' }}>{d.team?.toUpperCase() || 'INDEPENDENT'}</div>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-2 w-full mt-2 md:mt-0">
-                                                    <input
-                                                        type="text"
-                                                        value={d.game_name || ''}
-                                                        onChange={(e) => setDrivers(prev => prev.map(drv => drv.id === d.id ? { ...drv, game_name: e.target.value } : drv))}
-                                                        placeholder="In-Game Name..."
-                                                        className="flex-grow md:flex-grow-0"
-                                                        style={{ minWidth: '150px', fontSize: '0.75rem', padding: '6px 10px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: '4px', outline: 'none' }}
-                                                        title="Used for automatic telemetry mapping"
-                                                    />
+
+                                                <div className="flex flex-wrap gap-medium items-center justify-end flex-grow">
+                                                    <div className="flex flex-col gap-xsmall">
+                                                        <label className="text-f1-bold" style={{ fontSize: '0.55rem', color: 'var(--text-muted)', letterSpacing: '1px' }}>IN-GAME NAME</label>
+                                                        <div className="flex gap-xsmall">
+                                                            <input
+                                                                type="text"
+                                                                value={d.game_name || ''}
+                                                                onChange={(e) => setDrivers(prev => prev.map(drv => drv.id === d.id ? { ...drv, game_name: e.target.value } : drv))}
+                                                                placeholder="IDENTIFIER..."
+                                                                className="glass-panel"
+                                                                style={{ padding: '0.5rem 0.75rem', background: 'rgba(0,0,0,0.2)', color: 'white', fontSize: '0.75rem', borderRadius: '2px', width: '150px' }}
+                                                            />
+                                                            <button
+                                                                onClick={() => handleUpdateGameName(d.id, d.game_name || '')}
+                                                                className="btn btn-secondary"
+                                                                style={{ padding: '0.5rem', fontSize: '0.6rem' }}
+                                                            >
+                                                                SYNC
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex flex-col gap-xsmall">
+                                                        <label className="text-f1-bold" style={{ fontSize: '0.55rem', color: 'var(--text-muted)', letterSpacing: '1px' }}>LIVERY</label>
+                                                        <div className="flex gap-xsmall">
+                                                           <input
+                                                               type="color"
+                                                               value={d.color || '#ffffff'}
+                                                               onChange={(e) => setDrivers(prev => prev.map(drv => drv.id === d.id ? { ...drv, color: e.target.value } : drv))}
+                                                               style={{ padding: '0', background: 'none', border: 'none', width: '32px', height: '32px', cursor: 'pointer' }}
+                                                           />
+                                                           <button
+                                                               onClick={() => handleUpdateColor(d.id, d.color || '#ffffff')}
+                                                               className="btn btn-secondary"
+                                                               style={{ padding: '0.5rem', fontSize: '0.6rem' }}
+                                                           >
+                                                               SET
+                                                           </button>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {pointsConfig.teamCompetition && (
+                                                       <div className="flex flex-col gap-xsmall">
+                                                           <label className="text-f1-bold" style={{ fontSize: '0.55rem', color: 'var(--text-muted)', letterSpacing: '1px' }}>TEAM ALLIANCE</label>
+                                                           <select
+                                                               value={d.team_id || 'NONE'}
+                                                               onChange={(e) => handleAssignTeam(d.id, e.target.value)}
+                                                               className="glass-panel"
+                                                               style={{ padding: '0.52rem 0.75rem', background: 'rgba(0,0,0,0.2)', color: 'white', fontSize: '0.75rem', borderRadius: '2px' }}
+                                                           >
+                                                               <option value="NONE" style={{ color: 'black' }}>NO ALLIANCE</option>
+                                                               {teams.map(team => (
+                                                                   <option key={team.id} value={team.id} style={{ color: 'black' }}>{team.name.toUpperCase()}</option>
+                                                               ))}
+                                                           </select>
+                                                       </div>
+                                                    )}
+
                                                     <button
-                                                        onClick={() => handleUpdateGameName(d.id, d.game_name || '')}
-                                                        className="btn-secondary"
-                                                        style={{ padding: '6px 12px', fontSize: '0.65rem', minHeight: 'unset', whiteSpace: 'nowrap' }}
+                                                        onClick={() => handleDeleteDriver(d.id)}
+                                                        className="btn-danger-text"
+                                                        style={{ marginLeft: '1rem' }}
                                                     >
-                                                        SAVE
+                                                        WIPE
                                                     </button>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-2 mt-2 w-full md:w-auto">
-                                                <span style={{ fontSize: '0.75rem', color: 'var(--silver)' }}>Color:</span>
-                                                <input
-                                                    type="color"
-                                                    value={d.color || '#ffffff'}
-                                                    onChange={(e) => setDrivers(prev => prev.map(drv => drv.id === d.id ? { ...drv, color: e.target.value } : drv))}
-                                                    style={{
-                                                        padding: '2px',
-                                                        background: 'var(--f1-carbon-dark)',
-                                                        border: '1px solid var(--glass-border)',
-                                                        borderRadius: '4px',
-                                                        cursor: 'pointer',
-                                                        width: '32px',
-                                                        height: '32px'
-                                                    }}
-                                                />
-                                                <button
-                                                    onClick={() => handleUpdateColor(d.id, d.color || '#ffffff')}
-                                                    className="btn-secondary"
-                                                    style={{ padding: '6px 12px', fontSize: '0.65rem', minHeight: 'unset', whiteSpace: 'nowrap' }}
-                                                >
-                                                    SAVE COLOR
-                                                </button>
-                                            </div>
-                                            {pointsConfig.teamCompetition && (
-                                                <div className="flex items-center gap-2 mt-2 w-full md:w-auto">
-                                                    <span style={{ fontSize: '0.75rem', color: 'var(--silver)' }}>Team:</span>
-                                                    <select
-                                                        value={d.team_id || 'NONE'}
-                                                        onChange={(e) => handleAssignTeam(d.id, e.target.value)}
-                                                        style={{
-                                                            padding: '6px 10px',
-                                                            background: 'rgba(0,0,0,0.3)',
-                                                            border: '1px solid var(--glass-border)',
-                                                            color: 'white',
-                                                            borderRadius: '4px',
-                                                            outline: 'none',
-                                                            fontSize: '0.75rem'
-                                                        }}
-                                                    >
-                                                        <option value="NONE">No Team</option>
-                                                        {teams.map(team => (
-                                                            <option key={team.id} value={team.id}>{team.name}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            )}
                                         </div>
-                                        <button
-                                            onClick={() => handleDeleteDriver(d.id)}
-                                            className="btn-danger-text w-full md:w-auto text-left"
-                                            style={{ padding: '0.5rem 0', marginTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}
-                                        >
-                                            REMOVE DRIVER
-                                        </button>
-                                    </div>
-                                ))}
-                                {drivers.length === 0 && <p className="text-center py-4" style={{ color: 'var(--silver)' }}>No drivers registered yet.</p>}
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col gap-8">
-                            <div className="f1-card">
-                                <h2 className="text-f1 mb-4">ADD NEW DRIVER</h2>
-                                <div className="flex flex-col gap-3">
-                                    <div className="input-group">
-                                        <label>FULL NAME</label>
-                                        <input value={newDriverName} onChange={e => setNewDriverName(e.target.value)} placeholder="Max Mustermann" />
-                                    </div>
-                                    <div className="input-group">
-                                        <label>TEAM CONSTRUCTOR</label>
-                                        <input value={newDriverTeam} onChange={e => setNewDriverTeam(e.target.value)} placeholder="Mercedes-AMG / Privateer" />
-                                    </div>
-                                    <div className="input-group">
-                                        <label>IN-GAME NAME (TELEMETRY)</label>
-                                        <input value={newDriverGameName} onChange={e => setNewDriverGameName(e.target.value)} placeholder="Steam/Xbox/PSN Name" />
-                                    </div>
-                                    <div className="input-group">
-                                        <label>DRIVER COLOR</label>
-                                        <input
-                                            type="color"
-                                            value={newDriverColor}
-                                            onChange={e => setNewDriverColor(e.target.value)}
-                                            style={{
-                                                padding: '2px',
-                                                cursor: 'pointer',
-                                                width: '40px',
-                                                height: '40px',
-                                                border: '1px solid var(--glass-border)',
-                                                borderRadius: '4px',
-                                                background: 'var(--f1-carbon-dark)'
-                                            }}
-                                        />
-                                    </div>
-                                    <button onClick={handleAddDriver} disabled={submitting || !newDriverName} className="btn-primary mt-2">
-                                        {submitting ? 'ADDING...' : 'ADD TO LEAGUE'}
-                                    </button>
+                                    ))}
+                                    {drivers.length === 0 && <p className="stat-label text-center py-large">NO DRIVERS REGISTERED</p>}
                                 </div>
                             </div>
 
-                            {pointsConfig.teamCompetition && (
-                                <div className="f1-card animate-fade-in">
-                                    <h2 className="text-f1 mb-4">TEAMS</h2>
-                                    <div className="flex flex-col gap-3 mb-6">
-                                        {teams.map(team => (
-                                            <div key={team.id} className="flex justify-between items-center p-3 bg-white/5 rounded border border-white/5">
-                                                <div className="flex items-center gap-3">
-                                                    <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: team.color, border: '1px solid rgba(255,255,255,0.2)' }}></div>
-                                                    <span className="text-f1" style={{ fontSize: '0.9rem' }}>{team.name}</span>
-                                                </div>
-                                                <button onClick={() => handleDeleteTeam(team.id)} className="btn-danger-text">DELETE</button>
-                                            </div>
-                                        ))}
-                                        {teams.length === 0 && <p style={{ fontSize: '0.8rem', color: 'var(--silver)' }}>No teams created yet.</p>}
+                            <div className="flex flex-col gap-large">
+                                {/* ADD DRIVER FORM */}
+                                <div className="glass-panel" style={{ padding: '2rem' }}>
+                                    <div className="flex items-center gap-small mb-medium">
+                                        <div className="w-2 h-8 bg-f1-red"></div>
+                                        <h2 className="h2 text-gradient">RECRUIT DRIVER</h2>
                                     </div>
-                                    <form onSubmit={handleAddTeam} className="flex flex-col gap-3">
-                                        <div className="input-group">
-                                            <label>NEW TEAM NAME</label>
-                                            <input value={newTeamName} onChange={e => setNewTeamName(e.target.value)} placeholder="Scuderia Ferrari" />
-                                        </div>
-                                        <div className="input-group">
-                                            <label>TEAM COLOR</label>
-                                            <input
-                                                type="color"
-                                                value={newTeamColor}
-                                                onChange={e => setNewTeamColor(e.target.value)}
-                                                style={{
-                                                    padding: '2px',
-                                                    cursor: 'pointer',
-                                                    width: '40px',
-                                                    height: '40px',
-                                                    border: '1px solid var(--glass-border)',
-                                                    borderRadius: '4px',
-                                                    background: 'var(--f1-carbon-dark)'
-                                                }}
+                                    <div className="flex flex-col gap-medium">
+                                        <div className="flex flex-col gap-xsmall">
+                                            <label className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>LEGAL NAME</label>
+                                            <input 
+                                               value={newDriverName} 
+                                               onChange={e => setNewDriverName(e.target.value)} 
+                                               placeholder="MAX MUSTERMANN"
+                                               className="glass-panel"
+                                               style={{ padding: '0.8rem', background: 'var(--glass-surface)', color: 'white' }}
                                             />
                                         </div>
-                                        <button type="submit" disabled={submitting || !newTeamName} className="btn-primary mt-2">
-                                            {submitting ? 'ADDING...' : 'ADD TEAM'}
+                                        <div className="flex flex-col gap-xsmall">
+                                            <label className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>CONSTRUCTOR / TEAM</label>
+                                            <input 
+                                               value={newDriverTeam} 
+                                               onChange={e => setNewDriverTeam(e.target.value)} 
+                                               placeholder="MERCEDES-AMG / PRIVATEER"
+                                               className="glass-panel"
+                                               style={{ padding: '0.8rem', background: 'var(--glass-surface)', color: 'white' }}
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-xsmall">
+                                            <label className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>TELEMETRY IDENTIFIER</label>
+                                            <input 
+                                               value={newDriverGameName} 
+                                               onChange={e => setNewDriverGameName(e.target.value)} 
+                                               placeholder="STEAM / XBOX / PSN NAME"
+                                               className="glass-panel"
+                                               style={{ padding: '0.8rem', background: 'var(--glass-surface)', color: 'white' }}
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-xsmall">
+                                            <label className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>LIVERY COLOR</label>
+                                            <input
+                                                type="color"
+                                                value={newDriverColor}
+                                                onChange={e => setNewDriverColor(e.target.value)}
+                                                style={{ width: '100%', height: '40px', background: 'none', border: '1px solid var(--glass-border)', cursor: 'pointer', padding: '2px' }}
+                                            />
+                                        </div>
+                                        <button 
+                                           onClick={handleAddDriver} 
+                                           disabled={submitting} 
+                                           className="btn btn-primary w-full mt-small"
+                                           style={{ padding: '1rem', justifyContent: 'center' }}
+                                        >
+                                            {submitting ? 'RECRUITING...' : 'ENLIST DRIVER'}
                                         </button>
-                                    </form>
+                                    </div>
                                 </div>
-                            )}
+
+                                {/* TEAM MANAGEMENT SECTION */}
+                                {pointsConfig.teamCompetition && (
+                                    <div className="glass-panel animate-scale-in" style={{ padding: '2rem' }}>
+                                        <div className="flex items-center gap-small mb-medium">
+                                            <div className="w-2 h-8 bg-black"></div>
+                                            <h2 className="h2" style={{ color: 'white' }}>FACTORY TEAMS</h2>
+                                        </div>
+                                        
+                                        <div className="flex flex-col gap-xsmall mb-large">
+                                            {teams.map(team => (
+                                                <div key={team.id} className="flex justify-between items-center p-medium glass-panel" style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem 1rem' }}>
+                                                    <div className="flex items-center gap-medium">
+                                                        <div className="w-4 h-4" style={{ background: team.color || '#fff' }}></div>
+                                                        <span className="text-f1-bold" style={{ fontSize: '0.9rem' }}>{team.name.toUpperCase()}</span>
+                                                    </div>
+                                                    <button onClick={() => handleDeleteTeam(team.id)} className="btn-danger-text">DISSOLVE</button>
+                                                </div>
+                                            ))}
+                                            {teams.length === 0 && <p className="stat-label text-center py-medium">NO TEAMS ESTABLISHED</p>}
+                                        </div>
+
+                                        <form onSubmit={handleAddTeam} className="flex flex-col gap-medium pt-medium" style={{ borderTop: '1px solid var(--glass-border)' }}>
+                                            <div className="flex flex-col gap-xsmall">
+                                                <label className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>CONSTRUCTOR NAME</label>
+                                                <input 
+                                                    value={newTeamName} 
+                                                    onChange={e => setNewTeamName(e.target.value)} 
+                                                    placeholder="TEAM NAME..." 
+                                                    className="glass-panel"
+                                                    style={{ padding: '0.8rem', background: 'var(--glass-surface)', color: 'white' }}
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-xsmall">
+                                                <label className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>OFFICIAL COLOR</label>
+                                                <input 
+                                                    type="color" 
+                                                    value={newTeamColor} 
+                                                    onChange={e => setNewTeamColor(e.target.value)}
+                                                    style={{ width: '100%', height: '32px', background: 'none', border: '1px solid var(--glass-border)', cursor: 'pointer' }}
+                                                />
+                                            </div>
+                                            <button type="submit" disabled={submitting || !newTeamName} className="btn btn-secondary w-full" style={{ justifyContent: 'center' }}>
+                                                {submitting ? 'COMMISIONING...' : 'ESTABLISH FACTORY TEAM'}
+                                            </button>
+                                        </form>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
 
                 {/* POINTS CONFIG TAB */}
                 {activeTab === 'points' && (
-                    <div className="f1-card animate-fade-in">
-                        <h2 className="text-f1 mb-6">POINTS CONFIGURATION</h2>
-
-                        <div className="grid grid-3 gap-6 mb-8">
-                            <div className="input-group">
-                                <label>FASTEST LAP BONUS</label>
-                                <input
-                                    type="number"
-                                    value={pointsConfig.fastestLapBonus}
-                                    onChange={e => setPointsConfig({ ...pointsConfig, fastestLapBonus: parseInt(e.target.value) || 0 })}
-                                />
+                    <div className="flex flex-col gap-large animate-fade-in">
+                        <div className="glass-panel" style={{ padding: '2rem' }}>
+                            <div className="flex items-center gap-small mb-medium">
+                                <div className="w-2 h-8 bg-f1-red"></div>
+                                <h2 className="h2 text-gradient">POINTS SYSTEM CONFIGURATION</h2>
                             </div>
-                            <div className="input-group">
-                                <label>CLEAN DRIVER BONUS</label>
-                                <input
-                                    type="number"
-                                    value={pointsConfig.cleanDriverBonus}
-                                    onChange={e => setPointsConfig({ ...pointsConfig, cleanDriverBonus: parseInt(e.target.value) || 0 })}
-                                />
-                            </div>
-                        </div>
+                            <p className="stat-label mb-large">ADJUST THE CHAMPIONSHIP POINT DISTRIBUTION AND BONUSES.</p>
 
-                        <h3 className="text-f1 mb-4" style={{ fontSize: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>POSITION POINTS</h3>
-                        <div className="grid grid-4 gap-x-8 gap-y-4 mb-8">
-                            {Array.from({ length: 20 }).map((_, i) => (
-                                <div key={i + 1} className="flex items-center gap-3">
-                                    <span style={{ width: '30px', fontWeight: '900', color: 'var(--silver)', opacity: 0.5 }}>{i + 1}.</span>
+                            <div className="grid grid-3 gap-large mb-large">
+                                <div className="flex flex-col gap-xsmall">
+                                    <label className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>FASTEST LAP BONUS</label>
                                     <input
                                         type="number"
-                                        value={pointsConfig.points[i + 1] || 0}
-                                        onChange={e => {
-                                            const newPoints = { ...pointsConfig.points, [i + 1]: parseInt(e.target.value) || 0 };
-                                            setPointsConfig({ ...pointsConfig, points: newPoints });
-                                        }}
-                                        style={{ width: '100%', padding: '0.5rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: 'white' }}
+                                        value={pointsConfig.fastestLapBonus}
+                                        onChange={e => setPointsConfig({ ...pointsConfig, fastestLapBonus: parseInt(e.target.value) || 0 })}
+                                        className="glass-panel"
+                                        style={{ padding: '0.8rem', background: 'var(--glass-surface)', color: 'white', fontWeight: 800 }}
                                     />
                                 </div>
-                            ))}
-                        </div>
-
-                        <h3 className="text-f1 mb-4" style={{ fontSize: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>QUALIFYING POINTS</h3>
-                        <div className="grid grid-4 gap-x-8 gap-y-4 mb-8">
-                            {Array.from({ length: 20 }).map((_, i) => (
-                                <div key={i + 1} className="flex items-center gap-3">
-                                    <span style={{ width: '30px', fontWeight: '900', color: 'var(--silver)', opacity: 0.5 }}>{i + 1}.</span>
+                                <div className="flex flex-col gap-xsmall">
+                                    <label className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>CLEAN DRIVER BONUS</label>
                                     <input
                                         type="number"
-                                        value={pointsConfig.qualiPoints ? (pointsConfig.qualiPoints[i + 1] || 0) : 0}
-                                        onChange={e => {
-                                            const newPoints = { ...(pointsConfig.qualiPoints || {}), [i + 1]: parseInt(e.target.value) || 0 };
-                                            setPointsConfig({ ...pointsConfig, qualiPoints: newPoints });
-                                        }}
-                                        style={{ width: '100%', padding: '0.5rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: 'white' }}
+                                        value={pointsConfig.cleanDriverBonus}
+                                        onChange={e => setPointsConfig({ ...pointsConfig, cleanDriverBonus: parseInt(e.target.value) || 0 })}
+                                        className="glass-panel"
+                                        style={{ padding: '0.8rem', background: 'var(--glass-surface)', color: 'white', fontWeight: 800 }}
                                     />
                                 </div>
-                            ))}
-                        </div>
+                            </div>
 
-                        <button onClick={handleUpdatePointsConfig} disabled={submitting} className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-                            {submitting ? 'SAVING CONFIG...' : 'SAVE POINTS SETTINGS'}
-                        </button>
+                            <div className="grid grid-2 gap-xlarge">
+                                <div>
+                                    <h3 className="text-f1-bold mb-medium" style={{ fontSize: '0.8rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem', color: 'var(--f1-red)' }}>RACE FINISH POINTS</h3>
+                                    <div className="grid grid-2 gap-small">
+                                        {Array.from({ length: 20 }).map((_, i) => (
+                                            <div key={i + 1} className="flex items-center gap-small p-xsmall glass-panel" style={{ background: 'var(--f1-carbon-dark)' }}>
+                                                <span style={{ width: '24px', fontWeight: '900', color: 'var(--text-muted)', fontSize: '0.7rem' }}>{i + 1}.</span>
+                                                <input
+                                                    type="number"
+                                                    value={pointsConfig.points[i + 1] || 0}
+                                                    onChange={e => {
+                                                        const newPoints = { ...pointsConfig.points, [i + 1]: parseInt(e.target.value) || 0 };
+                                                        setPointsConfig({ ...pointsConfig, points: newPoints });
+                                                    }}
+                                                    className="bg-transparent border-none text-white w-full outline-none"
+                                                    style={{ fontWeight: 800, fontSize: '0.9rem' }}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h3 className="text-f1-bold mb-medium" style={{ fontSize: '0.8rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem', color: 'var(--text-muted)' }}>QUALIFYING POINTS</h3>
+                                    <div className="grid grid-2 gap-small">
+                                        {Array.from({ length: 20 }).map((_, i) => (
+                                            <div key={i + 1} className="flex items-center gap-small p-xsmall glass-panel" style={{ background: 'var(--f1-carbon-dark)' }}>
+                                                <span style={{ width: '24px', fontWeight: '900', color: 'var(--text-muted)', fontSize: '0.7rem' }}>{i + 1}.</span>
+                                                <input
+                                                    type="number"
+                                                    value={pointsConfig.qualiPoints ? (pointsConfig.qualiPoints[i + 1] || 0) : 0}
+                                                    onChange={e => {
+                                                        const newPoints = { ...(pointsConfig.qualiPoints || {}), [i + 1]: parseInt(e.target.value) || 0 };
+                                                        setPointsConfig({ ...pointsConfig, qualiPoints: newPoints });
+                                                    }}
+                                                    className="bg-transparent border-none text-white w-full outline-none"
+                                                    style={{ fontWeight: 800, fontSize: '0.8rem', opacity: 0.7 }}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button onClick={handleUpdatePointsConfig} disabled={submitting} className="btn btn-primary w-full mt-xlarge" style={{ padding: '1.25rem', justifyContent: 'center' }}>
+                                {submitting ? 'SYNCHRONIZING RULES...' : 'APPLY CHAMPIONSHIP POINTS'}
+                            </button>
+                        </div>
                     </div>
                 )}
 
                 {/* TELEMETRY TAB */}
                 {activeTab === 'telemetry' && (
-                    <div className="flex flex-col gap-6 animate-fade-in">
+                    <div className="flex flex-col gap-large animate-fade-in">
                         {managingSession ? (
-                            <div className="flex flex-col gap-6">
-                                <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-                                    <div>
-                                        <h2 className="text-f1 text-gradient" style={{ fontSize: '2.5rem', letterSpacing: '-2px' }}>MANAGE SESSION</h2>
-                                        <p style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Aufgezeichnet: {new Date(managingSession.created_at).toLocaleString()}</p>
+                            <div className="flex flex-col gap-large">
+                                <div className="glass-panel" style={{ padding: '2rem' }}>
+                                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-large mb-large">
+                                        <div>
+                                            <div className="flex items-center gap-small mb-xsmall">
+                                                <div className="w-2 h-8 bg-f1-red"></div>
+                                                <h2 className="h2 text-gradient">SESSION DEEP-DIVE</h2>
+                                            </div>
+                                            <p className="stat-label">RECORDED: {new Date(managingSession.created_at).toLocaleString().toUpperCase()}</p>
+                                        </div>
+                                        <div className="flex gap-medium">
+                                            <button
+                                                onClick={() => {
+                                                    if (confirm('Session-Zuordnung zurücksetzen? Die Teilnehmer-Zuordnungen bleiben erhalten, du kehrst nur zur Sesssion-Übersicht zurück.')) {
+                                                        setManagingSession(null);
+                                                    }
+                                                }}
+                                                className="btn btn-secondary"
+                                                style={{ background: 'rgba(255,24,1,0.05)', borderColor: 'rgba(255,24,1,0.2)', color: 'var(--f1-red)' }}
+                                            >
+                                                RESET ALLOCATION
+                                            </button>
+                                            <button onClick={() => setManagingSession(null)} className="btn btn-secondary">BACK TO OVERVIEW</button>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-4">
-                                        <button
-                                            onClick={() => {
-                                                if (confirm('Session-Zuordnung zurücksetzen? Die Teilnehmer-Zuordnungen bleiben erhalten, du kehrst nur zur Sesssion-Übersicht zurück.')) {
-                                                    setManagingSession(null);
-                                                }
-                                            }}
-                                            className="btn-secondary"
-                                            style={{ background: 'rgba(255,24,1,0.1)', borderColor: 'rgba(255,24,1,0.3)', color: 'var(--f1-red)', fontSize: '0.7rem' }}
-                                        >
-                                            ↩ RESET / ZURÜCK
-                                        </button>
-                                        <button onClick={() => setManagingSession(null)} className="btn-secondary">ZURÜCK ZU SESSIONS</button>
-                                    </div>
-                                </header>
 
-                                <div className="f1-card mb-6">
-                                    <h3 className="text-f1 mb-4" style={{ fontSize: '1.2rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>MAP PARTICIPANTS</h3>
-                                    <p className="mb-4" style={{ fontSize: '0.85rem', color: 'var(--silver)' }}>Assign returning drivers to their in-game names. Mappings are saved to their profile automatically.</p>
-
-                                    <div className="flex flex-col gap-3">
+                                    <div className="flex flex-col gap-xsmall">
+                                        <h3 className="text-f1-bold mb-small" style={{ fontSize: '0.7rem', color: 'var(--text-muted)', letterSpacing: '1px' }}>MAP PARTICIPANTS</h3>
                                         {sessionParticipants.map((p, idx) => (
-                                            <div key={p.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-white/5 rounded border border-white/5 gap-4">
-                                                <div className="flex items-center gap-4 w-full md:w-auto">
-                                                    <span style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--f1-red)', width: '30px' }}>{idx + 1}</span>
-                                                    <div>
-                                                        <div className="text-f1" style={{ fontSize: '1rem' }}>{p.game_name} {p.is_human && <span style={{ fontSize: '0.6rem', color: 'var(--silver)', marginLeft: '4px' }}>(HUMAN)</span>}</div>
-                                                        <div style={{ fontSize: '0.7rem', color: 'var(--silver)' }}>Fastest Lap: {p.fastest_lap_ms ? `${(p.fastest_lap_ms / 1000).toFixed(3)}s` : 'N/A'} - Top Speed: {p.top_speed ? `${p.top_speed.toFixed(1)} km/h` : 'N/A'}</div>
+                                            <div key={p.id} className="glass-panel" style={{ background: 'var(--f1-carbon-dark)', padding: '1rem' }}>
+                                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-medium">
+                                                    <div className="flex items-center gap-medium">
+                                                        <span className="text-f1-bold" style={{ color: 'var(--f1-red)', fontSize: '1.2rem', width: '2rem' }}>{(idx + 1).toString().padStart(2, '0')}</span>
+                                                        <div>
+                                                            <div className="text-f1-bold" style={{ fontSize: '1rem' }}>{p.game_name.toUpperCase()} {p.is_human && <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>(HUMANOID)</span>}</div>
+                                                            <div className="stat-label" style={{ fontSize: '0.55rem' }}>
+                                                                BEST: {p.fastest_lap_ms ? `${(p.fastest_lap_ms / 1000).toFixed(3)}S` : 'N/A'} — V-MAX: {p.top_speed ? `${p.top_speed.toFixed(1)} KM/H` : 'N/A'}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
 
-                                                <div className="w-full md:w-auto mt-2 md:mt-0">
                                                     <select
                                                         value={p.driver_id || ''}
                                                         onChange={(e) => handleAssignTelemetryPlayer(p.game_name, e.target.value)}
                                                         disabled={submitting}
+                                                        className="glass-panel"
                                                         style={{
-                                                            padding: '0.8rem',
-                                                            background: p.driver_id ? 'rgba(0, 255, 0, 0.1)' : 'var(--f1-carbon-dark)',
-                                                            border: `1px solid ${p.driver_id ? 'rgba(0, 255, 0, 0.3)' : 'var(--f1-red)'}`,
-                                                            borderRadius: '6px',
+                                                            padding: '0.6rem 1rem',
+                                                            background: p.driver_id ? 'rgba(0, 255, 0, 0.05)' : 'var(--glass-surface)',
+                                                            border: `1px solid ${p.driver_id ? 'rgba(0, 255, 0, 0.2)' : 'var(--glass-border)'}`,
                                                             color: 'white',
-                                                            outline: 'none',
-                                                            cursor: 'pointer',
-                                                            width: '100%',
-                                                            minWidth: '220px'
+                                                            fontSize: '0.8rem',
+                                                            minWidth: '240px'
                                                         }}
                                                     >
-                                                        <option value="" disabled>--- SELECT LEAGUE DRIVER ---</option>
+                                                        <option value="" disabled style={{ color: 'black' }}>--- SELECT LEAGUE DRIVER ---</option>
                                                         {drivers.map(d => (
-                                                            <option key={d.id} value={d.id}>{d.name} {d.game_name ? `(${d.game_name})` : ''}</option>
+                                                            <option key={d.id} value={d.id} style={{ color: 'black' }}>{d.name.toUpperCase()} {d.game_name ? `(${d.game_name})` : ''}</option>
                                                         ))}
                                                     </select>
                                                 </div>
                                             </div>
                                         ))}
-                                        {sessionParticipants.length === 0 && <p style={{ fontSize: '0.8rem', color: 'var(--silver)' }}>No participants found in this session.</p>}
+                                        {sessionParticipants.length === 0 && <p className="stat-label text-center py-large">NO TELEMETRY DATA STREAMS FOUND</p>}
                                     </div>
                                 </div>
 
-                                <div className="f1-card" style={{ border: '1px solid var(--f1-red)' }}>
-                                    <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+                                <div className="glass-panel" style={{ padding: '2rem', borderLeft: '4px solid var(--f1-red)' }}>
+                                    <div className="flex flex-col md:flex-row justify-between items-center gap-large">
                                         <div style={{ flex: 1 }}>
-                                            <h3 className="text-f1" style={{ fontSize: '1.2rem', color: 'var(--f1-red)' }}>PROMOTE TO CHAMPIONSHIP RACE</h3>
-                                            <p style={{ fontSize: '0.85rem', color: 'var(--silver)', marginTop: '0.5rem' }}>
-                                                Strecke auswählen und Session als offizielles Rennergebnis speichern. Punkte werden automatisch berechnet.
-                                                <strong style={{ color: '#ffc107' }}> Nicht zugeordnete Fahrer erhalten automatisch DNF und 0 Punkte.</strong>
+                                            <h3 className="h3 text-gradient">PROMOTE TO CHAMPIONSHIP</h3>
+                                            <p className="stat-label" style={{ marginTop: '0.5rem' }}>
+                                                FINALIZE DATA AS AN OFFICIAL RACE RESULT. POINTS WILL BE DISTRIBUTED ACCORDING TO CURRENT REGULATIONS.
                                             </p>
                                         </div>
-                                        <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-medium">
                                             <select
                                                 value={sessionPromoteTrack}
                                                 onChange={e => setSessionPromoteTrack(e.target.value)}
-                                                style={{ padding: '0.8rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white', minWidth: '150px' }}
+                                                className="glass-panel"
+                                                style={{ padding: '0.8rem', background: 'var(--glass-surface)', color: 'white', minWidth: '180px' }}
                                             >
-                                                {F1_TRACKS_2025.map(t => <option key={t} value={t}>{t}</option>)}
+                                                {F1_TRACKS_2025.map(t => <option key={t} value={t} style={{ color: 'black' }}>{t.toUpperCase()}</option>)}
                                             </select>
                                             <button
                                                 onClick={handlePromoteTelemetry}
                                                 disabled={submitting}
-                                                className="btn-primary"
-                                                style={{ whiteSpace: 'nowrap' }}
+                                                className="btn btn-primary"
+                                                style={{ padding: '0.8rem 2rem' }}
                                             >
-                                                {submitting ? 'PROMOTING...' : 'PROMOTE NOW'}
+                                                {submitting ? 'EXECUTING...' : 'PROMOTE NOW'}
                                             </button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         ) : (
-                            <div className="f1-card">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-f1">RECORDED TELEMETRY SESSIONS</h2>
-                                    <button onClick={() => refreshTelemetry(leagueId || '', adminPass)} className="btn-secondary" style={{ fontSize: '0.7rem', padding: '0.5rem 1rem' }}>REFRESH</button>
+                            <div className="glass-panel" style={{ padding: '2rem' }}>
+                                <div className="flex justify-between items-center mb-large">
+                                    <div className="flex items-center gap-small">
+                                        <div className="w-2 h-8 bg-f1-red"></div>
+                                        <h2 className="h2 text-gradient">TELEMETRY NEXUS</h2>
+                                    </div>
+                                    <button onClick={() => refreshTelemetry(leagueId || '', adminPass)} className="btn btn-secondary">REFRESH STREAMS</button>
                                 </div>
-                                <div className="flex flex-col gap-3">
+                                
+                                <div className="flex flex-col gap-xsmall">
                                     {telemetrySessions.map(s => (
-                                        <div key={s.id} className="flex justify-between items-center p-4 bg-white/5 rounded border border-white/5 hover-f1 transition-all">
-                                            <div>
-                                                <div className="text-f1" style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                    {s.session_type}
-                                                    {s.is_active && <span className="status-badge badge-red animate-pulse">LIVE</span>}
+                                        <div key={s.id} className="glass-panel hover-f1 transition-all" style={{ background: 'var(--f1-carbon-dark)', padding: '1.25rem' }}>
+                                            <div className="flex flex-col md:flex-row justify-between items-center gap-medium">
+                                                <div>
+                                                    <div className="flex items-center gap-medium mb-xsmall">
+                                                        <span className="text-f1-bold" style={{ fontSize: '1.2rem' }}>{s.session_type.toUpperCase()}</span>
+                                                        {s.is_active && <span className="status-badge badge-red animate-pulse">LIVE FEED</span>}
+                                                        {s.race_id && <span className="status-badge" style={{ background: 'rgba(255,24,1,0.1)', color: 'var(--f1-red)' }}>PROMOTED</span>}
+                                                    </div>
+                                                    <div className="stat-label" style={{ fontSize: '0.65rem' }}>
+                                                        CIRCUIT: <span style={{ color: 'white' }}>{getTrackNameById(s.track_id).toUpperCase()}</span> | 
+                                                        TIMESTAMP: <span style={{ color: 'white' }}>{new Date(s.created_at).toLocaleString().toUpperCase()}</span> | 
+                                                        GRID: <span style={{ color: 'white' }}>{s.participants_count} DRIVERS</span>
+                                                    </div>
                                                 </div>
-                                                <div style={{ fontSize: '0.8rem', color: 'var(--silver)', marginTop: '4px' }}>
-                                                    Track: <strong style={{ color: 'white' }}>{getTrackNameById(s.track_id)}</strong> | 
-                                                    Date: {new Date(s.created_at).toLocaleString()} | Participants: <strong style={{ color: 'white' }}>{s.participants_count}</strong> | Status: {s.race_id ? <span style={{ color: 'var(--f1-red)' }}>Promoted</span> : <span style={{ color: 'yellow' }}>Unassigned</span>}
+                                                <div className="flex gap-medium">
+                                                    <button onClick={() => handleManageTelemetry(s.id)} className="btn btn-primary" style={{ padding: '0.6rem 1.5rem', fontSize: '0.7rem' }}>MANAGE</button>
+                                                    <button onClick={() => handleDeleteTelemetry(s.id)} className="btn-danger-text">WIPE</button>
                                                 </div>
-                                            </div>
-                                            <div className="flex gap-3">
-                                                <button onClick={() => handleManageTelemetry(s.id)} className="btn-primary" style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem' }}>MANAGE</button>
-                                                <button onClick={() => handleDeleteTelemetry(s.id)} className="btn-danger-text" style={{ padding: '0 0.5rem' }}>DELETE</button>
                                             </div>
                                         </div>
                                     ))}
                                     {telemetrySessions.length === 0 && (
-                                        <div className="text-center py-8">
-                                            <p style={{ color: 'var(--silver)', marginBottom: '1rem' }}>No telemetry sessions recorded yet.</p>
-                                            <p style={{ fontSize: '0.8rem', color: 'var(--silver)', opacity: 0.7 }}>Run your local F1 Router App to begin transmitting telemetry data to your league dashboard.</p>
+                                        <div className="text-center py-xlarge opacity-50">
+                                            <p className="stat-label mb-medium">NO TELEMETRY SESSIONS CAPTURED</p>
+                                            <p style={{ fontSize: '0.75rem' }}>ACTIVATE F1 ROUTER TO BEGIN STREAMING DATA TO CLOUD.</p>
                                         </div>
                                     )}
                                 </div>
 
                                 {discoverableSessions.length > 0 && (
-                                    <div className="mt-12 bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-6">
-                                        <div className="flex items-center gap-3 mb-6">
-                                            <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-xl">🔍</div>
+                                    <div className="mt-xlarge glass-panel" style={{ border: '1px solid rgba(255,193,7,0.2)', background: 'rgba(255,193,7,0.02)', padding: '2rem' }}>
+                                        <div className="flex items-center gap-medium mb-large">
+                                            <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center text-xl">🔍</div>
                                             <div>
-                                                <h2 className="text-f1 text-yellow-500" style={{ fontSize: '1.2rem' }}>DISCOVERABLE SESSIONS (UNASSIGNED)</h2>
-                                                <p style={{ fontSize: '0.8rem', color: 'var(--silver)' }}>Telemetry recorded with unknown or incorrect league data. You can "Adopt" these into your league.</p>
+                                                <h3 className="text-f1-bold text-gradient" style={{ color: '#ffc107' }}>ORPHANED DATASTREAMS</h3>
+                                                <p className="stat-label" style={{ fontSize: '0.6rem' }}>TELEMETRY RECOVERED FROM UNKNOWN LEAGUE IDENTIFIERS.</p>
                                             </div>
                                         </div>
-                                        <div className="flex flex-col gap-3">
+                                        <div className="flex flex-col gap-xsmall">
                                             {discoverableSessions.map(s => (
-                                                <div key={s.id} className="flex justify-between items-center p-4 bg-black/40 rounded border border-white/5 hover:border-yellow-500/30 transition-all">
-                                                    <div>
-                                                        <div className="text-f1" style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                            {s.session_type}
-                                                            <span className="status-badge" style={{ background: 'rgba(255,193,7,0.1)', color: '#ffc107', border: '1px solid rgba(255,193,7,0.3)' }}>ORPHANED</span>
+                                                <div key={s.id} className="glass-panel" style={{ background: 'rgba(0,0,0,0.4)', padding: '1rem' }}>
+                                                    <div className="flex justify-between items-center">
+                                                        <div>
+                                                            <div className="text-f1-bold" style={{ color: '#ffc107' }}>{s.session_type.toUpperCase()} / {s.original_league_name.toUpperCase()}</div>
+                                                            <div className="stat-label" style={{ fontSize: '0.6rem' }}>
+                                                                TRACK: {getTrackNameById(s.track_id).toUpperCase()} | HUMANS: {s.human_count} | {new Date(s.created_at).toLocaleString().toUpperCase()}
+                                                            </div>
                                                         </div>
-                                                        <div style={{ fontSize: '0.8rem', color: 'var(--silver)', marginTop: '4px' }}>
-                                                            Original Name: <strong style={{ color: '#ffc107' }}>{s.original_league_name}</strong> | 
-                                                            Track: <strong style={{ color: 'white' }}>{getTrackNameById(s.track_id)}</strong> | 
-                                                            Humans: <strong style={{ color: 'white' }}>{s.human_count}</strong> | 
-                                                            {new Date(s.created_at).toLocaleString()}
-                                                        </div>
+                                                        <button 
+                                                            onClick={() => handleClaimSession(s.id)} 
+                                                            disabled={submitting}
+                                                            className="btn btn-secondary"
+                                                            style={{ borderColor: '#ffc107', color: '#ffc107', fontSize: '0.7rem' }}
+                                                        >
+                                                            {submitting ? 'ADOPTING...' : 'ADOPT SESSION'}
+                                                        </button>
                                                     </div>
-                                                    <button 
-                                                        onClick={() => handleClaimSession(s.id)} 
-                                                        disabled={submitting}
-                                                        className="btn-primary" 
-                                                        style={{ background: '#ffc107', color: 'black', padding: '0.5rem 1.5rem', fontSize: '0.75rem', fontWeight: 'bold' }}
-                                                    >
-                                                        {submitting ? 'ADOPTING...' : 'ADOPT SESSION'}
-                                                    </button>
                                                 </div>
                                             ))}
                                         </div>
@@ -1266,7 +1362,6 @@ export default function AdminHub() {
                         )}
                     </div>
                 )}
-
             </main>
 
             <style jsx global>{`

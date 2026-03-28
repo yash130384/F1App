@@ -138,58 +138,60 @@ interface RaceResultsTableProps {
 
 function RaceResultsTable({ raceResults, handleDriverClick, compact = false }: RaceResultsTableProps) {
     return (
-        <div className="flex flex-col" style={{ width: '100%' }}>
-            {raceResults.map((res, idx) => (
-                <div
-                    key={idx}
-                    className="flex justify-between items-center hover-row"
-                    style={{
-                        padding: compact ? '0.5rem 1rem' : '1rem',
-                        borderBottom: '1px solid rgba(255,255,255,0.05)',
-                        cursor: 'pointer',
-                        transition: 'background 0.2s',
-                        fontSize: compact ? '0.8rem' : '1rem'
-                    }}
-                    onClick={() => handleDriverClick(res)}
-                >
-                    <div className="flex items-center gap-3">
-                        <span style={{ fontWeight: 900, width: '20px', color: 'var(--silver)', fontSize: compact ? '0.7rem' : '0.8rem' }}>{res.position}</span>
-                        <span style={{ display: 'inline-block', width: compact ? '10px' : '12px', height: compact ? '10px' : '12px', borderRadius: '50%', backgroundColor: res.driver_color || 'var(--silver)', border: '1px solid rgba(255,255,255,0.2)' }} title="Driver Color" />
-                        <span className="text-f1">{res.driver_name}</span>
-                    </div>
-                    <div className="flex gap-2 items-center">
-                        {res.pit_stops > 0 && <span title="Pit Stops" style={{ color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 600, marginRight: '0.5rem' }}>{res.pit_stops} Pits</span>}
-                        {res.penalties_time > 0 && <span title="Time Penalties" style={{ color: 'var(--f1-red)', fontSize: '0.7rem', fontWeight: 600, marginRight: '0.5rem' }}>+{res.penalties_time}s</span>}
-
-                        {res.is_dnf ? (
-                            <span style={{ color: 'var(--f1-red)', fontSize: '0.7rem', fontWeight: 900, background: 'rgba(255,24,1,0.1)', padding: '2px 8px', borderRadius: '4px' }}>DNF</span>
-                        ) : (
-                            <>
-                                {res.fastest_lap && <span title="Fastest Lap" style={{ background: '#9c27b0', color: 'white', fontSize: '0.6rem', padding: '2px 4px', borderRadius: '2px', fontWeight: 900 }}>FL</span>}
-                                {res.clean_driver && <span title="Clean Driver" style={{ background: 'var(--success)', color: 'white', fontSize: '0.6rem', padding: '2px 4px', borderRadius: '2px', fontWeight: 900 }}>CD</span>}
-                            </>
-                        )}
-                        {res.is_dropped && (
-                            <span title="Score Dropped from Standings" style={{ color: 'var(--white)', fontSize: '0.6rem', fontWeight: 900, background: 'var(--f1-red)', padding: '2px 6px', borderRadius: '2px', marginLeft: '0.2rem' }}>
-                                DROPPED
-                            </span>
-                        )}
-                        <span style={{
-                            fontWeight: 900,
-                            color: res.is_dropped ? 'var(--f1-red)' : 'var(--white)',
-                            marginLeft: '1rem',
-                            textDecoration: res.is_dropped ? 'line-through' : 'none',
-                            opacity: res.is_dropped ? 0.6 : 1,
-                            fontSize: compact ? '0.8rem' : '1rem'
-                        }}>
-                            {res.points_earned} <span style={{ fontSize: '0.7rem', opacity: 0.3 }}>PTS</span>
-                            <span style={{ marginLeft: '0.8rem', paddingLeft: '0.8rem', borderLeft: `1px solid ${res.is_dropped ? 'rgba(255,24,1,0.2)' : 'rgba(255,255,255,0.1)'}`, color: 'var(--silver)', fontSize: compact ? '0.7rem' : '0.8rem', textDecoration: 'none' }}>
-                                P{res.position} {res.quali_position > 0 && <span style={{ opacity: 0.5, fontSize: '0.7rem' }}>(Q{res.quali_position})</span>}
-                            </span>
-                        </span>
-                    </div>
-                </div>
-            ))}
+        <div className="table-container">
+            <table className="f1-table">
+                <thead>
+                    <tr>
+                        <th style={{ width: '40px' }}>P</th>
+                        <th>Driver</th>
+                        {!compact && <th className="hide-mobile">Grid</th>}
+                        {!compact && <th>Pits</th>}
+                        <th style={{ textAlign: 'right' }}>Points</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {raceResults.map((res, idx) => (
+                        <tr 
+                            key={idx} 
+                            onClick={() => handleDriverClick(res)}
+                            style={{ cursor: 'pointer' }}
+                        >
+                            <td className="pos-number">
+                                {res.position}
+                            </td>
+                            <td>
+                                <div className="flex items-center gap-small">
+                                    <div style={{ width: '3px', height: '16px', background: res.driver_color || 'var(--text-muted)', borderRadius: '1px' }} />
+                                    <span className="text-f1-bold" style={{ fontSize: compact ? '0.875rem' : '1rem' }}>
+                                        {res.driver_name}
+                                    </span>
+                                    <div className="flex gap-small">
+                                        {res.fastest_lap && <span title="Fastest Lap" style={{ background: '#9c27b0', color: 'white', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>FL</span>}
+                                        {res.clean_driver && <span title="Clean Driver" style={{ background: 'var(--f1-cyan)', color: 'black', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>CD</span>}
+                                        {res.is_dnf && <span style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>DNF</span>}
+                                    </div>
+                                </div>
+                            </td>
+                            {!compact && (
+                                <td className="hide-mobile" style={{ color: 'var(--text-secondary)' }}>
+                                    {res.quali_position > 0 ? `P${res.quali_position}` : '-'}
+                                </td>
+                            )}
+                            {!compact && (
+                                <td style={{ color: 'var(--text-secondary)' }}>
+                                    {res.pit_stops > 0 ? res.pit_stops : '-'}
+                                </td>
+                            )}
+                            <td style={{ textAlign: 'right', fontWeight: 900, color: res.is_dropped ? 'var(--text-muted)' : 'var(--f1-red)' }}>
+                                <span style={{ textDecoration: res.is_dropped ? 'line-through' : 'none' }}>
+                                    {res.points_earned}
+                                </span>
+                                <span style={{ fontSize: '0.7rem', opacity: 0.5, marginLeft: '4px', fontWeight: 400 }}>PTS</span>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
     );
 }
@@ -329,254 +331,257 @@ export default function Dashboard() {
     const colors = ['#e10600', '#00d2be', '#005aff', '#ff8700', '#ffffff', '#0090ff', '#2293d1', '#900000', '#00aa00', '#ff00ff'];
 
     return (
-        <div className="container animate-fade-in" style={{ padding: '2rem 1.5rem' }}>
-            <header style={{ marginBottom: '2rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-                <h1 className="text-f1 text-gradient" style={{ fontSize: '2.5rem' }}>League Center</h1>
+        <div className="container section-padding animate-slide-up">
+            <header className="flex justify-between items-center gap-medium" style={{ marginBottom: '3rem' }}>
+                <h1 className="h1 text-gradient" style={{ fontSize: '2.5rem' }}>League Center</h1>
 
                 {selectedLeagueName && (
-                    <button className="btn-secondary" onClick={() => { setSelectedLeagueName(null); setLeague(null); setSelectedRace(null); }}>
+                    <button className="btn btn-secondary" onClick={() => { setSelectedLeagueName(null); setLeague(null); setSelectedRace(null); }}>
                         &larr; All Leagues
                     </button>
                 )}
             </header>
 
-            {error && <p style={{ color: 'var(--error)', marginBottom: '1rem' }}>{error}</p>}
+            {error && <p style={{ color: 'var(--f1-red)', marginBottom: '1rem', fontWeight: 700 }}>{error}</p>}
 
             {!selectedLeagueName ? (
-                <div className="flex flex-col gap-4">
-                    <h2 className="text-f1" style={{ fontSize: '1.2rem', color: 'var(--silver)' }}>Select a League</h2>
+                <section>
+                    <h2 className="h2" style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Select a League</h2>
                     {fetchingLeagues ? (
-                        <p style={{ color: 'var(--silver)' }}>Loading leagues...</p>
+                        <p style={{ color: 'var(--text-secondary)' }}>Loading championship data...</p>
                     ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                        <div className="grid-responsive">
                             {leaguesList.map(l => (
                                 <div
                                     key={l.id}
-                                    className="f1-card hover-f1"
-                                    style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+                                    className="f1-card"
+                                    style={{ cursor: 'pointer', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}
                                     onClick={() => selectLeague(l.name)}
                                 >
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--f1-red)', fontWeight: 900 }}>CHAMPIONSHIP</div>
-                                    <div className="text-f1" style={{ fontSize: '1.5rem' }}>{l.name}</div>
-                                    <div style={{ fontSize: '0.8rem', color: 'var(--silver)', textAlign: 'right', marginTop: 'auto' }}>Open Dashboard &rarr;</div>
+                                    <span className="text-f1-bold" style={{ fontSize: '0.7rem', color: 'var(--f1-red)' }}>CHAMPIONSHIP</span>
+                                    <h3 className="h3" style={{ fontSize: '1.5rem' }}>{l.name}</h3>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'right', marginTop: 'auto' }}>Open Dashboard &rarr;</div>
                                 </div>
                             ))}
                             {leaguesList.length === 0 && (
-                                <div className="f1-card" style={{ textAlign: 'center', padding: '2rem', gridColumn: '1 / -1' }}>
-                                    <p style={{ color: 'var(--silver)' }}>No leagues found. Go to Admin Hub to seed data or create one!</p>
+                                <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem', gridColumn: '1 / -1' }}>
+                                    <p style={{ color: 'var(--text-secondary)' }}>No leagues found. Go to Admin Hub to seed data or create one!</p>
                                 </div>
                             )}
                         </div>
                     )}
-                </div>
+                </section>
             ) : (
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-large">
                     {loading ? (
-                        <div className="f1-card" style={{ textAlign: 'center', padding: '4rem' }}>
-                            <p className="text-f1 animate-pulse">Loading {selectedLeagueName}...</p>
+                        <div className="glass-panel" style={{ textAlign: 'center', padding: '4rem' }}>
+                            <p className="text-f1-bold animate-pulse" style={{ fontSize: '1.2rem' }}>Loading {selectedLeagueName}...</p>
                         </div>
                     ) : league && (
-                        <div className="dashboard-content">
+                        <div className="animate-fade-in flex flex-col gap-large">
                             {liveSession && (
-                                <div className="f1-card animate-pulse" style={{ marginBottom: '2rem', border: '2px solid var(--f1-red)', background: 'rgba(225, 6, 0, 0.1)' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div className="glass-panel" style={{ padding: '2rem', border: '1px solid var(--f1-red-glow)', background: 'rgba(255, 24, 1, 0.05)' }}>
+                                    <div className="flex justify-between items-center" style={{ marginBottom: '1.5rem' }}>
                                         <div>
-                                            <div style={{ color: 'var(--f1-red)', fontWeight: 900, fontSize: '0.8rem', letterSpacing: '2px' }}>LIVE TELEMETRY</div>
-                                            <h3 style={{ fontSize: '1.5rem', color: 'white', margin: '0.5rem 0' }}>
-                                                {liveSession.session.session_type} Session {liveSession.session.track_id ? `(Track ID: ${liveSession.session.track_id})` : ''}
+                                            <span className="text-f1-bold" style={{ color: 'var(--f1-red)', fontSize: '0.8rem', letterSpacing: '2px' }}>LIVE TELEMETRY</span>
+                                            <h3 className="h3" style={{ fontSize: '1.5rem', margin: '0.5rem 0' }}>
+                                                {liveSession.session.session_type} Session
                                             </h3>
-                                            <div style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>
+                                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                                                 {liveSession.participants.length} Drivers Connected
-                                            </div>
+                                            </p>
                                         </div>
-                                        <div style={{ background: 'var(--f1-red)', color: 'white', padding: '0.5rem 1rem', borderRadius: '4px', fontWeight: 'bold' }}>
+                                        <div className="btn btn-primary" style={{ pointerEvents: 'none', background: 'var(--f1-red)', padding: '0.5rem 1rem' }}>
                                             LIVE
                                         </div>
                                     </div>
 
                                     {liveSession.participants.length > 0 && (
-                                        <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+                                        <div className="flex gap-medium" style={{ overflowX: 'auto', paddingBottom: '1rem', marginBottom: '2rem' }}>
                                             {liveSession.participants.map((p: any, idx: number) => (
-                                                <div key={idx} style={{
-                                                    background: 'rgba(0,0,0,0.5)',
-                                                    padding: '0.5rem 1rem',
-                                                    borderRadius: '4px',
-                                                    minWidth: '150px',
-                                                    borderBottom: p.color ? `3px solid ${p.color}` : '3px solid transparent'
-                                                }}>
-                                                    <div style={{ color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900 }}>P{p.position || '-'}</div>
-                                                    <div style={{ fontWeight: 600 }}>{p.game_name}</div>
-                                                    <div style={{ fontSize: '0.8rem', color: 'var(--f1-red)' }}>{p.top_speed ? `${p.top_speed} km/h` : ''}</div>
+                                                <div key={idx} className="f1-card" style={{ padding: '1rem', minWidth: '160px', background: 'var(--surface-lowest)' }}>
+                                                    <div className="stat-label">P{p.position || '-'}</div>
+                                                    <div className="text-f1-bold" style={{ fontSize: '0.9rem', margin: '4px 0' }}>{p.game_name}</div>
+                                                    <div style={{ fontSize: '0.8rem', color: 'var(--f1-cyan)', fontWeight: 700 }}>{p.top_speed ? `${p.top_speed} KM/H` : ''}</div>
                                                 </div>
                                             ))}
                                         </div>
                                     )}
 
                                     {liveSession.session.track_length > 0 && liveSession.participants.length > 0 && (
-                                        <LiveTrackMap
-                                            trackLength={liveSession.session.track_length}
-                                            participants={liveSession.participants}
-                                        />
+                                        <div className="glass-panel" style={{ padding: '1rem', background: 'rgba(0,0,0,0.3)' }}>
+                                            <LiveTrackMap
+                                                trackLength={liveSession.session.track_length}
+                                                participants={liveSession.participants}
+                                            />
+                                        </div>
                                     )}
                                 </div>
                             )}
 
                             {upcomingRaces.length > 0 && (
-                                <>
+                                <div className="flex flex-col gap-medium">
                                     <RevealCountdown race={upcomingRaces[0]} />
                                     <RaceCountdown race={upcomingRaces[0]} />
-                                </>
+                                </div>
                             )}
-                            <section className="dashboard-standings" style={{ marginBottom: '3rem' }}>
-                                <h2 className="text-f1" style={{ borderLeft: '4px solid var(--f1-red)', paddingLeft: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                                    <span>Standings: <span style={{ color: 'var(--f1-red)' }}>{league.name}</span></span>
+
+                            <section>
+                                <div className="flex justify-between items-end" style={{ marginBottom: '1.5rem', borderLeft: '4px solid var(--f1-red)', paddingLeft: '1rem' }}>
+                                    <h2 className="h2" style={{ fontSize: '1.5rem' }}>
+                                        Standings: <span style={{ color: 'var(--f1-red)' }}>{league.name}</span>
+                                    </h2>
                                     {leagueStats && (
-                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                                            <span style={{ fontSize: '0.8rem', color: 'var(--silver)', fontWeight: 400 }}>
-                                                {leagueStats.totalRaces} {leagueStats.plannedTotalRaces ? `/ ${leagueStats.plannedTotalRaces}` : ''} Rounds
-                                            </span>
+                                        <div className="text-right hide-mobile">
+                                            <div className="stat-value" style={{ fontSize: '1.5rem' }}>{leagueStats.totalRaces}<span style={{ opacity: 0.3 }}>/</span>{leagueStats.plannedTotalRaces || '?'}</div>
+                                            <div className="stat-label">Rounds Completed</div>
                                         </div>
                                     )}
-                                </h2>
-
-                                <div className="f1-card" style={{ padding: 0, overflow: 'hidden' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                        <thead>
-                                            <tr style={{ background: 'rgba(255,255,255,0.05)', textAlign: 'left' }}>
-                                                <th style={{ padding: '1.2rem 1rem', color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px' }}>Pos</th>
-                                                <th style={{ padding: '1.2rem 1rem', color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px' }}>Driver</th>
-                                                <th className="hide-mobile" style={{ padding: '1.2rem 1rem', color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px' }}>Team</th>
-                                                <th title="Wins" style={{ padding: '1.2rem 0.5rem', color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900, textAlign: 'center' }}>W</th>
-                                                <th title="Podiums" style={{ padding: '1.2rem 0.5rem', color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900, textAlign: 'center' }}>P</th>
-                                                <th title="Fastest Laps" className="hide-mobile" style={{ padding: '1.2rem 0.5rem', color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900, textAlign: 'center' }}>FL</th>
-                                                <th title="Clean Races" className="hide-mobile" style={{ padding: '1.2rem 0.5rem', color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900, textAlign: 'center' }}>CD</th>
-                                                <th style={{ padding: '1.2rem 1rem', color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'right' }}>Points</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {standings.map((driver, idx) => (
-                                                <tr key={driver.id} style={{ borderTop: '1px solid var(--glass-border)' }}>
-                                                    <td style={{ padding: '1rem', fontWeight: 900, fontSize: '1.4rem', fontStyle: 'italic', opacity: 0.3 }}>{idx + 1}</td>
-                                                    <td style={{ padding: '1rem' }}>
-                                                        <div className="flex items-center gap-2">
-                                                            <div style={{
-                                                                width: '4px',
-                                                                height: '24px',
-                                                                background: driver.color || 'var(--silver)',
-                                                                borderRadius: '2px',
-                                                                marginRight: '8px'
-                                                            }} />
-                                                            <div className="text-f1" style={{ fontSize: '1.1rem' }}>{driver.name}</div>
-                                                            {driver.formIndicator === 'UP' && <span title="Improved Points Output" style={{ color: '#00ff00', fontSize: '1.2rem', lineHeight: 1 }}>&#8593;</span>}
-                                                            {driver.formIndicator === 'DOWN' && <span title="Decreased Points Output" style={{ color: '#ff0000', fontSize: '1.2rem', lineHeight: 1 }}>&#8595;</span>}
-                                                            {driver.formIndicator === 'SAME' && <span title="Constant Points Output" style={{ color: '#9c27b0', fontSize: '1.2rem', lineHeight: 1 }}>&#8722;</span>}
-                                                        </div>
-                                                    </td>
-                                                    <td className="hide-mobile" style={{ padding: '1rem', color: 'var(--silver)' }}>{driver.team || 'Independent'}</td>
-                                                    <td style={{ padding: '1rem 0.5rem', textAlign: 'center', fontWeight: 700, color: driver.wins > 0 ? 'var(--white)' : 'rgba(255,255,255,0.1)' }}>{driver.wins}</td>
-                                                    <td style={{ padding: '1rem 0.5rem', textAlign: 'center', fontWeight: 700, color: driver.podiums > 0 ? 'var(--white)' : 'rgba(255,255,255,0.1)' }}>{driver.podiums}</td>
-                                                    <td className="hide-mobile" style={{ padding: '1rem 0.5rem', textAlign: 'center', fontWeight: 700, color: driver.fastest_laps > 0 ? 'var(--white)' : 'rgba(255,255,255,0.1)' }}>{driver.fastest_laps}</td>
-                                                    <td className="hide-mobile" style={{ padding: '1rem 0.5rem', textAlign: 'center', fontWeight: 700, color: driver.clean_races > 0 ? 'var(--white)' : 'rgba(255,255,255,0.1)' }}>{driver.clean_races}</td>
-                                                    <td style={{ padding: '1rem', textAlign: 'right', fontWeight: 900, color: 'var(--f1-red)', fontSize: '1.3rem', whiteSpace: 'nowrap' }}>
-                                                        {driver.total_points}
-                                                        {driver.raw_points !== driver.total_points && (
-                                                            <span style={{ fontSize: '0.8rem', color: 'var(--silver)', marginLeft: '6px', fontWeight: 400 }}>
-                                                                ({driver.raw_points})
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                    {standings.length === 0 && <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--silver)' }}>No drivers in this league yet.</div>}
                                 </div>
-                            </section>
-                            
-                            {league.config?.teamCompetition && teamStandings.length > 0 && (
-                                <section className="dashboard-teams animate-fade-in" style={{ marginBottom: '3rem' }}>
-                                    <h2 className="text-f1" style={{ borderLeft: '4px solid var(--f1-red)', paddingLeft: '1rem', marginBottom: '1.5rem' }}>
-                                        Team Standings
-                                    </h2>
-                                    <div className="f1-card" style={{ padding: 0, overflow: 'hidden' }}>
-                                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+
+                                <div className="f1-card">
+                                    <div className="table-container">
+                                        <table className="f1-table">
                                             <thead>
-                                                <tr style={{ background: 'rgba(255,255,255,0.05)', textAlign: 'left' }}>
-                                                    <th style={{ padding: '1.2rem 1rem', color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase' }}>Pos</th>
-                                                    <th style={{ padding: '1.2rem 1rem', color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase' }}>Team</th>
-                                                    <th title="Wins" style={{ padding: '1.2rem 0.5rem', color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900, textAlign: 'center' }}>W</th>
-                                                    <th style={{ padding: '1.2rem 1rem', color: 'var(--silver)', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', textAlign: 'right' }}>Points</th>
+                                                <tr>
+                                                    <th style={{ width: '50px' }}>Pos</th>
+                                                    <th>Driver</th>
+                                                    <th className="hide-mobile">Team</th>
+                                                    <th style={{ textAlign: 'center' }}>W</th>
+                                                    <th style={{ textAlign: 'center' }}>P</th>
+                                                    <th className="hide-mobile" style={{ textAlign: 'center' }}>FL</th>
+                                                    <th style={{ textAlign: 'right' }}>Points</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {teamStandings.map((team, idx) => (
-                                                    <tr key={team.id} style={{ borderTop: '1px solid var(--glass-border)' }}>
-                                                        <td style={{ padding: '1rem', fontWeight: 900, fontSize: '1.2rem', fontStyle: 'italic', opacity: 0.3 }}>{idx + 1}</td>
-                                                        <td style={{ padding: '1rem' }}>
-                                                            <div className="flex items-center gap-2">
-                                                                <div style={{ width: '4px', height: '20px', background: team.color || 'var(--silver)', borderRadius: '2px', marginRight: '8px' }} />
-                                                                <div className="text-f1" style={{ fontSize: '1rem' }}>{team.name}</div>
+                                                {standings.map((driver, idx) => (
+                                                    <tr key={driver.id}>
+                                                        <td className="pos-number">{idx + 1}</td>
+                                                        <td>
+                                                            <div className="flex items-center gap-small">
+                                                                <div style={{ width: '3px', height: '18px', background: driver.color || 'var(--text-muted)', borderRadius: '1px' }} />
+                                                                <span className="text-f1-bold" style={{ fontSize: '1.1rem' }}>{driver.name}</span>
+                                                                {driver.formIndicator === 'UP' && <span style={{ color: '#00ff00' }}>↑</span>}
+                                                                {driver.formIndicator === 'DOWN' && <span style={{ color: 'var(--f1-red)' }}>↓</span>}
                                                             </div>
                                                         </td>
-                                                        <td style={{ padding: '1rem 0.5rem', textAlign: 'center', fontWeight: 700 }}>{team.wins}</td>
-                                                        <td style={{ padding: '1rem', textAlign: 'right', fontWeight: 900, color: 'var(--f1-red)', fontSize: '1.2rem' }}>
-                                                            {team.total_points} <span style={{ fontSize: '0.7rem', opacity: 0.3, fontStyle: 'normal' }}>PTS</span>
+                                                        <td className="hide-mobile" style={{ color: 'var(--text-secondary)' }}>{driver.team || 'Independent'}</td>
+                                                        <td style={{ textAlign: 'center', fontWeight: 700 }}>{driver.wins}</td>
+                                                        <td style={{ textAlign: 'center', fontWeight: 700 }}>{driver.podiums}</td>
+                                                        <td className="hide-mobile" style={{ textAlign: 'center', fontWeight: 700 }}>{driver.fastest_laps}</td>
+                                                        <td style={{ textAlign: 'right', fontWeight: 900, color: 'var(--f1-red)', fontSize: '1.2rem' }}>
+                                                            {driver.total_points}
+                                                            {driver.raw_points !== driver.total_points && (
+                                                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '4px', fontWeight: 400 }}>
+                                                                    ({driver.raw_points})
+                                                                </span>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 ))}
                                             </tbody>
                                         </table>
                                     </div>
+                                    {standings.length === 0 && <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No drivers in this league yet.</div>}
+                                </div>
+                            </section>
+                            
+                            {league.config?.teamCompetition && teamStandings.length > 0 && (
+                                <section>
+                                    <h2 className="h2" style={{ borderLeft: '4px solid var(--f1-red)', paddingLeft: '1rem', marginBottom: '1.5rem', fontSize: '1.5rem' }}>
+                                        Team Standings
+                                    </h2>
+                                    <div className="f1-card">
+                                        <div className="table-container">
+                                            <table className="f1-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th style={{ width: '50px' }}>Pos</th>
+                                                        <th>Team</th>
+                                                        <th style={{ textAlign: 'center' }}>W</th>
+                                                        <th style={{ textAlign: 'right' }}>Points</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {teamStandings.map((team, idx) => (
+                                                        <tr key={team.id}>
+                                                            <td className="pos-number">{idx + 1}</td>
+                                                            <td>
+                                                                <div className="flex items-center gap-small">
+                                                                    <div style={{ width: '3px', height: '18px', background: team.color || 'var(--text-muted)', borderRadius: '1px' }} />
+                                                                    <span className="text-f1-bold">{team.name}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td style={{ textAlign: 'center', fontWeight: 700 }}>{team.wins}</td>
+                                                            <td style={{ textAlign: 'right', fontWeight: 900, color: 'var(--f1-red)', fontSize: '1.2rem' }}>
+                                                                {team.total_points} <span style={{ fontSize: '0.7rem', opacity: 0.3 }}>PTS</span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
                                 </section>
                             )}
 
                             {graphData && graphData.length > 0 && (
-                                <section className="dashboard-graph animate-fade-in" style={{ marginBottom: '3rem' }}>
-                                    <div className="flex justify-between items-center mb-4" style={{ borderLeft: '4px solid var(--f1-red)', paddingLeft: '1rem' }}>
-                                        <h2 className="text-f1" style={{ margin: 0 }}>
-                                            Progression
-                                        </h2>
+                                <section>
+                                    <div className="flex justify-between items-center" style={{ marginBottom: '1.5rem', borderLeft: '4px solid var(--f1-red)', paddingLeft: '1rem' }}>
+                                        <h2 className="h2" style={{ fontSize: '1.5rem', margin: 0 }}>Progression</h2>
                                         {league.config?.teamCompetition && (
-                                            <div className="flex bg-white/5 rounded-lg p-1 border border-white/5">
+                                            <div className="flex glass-panel" style={{ padding: '2px', borderRadius: '4px' }}>
                                                 <button 
                                                     onClick={() => setActiveGraphTab('driver')}
-                                                    className={`px-4 py-1 rounded-md text-[0.7rem] font-black transition-all ${activeGraphTab === 'driver' ? 'bg-f1-red text-white' : 'text-silver hover:text-white'}`}
+                                                    className="btn"
+                                                    style={{ 
+                                                        padding: '4px 12px', 
+                                                        fontSize: '0.7rem', 
+                                                        background: activeGraphTab === 'driver' ? 'var(--f1-red)' : 'transparent',
+                                                        color: activeGraphTab === 'driver' ? 'white' : 'var(--text-secondary)'
+                                                    }}
                                                 >
                                                     DRIVER
                                                 </button>
                                                 <button 
                                                     onClick={() => setActiveGraphTab('team')}
-                                                    className={`px-4 py-1 rounded-md text-[0.7rem] font-black transition-all ${activeGraphTab === 'team' ? 'bg-f1-red text-white' : 'text-silver hover:text-white'}`}
+                                                    className="btn"
+                                                    style={{ 
+                                                        padding: '4px 12px', 
+                                                        fontSize: '0.7rem', 
+                                                        background: activeGraphTab === 'team' ? 'var(--f1-red)' : 'transparent',
+                                                        color: activeGraphTab === 'team' ? 'white' : 'var(--text-secondary)'
+                                                    }}
                                                 >
                                                     TEAM
                                                 </button>
                                             </div>
                                         )}
                                     </div>
-                                    <div className="f1-card" style={{ padding: '2rem 1.5rem 1rem 0.5rem' }}>
+                                    <div className="f1-card" style={{ padding: '2rem 1.5rem 1rem 1rem' }}>
                                         <div style={{ width: '100%', height: 400 }}>
                                             <ResponsiveContainer>
                                                 <LineChart data={activeGraphTab === 'driver' ? graphData : teamGraphData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                                                     <XAxis 
                                                         dataKey="name" 
-                                                        stroke="var(--silver)" 
+                                                        stroke="var(--text-secondary)" 
                                                         fontSize={10} 
                                                         tickLine={false}
                                                         axisLine={false}
                                                         dy={10}
                                                     />
                                                     <YAxis 
-                                                        stroke="var(--silver)" 
+                                                        stroke="var(--text-secondary)" 
                                                         fontSize={10} 
                                                         tickLine={false}
                                                         axisLine={false}
                                                     />
                                                     <Tooltip 
-                                                        contentStyle={{ backgroundColor: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', fontSize: '0.8rem' }}
+                                                        contentStyle={{ backgroundColor: 'var(--surface-mid)', border: '1px solid var(--glass-border)', borderRadius: '4px', fontSize: '0.8rem' }}
                                                         itemStyle={{ padding: '2px 0' }}
                                                     />
-                                                    <Legend wrapperStyle={{ fontSize: '0.7rem', paddingTop: '20px' }} />
+                                                    <Legend wrapperStyle={{ fontSize: '0.7rem', paddingTop: '20px', fontFamily: 'var(--font-display)', fontWeight: 600 }} />
                                                     {(activeGraphTab === 'driver' ? standings : teamStandings).map((item, idx) => (
                                                         <Line
                                                             key={item.id}
@@ -584,7 +589,7 @@ export default function Dashboard() {
                                                             dataKey={item.name}
                                                             stroke={item.color || `hsl(${(idx * 137.5) % 360}, 70%, 50%)`}
                                                             strokeWidth={3}
-                                                            dot={{ r: 4, strokeWidth: 2, fill: 'var(--f1-carbon)' }}
+                                                            dot={{ r: 4, strokeWidth: 2, fill: 'var(--surface-low)' }}
                                                             activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }}
                                                             animationDuration={1500}
                                                         />
@@ -596,142 +601,134 @@ export default function Dashboard() {
                                 </section>
                             )}
 
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
-                                <section>
+                            <div className="grid-responsive" style={{ marginTop: '2rem' }}>
+                                <section className="flex flex-col gap-large">
                                     {leagueStats && (leagueStats.remainingTracks?.length > 0 || leagueStats.maxDropsAllowed > 0) && (
-                                        <div className="mb-6 animate-fade-in">
-                                            <h2 className="text-f1" style={{ marginBottom: '1rem', fontSize: '1.2rem', color: 'var(--f1-red)', opacity: 0.8 }}>LEAGUE INFO</h2>
-                                            <div className="f1-card flex flex-col gap-3">
+                                        <div className="animate-fade-in flex flex-col gap-medium">
+                                            <h2 className="text-f1-bold" style={{ fontSize: '0.8rem', color: 'var(--f1-red)', letterSpacing: '2px' }}>CHAMPIONSHIP INFO</h2>
+                                            <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                                                 {leagueStats.remainingTracks?.length > 0 && (
                                                     <div>
-                                                        <div style={{ fontSize: '0.7rem', color: 'var(--silver)', fontWeight: 900, marginBottom: '0.2rem' }}>REMAINING TRACKS</div>
-                                                        <div style={{ color: 'white', lineHeight: 1.5, fontSize: '0.9rem' }}>
-                                                            {leagueStats.remainingTracks.join(', ')}
+                                                        <div className="stat-label" style={{ marginBottom: '0.5rem' }}>Next Destinations</div>
+                                                        <div style={{ color: 'var(--text-primary)', lineHeight: 1.6, fontSize: '0.9rem', fontWeight: 500 }}>
+                                                            {leagueStats.remainingTracks.join(' • ')}
                                                         </div>
                                                     </div>
                                                 )}
                                                 {leagueStats.actualDrops > 0 && (
-                                                    <>
-                                                        {leagueStats.remainingTracks?.length > 0 && <hr style={{ borderColor: 'rgba(255,255,255,0.05)', margin: '0.5rem 0' }} />}
-                                                        <div className="flex justify-between items-center">
-                                                            <div style={{ fontSize: '0.7rem', color: 'var(--silver)', fontWeight: 900 }}>DROPPED RESULTS</div>
-                                                            <div style={{ color: 'var(--f1-red)', fontWeight: 'bold' }}>
-                                                                {leagueStats.actualDrops} {leagueStats.actualDrops === 1 ? 'Result' : 'Results'} Dropped
-                                                            </div>
+                                                    <div className="flex justify-between items-center" style={{ paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
+                                                        <div className="stat-label">Points Regulation</div>
+                                                        <div className="text-f1-bold" style={{ color: 'var(--f1-red)', fontSize: '0.9rem' }}>
+                                                            {leagueStats.actualDrops} {leagueStats.actualDrops === 1 ? 'Result' : 'Results'} Dropped
                                                         </div>
-                                                    </>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
                                     )}
 
-
-
-                                    <h2 className="text-f1" style={{ marginBottom: '1rem', fontSize: '1.2rem', color: 'var(--f1-red)', opacity: 0.8 }}>RECENT RACES</h2>
-                                    <div className="flex flex-col gap-2">
-                                        {races.map(race => {
-                                            const isHidden = (race as any).is_hidden;
-                                            return (
-                                                <div
-                                                    key={race.id}
-                                                    onClick={() => !isHidden && router.push(`/race/${race.id}?league=${encodeURIComponent(selectedLeagueName || '')}`)}
-                                                    style={{ textDecoration: 'none', cursor: isHidden ? 'not-allowed' : 'pointer' }}
-                                                >
+                                    <div className="flex flex-col gap-medium">
+                                        <h2 className="text-f1-bold" style={{ fontSize: '0.8rem', color: 'var(--f1-red)', letterSpacing: '2px' }}>RECENT RACES</h2>
+                                        <div className="flex flex-col gap-small">
+                                            {races.map(race => {
+                                                const isHidden = (race as any).is_hidden;
+                                                return (
                                                     <div
-                                                        className={`f1-card hover-f1 race-select-btn ${isHidden ? 'opacity-50' : ''}`}
-                                                        style={{ width: '100%', textAlign: 'left', position: 'relative', overflow: 'hidden' }}
+                                                        key={race.id}
+                                                        onClick={() => !isHidden && router.push(`/race/${race.id}?league=${encodeURIComponent(selectedLeagueName || '')}`)}
+                                                        className={`f1-card animate-fade-in ${isHidden ? 'opacity-50' : ''}`}
+                                                        style={{ 
+                                                            cursor: isHidden ? 'not-allowed' : 'pointer',
+                                                            padding: '1rem 1.5rem',
+                                                            borderLeft: isHidden ? '4px solid var(--text-muted)' : '4px solid transparent',
+                                                            transition: 'var(--transition-fast)'
+                                                        }}
                                                     >
-                                                        {isHidden && (
-                                                            <div style={{ position: 'absolute', top: 0, right: 0, padding: '4px 8px', background: 'var(--f1-red)', color: 'white', fontSize: '0.6rem', fontWeight: 900 }}>HIDDEN</div>
-                                                        )}
                                                         <div className="flex justify-between items-center">
                                                             <div>
-                                                                <div style={{ fontSize: '0.6rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '1px' }} suppressHydrationWarning>{new Date(race.created_at).toLocaleDateString()}</div>
-                                                                <div className="text-f1" style={{ fontSize: '1rem', color: isHidden ? 'var(--silver)' : 'var(--white)' }}>
-                                                                    {isHidden ? '?? (Hidden Track)' : (race.track || 'Unknown Track')}
+                                                                <div className="stat-label" style={{ fontSize: '0.6rem' }} suppressHydrationWarning>{new Date(race.created_at).toLocaleDateString()}</div>
+                                                                <div className="text-f1-bold" style={{ fontSize: '1.1rem', color: isHidden ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
+                                                                    {isHidden ? '?? LOCKED TRACK' : (race.track || 'Unknown Grand Prix')}
                                                                 </div>
                                                             </div>
-                                                            {!isHidden && <div style={{ opacity: 0.4, color: 'var(--f1-red)', fontSize: '1.2rem' }}>&rarr;</div>}
-                                                            {isHidden && <div style={{ fontSize: '1.2rem', opacity: 0.2 }}>🎲</div>}
+                                                            {!isHidden && <div style={{ color: 'var(--f1-red)', fontSize: '1.2rem', opacity: 0.5 }}>&rarr;</div>}
+                                                            {isHidden && <div style={{ fontSize: '1.2rem', opacity: 0.3 }}>🔒</div>}
                                                         </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
-                                        {races.length === 0 && <div className="f1-card" style={{ padding: '2rem', textAlign: 'center', opacity: 0.5 }}>No races recorded.</div>}
+                                                );
+                                            })}
+                                            {races.length === 0 && <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center', opacity: 0.5 }}>No sessions recorded yet.</div>}
+                                        </div>
                                     </div>
                                 </section>
 
                                 <section>
                                     {selectedRace ? (
-                                        <div className="animate-fade-in" key={selectedRace.id}>
-                                            <h2 className="text-f1" style={{ marginBottom: '1rem', fontSize: '1.2rem', color: 'var(--f1-red)', opacity: 0.8 }}>
-                                                ERGEBNISSE: {selectedRace.track}
+                                        <div className="animate-fade-in flex flex-col gap-medium" key={selectedRace.id}>
+                                            <h2 className="text-f1-bold" style={{ fontSize: '0.8rem', color: 'var(--f1-red)', letterSpacing: '2px' }}>
+                                                RACE RESULTS: {selectedRace.track}
                                             </h2>
-                                            <div className="f1-card" style={{ padding: 0, background: 'var(--f1-carbon-dark)', overflow: 'hidden' }}>
+                                            <div className="f1-card" style={{ padding: 0 }}>
                                                 {fetchingRace ? (
-                                                    <div style={{ padding: '3rem', textAlign: 'center' }}>
-                                                        <p className="animate-pulse">Lade Ergebnisse...</p>
+                                                    <div style={{ padding: '4rem', textAlign: 'center' }}>
+                                                        <p className="text-f1-bold animate-pulse">Syncing Data...</p>
                                                     </div>
                                                 ) : (
-                                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                                        <thead>
-                                                            <tr style={{ background: 'rgba(255,255,255,0.04)', textAlign: 'left' }}>
-                                                                <th style={{ padding: '0.8rem 1rem', color: 'var(--silver)', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', width: '40px' }}>Pos</th>
-                                                                <th style={{ padding: '0.8rem 1rem', color: 'var(--silver)', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px' }}>Fahrer</th>
-                                                                <th className="hide-mobile" style={{ padding: '0.8rem 0.5rem', color: 'var(--silver)', fontSize: '0.65rem', fontWeight: 900, textAlign: 'center' }}>Grid</th>
-                                                                <th className="hide-mobile" style={{ padding: '0.8rem 0.5rem', color: 'var(--silver)', fontSize: '0.65rem', fontWeight: 900, textAlign: 'center' }}>Pits</th>
-                                                                <th style={{ padding: '0.8rem 1rem', color: 'var(--silver)', fontSize: '0.65rem', fontWeight: 900, textAlign: 'right', textTransform: 'uppercase', letterSpacing: '1px' }}>Punkte</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {raceResults.map((res, idx) => (
-                                                                <tr
-                                                                    key={idx}
-                                                                    className="hover-row"
-                                                                    style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', transition: 'background 0.2s' }}
-                                                                    onClick={() => handleDriverClick(res)}
-                                                                >
-                                                                    <td style={{ padding: '0.9rem 1rem' }}>
-                                                                        <span style={{ fontWeight: 900, fontSize: idx === 0 ? '1.3rem' : '1rem', color: idx === 0 ? 'var(--white)' : 'var(--silver)', fontStyle: 'italic', opacity: idx === 0 ? 1 : 0.5 }}>
-                                                                            P{res.position}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td style={{ padding: '0.9rem 1rem' }}>
-                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                                            <div style={{ width: '3px', height: '20px', borderRadius: '2px', background: standings.find((d: any) => d.id === res.driver_id)?.color || 'var(--silver)', flexShrink: 0 }} />
-                                                                            <span className="text-f1" style={{ fontSize: '0.95rem' }}>{res.driver_name}</span>
-                                                                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                                                                                {res.is_dnf && <span style={{ background: 'rgba(225,6,0,0.15)', color: 'var(--f1-red)', fontSize: '0.6rem', padding: '2px 6px', borderRadius: '3px', fontWeight: 900 }}>DNF</span>}
-                                                                                {res.fastest_lap && !res.is_dnf && <span title="Schnellste Runde" style={{ background: '#9c27b0', color: 'white', fontSize: '0.6rem', padding: '2px 5px', borderRadius: '3px', fontWeight: 900 }}>FL</span>}
-                                                                                {res.clean_driver && !res.is_dnf && <span title="Sauberes Rennen" style={{ background: 'var(--success)', color: 'white', fontSize: '0.6rem', padding: '2px 5px', borderRadius: '3px', fontWeight: 900 }}>CD</span>}
-                                                                                {res.is_dropped && <span title="Ergebnis gestrichen" style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.6rem', padding: '2px 5px', borderRadius: '3px', fontWeight: 900 }}>DROPPED</span>}
-                                                                                {res.penalties_time > 0 && <span style={{ color: 'var(--f1-red)', fontSize: '0.65rem', fontWeight: 700 }}>+{res.penalties_time}s</span>}
-                                                                            </div>
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="hide-mobile" style={{ padding: '0.9rem 0.5rem', textAlign: 'center', color: 'var(--silver)', fontSize: '0.8rem' }}>
-                                                                        {res.quali_position > 0 ? `P${res.quali_position}` : '-'}
-                                                                    </td>
-                                                                    <td className="hide-mobile" style={{ padding: '0.9rem 0.5rem', textAlign: 'center', color: 'var(--silver)', fontSize: '0.8rem' }}>
-                                                                        {res.pit_stops > 0 ? res.pit_stops : '-'}
-                                                                    </td>
-                                                                    <td style={{ padding: '0.9rem 1rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                                                                        <span style={{ fontWeight: 900, fontSize: '1.1rem', color: res.is_dropped ? 'rgba(225,6,0,0.5)' : 'var(--f1-red)', textDecoration: res.is_dropped ? 'line-through' : 'none' }}>
-                                                                            {res.points_earned}
-                                                                        </span>
-                                                                        <span style={{ fontSize: '0.65rem', color: 'var(--silver)', marginLeft: '3px', fontWeight: 400 }}>PTS</span>
-                                                                    </td>
+                                                    <div className="table-container">
+                                                        <table className="f1-table">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th style={{ width: '50px' }}>Pos</th>
+                                                                    <th>Driver</th>
+                                                                    <th className="hide-mobile" style={{ textAlign: 'center' }}>Grid</th>
+                                                                    <th className="hide-mobile" style={{ textAlign: 'center' }}>Pits</th>
+                                                                    <th style={{ textAlign: 'right' }}>Points</th>
                                                                 </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
+                                                            </thead>
+                                                            <tbody>
+                                                                {raceResults.map((res, idx) => (
+                                                                    <tr
+                                                                        key={idx}
+                                                                        onClick={() => handleDriverClick(res)}
+                                                                        style={{ cursor: 'pointer' }}
+                                                                    >
+                                                                        <td className="pos-number">
+                                                                             {res.position}
+                                                                        </td>
+                                                                        <td>
+                                                                            <div className="flex items-center gap-small">
+                                                                                <div style={{ width: '3px', height: '18px', background: standings.find((d: any) => d.id === res.driver_id)?.color || 'var(--text-muted)', borderRadius: '1px' }} />
+                                                                                <span className="text-f1-bold">{res.driver_name}</span>
+                                                                                <div className="flex gap-small">
+                                                                                    {res.is_dnf && <span style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>DNF</span>}
+                                                                                    {res.fastest_lap && !res.is_dnf && <span style={{ background: '#9c27b0', color: 'white', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>FL</span>}
+                                                                                    {res.is_dropped && <span style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>DROPPED</span>}
+                                                                                </div>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="hide-mobile" style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                                                                            {res.quali_position > 0 ? `P${res.quali_position}` : '-'}
+                                                                        </td>
+                                                                        <td className="hide-mobile" style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                                                                            {res.pit_stops > 0 ? res.pit_stops : '-'}
+                                                                        </td>
+                                                                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                                                            <span style={{ fontWeight: 900, fontSize: '1.1rem', color: res.is_dropped ? 'var(--text-muted)' : 'var(--f1-red)', textDecoration: res.is_dropped ? 'line-through' : 'none' }}>
+                                                                                {res.points_earned}
+                                                                            </span>
+                                                                            <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginLeft: '3px' }}>PTS</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="f1-card flex items-center justify-center" style={{ height: '100%', border: '1px dashed var(--glass-border)', opacity: 0.3, minHeight: '200px' }}>
-                                            <p style={{ fontSize: '0.9rem' }}>Rennen auswählen für Details</p>
+                                        <div className="glass-panel flex items-center justify-center" style={{ height: '100%', border: '1px dashed var(--glass-border)', minHeight: '300px' }}>
+                                            <p className="text-f1-bold" style={{ opacity: 0.4 }}>Select a race to view details</p>
                                         </div>
                                     )}
                                 </section>
@@ -739,64 +736,29 @@ export default function Dashboard() {
 
                             {/* FULL SCREEN GRAPH MODAL */}
                             {showFullScreenGraph && (
-                                <div style={{
-                                    position: 'fixed', top: 0, left: 0, right: 0, height: '100vh',
-                                    background: 'var(--f1-carbon-dark)', zIndex: 2000, display: 'flex',
-                                    flexDirection: 'column', padding: '1rem', overflow: 'hidden',
-                                    boxSizing: 'border-box'
+                                <div className="animate-fade-in" style={{
+                                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                                    background: 'var(--f1-carbon)', zIndex: 2000, display: 'flex',
+                                    flexDirection: 'column', padding: '1rem', overflow: 'hidden'
                                 }}>
-                                    <div className="flex justify-between items-center mb-4" style={{
-                                        background: 'rgba(255,255,255,0.02)',
-                                        padding: '0.8rem 1rem',
-                                        borderRadius: '8px',
-                                        border: '1px solid rgba(255,255,255,0.05)',
-                                        width: '100%',
-                                        boxSizing: 'border-box'
-                                    }}>
-                                        <div className="flex items-center gap-4">
-                                            <h2 className="text-f1" style={{ fontSize: '1.2rem', margin: 0, color: 'var(--white)' }}>{selectedRace?.track} - Full Race Pace</h2>
-                                        </div>
-                                        <button className="btn-secondary" onClick={() => setShowFullScreenGraph(false)}>
-                                            Close X
+                                    <div className="glass-panel flex justify-between items-center mb-4" style={{ padding: '1rem 1.5rem' }}>
+                                        <h2 className="h2" style={{ margin: 0, fontSize: '1.2rem' }}>{selectedRace?.track} <span style={{ color: 'var(--f1-red)', opacity: 0.5 }}>//</span> RACE PACE ANALYSIS</h2>
+                                        <button className="btn btn-secondary" onClick={() => setShowFullScreenGraph(false)}>
+                                            CLOSE ESC
                                         </button>
                                     </div>
 
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1, minHeight: 0, width: '100%', boxSizing: 'border-box' }}>
-                                        {/* Results at the Top in Fullscreen */}
-                                        <div className="f1-card" style={{
-                                            padding: 0,
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            background: 'rgba(0,0,0,0.2)',
-                                            maxHeight: '30vh',
-                                            minHeight: '150px',
-                                            overflow: 'hidden',
-                                            border: '1px solid var(--glass-border)',
-                                            width: '100%',
-                                            boxSizing: 'border-box'
-                                        }}>
-                                            <div style={{ padding: '0.5rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,24,1,0.05)' }}>
-                                                <h3 className="text-f1" style={{ fontSize: '0.7rem', margin: 0, color: 'var(--f1-red)' }}>RACE RESULTS (CLICK DRIVER FOR DETAILS)</h3>
+                                    <div className="flex flex-col gap-medium" style={{ flex: 1, minHeight: 0 }}>
+                                        <div className="f1-card" style={{ padding: 0, maxHeight: '25vh', minHeight: '150px', overflow: 'hidden' }}>
+                                            <div style={{ padding: '0.5rem 1rem', borderBottom: '1px solid var(--glass-border)', background: 'rgba(255, 24, 1, 0.05)' }}>
+                                                <span className="text-f1-bold" style={{ fontSize: '0.6rem', color: 'var(--f1-red)' }}>LIVE STANDINGS (CLICK FOR TELEMETRY)</span>
                                             </div>
                                             <div style={{ flex: 1, overflowY: 'auto' }}>
                                                 <RaceResultsTable raceResults={raceResults} handleDriverClick={handleDriverClick} compact={true} />
                                             </div>
                                         </div>
 
-                                        {/* Main Graph Area Below */}
-                                        <div className="f1-card" style={{
-                                            flex: 1,
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            padding: '0.5rem',
-                                            background: 'rgba(0,0,0,0.1)',
-                                            border: '1px solid var(--glass-border)',
-                                            width: '100%',
-                                            minHeight: '250px',
-                                            minWidth: 0,
-                                            overflow: 'hidden',
-                                            boxSizing: 'border-box'
-                                        }}>
+                                        <div className="f1-card" style={{ flex: 1, padding: '1rem', minHeight: '250px' }}>
                                             <RaceGraphContent
                                                 raceGraphData={raceGraphData}
                                                 raceGraphDrivers={raceGraphDrivers}
@@ -813,229 +775,156 @@ export default function Dashboard() {
 
                             {/* DRIVER MODAL */}
                             {selectedDriverDetails && (
-                                <div style={{
+                                <div className="animate-fade-in" style={{
                                     position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-                                    background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex',
-                                    justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(4px)', padding: '2rem'
+                                    background: 'rgba(5, 5, 7, 0.9)', zIndex: 1000, display: 'flex',
+                                    justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(10px)', padding: '1rem'
                                 }}>
-                                    <div className="f1-card animate-fade-in" style={{ width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', position: 'relative', borderTop: '4px solid var(--f1-red)', background: 'linear-gradient(to bottom, #15151e 0%, #101014 100%)' }}>
-                                        <button className="btn-secondary" style={{ position: 'absolute', top: '1.5rem', right: '1.5rem' }} onClick={() => setSelectedDriverDetails(null)}>
-                                            Close X
+                                    <div className="f1-card" style={{ width: '100%', maxWidth: '900px', maxHeight: '90vh', overflowY: 'auto', position: 'relative', borderTop: '4px solid var(--f1-red)' }}>
+                                        <button className="btn btn-secondary" style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', zIndex: 10 }} onClick={() => setSelectedDriverDetails(null)}>
+                                            CLOSE
                                         </button>
 
-                                        <h2 className="text-f1" style={{ fontSize: '2.5rem', marginBottom: '1.5rem', color: 'var(--white)' }}>
-                                            {selectedDriverDetails.summary.driver_name}
-                                        </h2>
+                                        <div style={{ padding: '2rem' }}>
+                                            <h2 className="h1" style={{ fontSize: '3rem', marginBottom: '2rem' }}>
+                                                {selectedDriverDetails.summary.driver_name}
+                                            </h2>
 
-                                        <div className="grid grid-4 gap-4" style={{ marginBottom: '2.5rem' }}>
-                                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-                                                <div style={{ color: 'var(--silver)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Race Pos</div>
-                                                <div className="text-f1" style={{ fontSize: '1.5rem' }}>P{selectedDriverDetails.summary.position}</div>
-                                            </div>
-                                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-                                                <div style={{ color: 'var(--silver)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Grid Pos</div>
-                                                <div className="text-f1" style={{ fontSize: '1.5rem' }}>P{selectedDriverDetails.summary.quali_position}</div>
-                                            </div>
-                                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-                                                <div style={{ color: 'var(--silver)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Pit Stops</div>
-                                                <div className="text-f1" style={{ fontSize: '1.5rem', color: selectedDriverDetails.summary.pit_stops > 0 ? '#ff8700' : 'var(--silver)' }}>{selectedDriverDetails.summary.pit_stops}</div>
-                                            </div>
-                                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-                                                <div style={{ color: 'var(--silver)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Penalties</div>
-                                                <div className="text-f1" style={{ fontSize: '1.5rem', color: selectedDriverDetails.summary.penalties_time > 0 ? 'var(--f1-red)' : 'var(--success)' }}>+{selectedDriverDetails.summary.penalties_time}s</div>
-                                            </div>
-                                        </div>
-
-                                        {fetchingDriver ? (
-                                            <p className="animate-pulse text-center" style={{ padding: '2rem' }}>Lade Telemetrie...</p>
-                                        ) : selectedDriverDetails.laps.length > 0 ? (
-                                            <>
-                                                {/* === RUNDENZEIT-CHART mit Safety-Car-Linien === */}
-                                                <h3 className="text-f1" style={{ fontSize: '0.75rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Rundenzeitverlauf</h3>
-                                                <div style={{ width: '100%', height: '260px', marginBottom: '2rem' }}>
-                                                    <ResponsiveContainer width="100%" height="100%">
-                                                        <LineChart data={selectedDriverDetails.laps} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" vertical={false} />
-                                                            <XAxis dataKey="lap_number" stroke="var(--silver)" tick={{ fill: 'var(--silver)', fontSize: 11 }} label={{ value: 'Runde', position: 'insideBottom', fill: 'var(--silver)', fontSize: 10, dy: 10 }} />
-                                                            <YAxis stroke="var(--silver)" tick={{ fill: 'var(--silver)', fontSize: 11 }} domain={['auto', 'auto']} tickFormatter={(tick) => formatLapTime(tick)} width={65} />
-                                                            <Tooltip contentStyle={{ backgroundColor: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--white)' }} labelFormatter={(l) => `Runde ${l}`} formatter={(v: any) => [formatLapTime(v), 'Zeit']} />
-                                                            {/* Safety-Car-Linien */}
-                                                            {safetyCarEvents.filter((e: any) => e.event_type === 0).map((e: any, i: number) => (
-                                                                <ReferenceLine key={i} x={e.lap_number} stroke="#ffc107" strokeDasharray="4 3" strokeWidth={1.5} label={{ value: e.safety_car_type === 1 ? 'SC' : 'VSC', position: 'top', fill: '#ffc107', fontSize: 9 }} />
-                                                            ))}
-                                                            <Line type="monotone" dataKey="lap_time_ms" stroke="var(--f1-red)" strokeWidth={2} dot={(props: any) => {
-                                                                const lap = selectedDriverDetails.laps[props.index];
-                                                                if (!lap.is_valid) return <circle key={props.key} cx={props.cx} cy={props.cy} r={4} fill="var(--f1-red)" opacity={0.4} />;
-                                                                return <circle key={props.key} cx={props.cx} cy={props.cy} r={3} fill="var(--f1-red)" />;
-                                                            }} />
-                                                        </LineChart>
-                                                    </ResponsiveContainer>
+                                            <div className="grid-responsive" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', marginBottom: '3rem' }}>
+                                                <div className="glass-panel" style={{ padding: '1.5rem', textAlign: 'center' }}>
+                                                    <div className="stat-label">FINISH</div>
+                                                    <div className="stat-value">P{selectedDriverDetails.summary.position}</div>
                                                 </div>
+                                                <div className="glass-panel" style={{ padding: '1.5rem', textAlign: 'center' }}>
+                                                    <div className="stat-label">START</div>
+                                                    <div className="stat-value">P{selectedDriverDetails.summary.quali_position}</div>
+                                                </div>
+                                                <div className="glass-panel" style={{ padding: '1.5rem', textAlign: 'center' }}>
+                                                    <div className="stat-label">PITS</div>
+                                                    <div className="stat-value" style={{ color: selectedDriverDetails.summary.pit_stops > 0 ? 'var(--f1-cyan)' : 'var(--text-secondary)' }}>{selectedDriverDetails.summary.pit_stops}</div>
+                                                </div>
+                                                <div className="glass-panel" style={{ padding: '1.5rem', textAlign: 'center' }}>
+                                                    <div className="stat-label">PENALTY</div>
+                                                    <div className="stat-value" style={{ color: selectedDriverDetails.summary.penalties_time > 0 ? 'var(--f1-red)' : 'var(--text-secondary)' }}>+{selectedDriverDetails.summary.penalties_time}s</div>
+                                                </div>
+                                            </div>
 
-                                                {/* === POSITIONSVERLAUF-CHART === */}
-                                                {driverPositionHistory.length > 0 && (() => {
-                                                    // Fahrer-Positionen per Game Name ermitteln
-                                                    // Wir verwenden alle carIndex-Einträge und filtern nach Rundennummern die wir haben
-                                                    const lapNums = selectedDriverDetails.laps.map((l: any) => l.lap_number);
-                                                    // Alle möglichen car_index Werte für diese Rennen-Teilnehmer
-                                                    const uniqueCarIndices = [...new Set(driverPositionHistory.map((p: any) => p.car_index))];
-                                                    // Für jeden Teilnehmer die Grid-Startposition aus den Ergebnissen
-                                                    const currentResult = selectedDriverDetails.summary;
-                                                    // Finde den car_index dessen Positionsverlauf am besten passt
-                                                    // (Endposition = Rennposition des Fahrers)
-                                                    const driverCarIdx = uniqueCarIndices.find(ci => {
-                                                        const lastLap = Math.max(...driverPositionHistory.filter((p: any) => p.car_index === ci).map((p: any) => p.lap_number));
-                                                        const lastPos = driverPositionHistory.find((p: any) => p.car_index === ci && p.lap_number === lastLap)?.position;
-                                                        return lastPos === currentResult.position;
-                                                    }) ?? null;
-                                                    if (driverCarIdx === null) return null;
-                                                    const driverPosData = driverPositionHistory
-                                                        .filter((p: any) => p.car_index === driverCarIdx)
-                                                        .map((p: any) => ({ lap: p.lap_number, position: p.position }));
-                                                    if (driverPosData.length === 0) return null;
-                                                    const maxPos = Math.max(...driverPosData.map(d => d.position));
-                                                    return (
-                                                        <>
-                                                            <h3 className="text-f1" style={{ fontSize: '0.75rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Positionsverlauf</h3>
-                                                            <div style={{ width: '100%', height: '200px', marginBottom: '2rem' }}>
-                                                                <ResponsiveContainer width="100%" height="100%">
-                                                                    <LineChart data={driverPosData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                                                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" vertical={false} />
-                                                                        <XAxis dataKey="lap" stroke="var(--silver)" tick={{ fill: 'var(--silver)', fontSize: 11 }} label={{ value: 'Runde', position: 'insideBottom', fill: 'var(--silver)', fontSize: 10, dy: 10 }} />
-                                                                        <YAxis stroke="var(--silver)" tick={{ fill: 'var(--silver)', fontSize: 11 }} reversed={true} domain={[1, maxPos + 1]} tickFormatter={(v) => `P${v}`} width={35} />
-                                                                        <Tooltip contentStyle={{ backgroundColor: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px' }} labelFormatter={(l) => `Runde ${l}`} formatter={(v: any) => [`P${v}`, 'Position']} />
-                                                                        {safetyCarEvents.filter((e: any) => e.event_type === 0).map((e: any, i: number) => (
-                                                                            <ReferenceLine key={i} x={e.lap_number} stroke="#ffc107" strokeDasharray="4 3" strokeWidth={1.5} />
-                                                                        ))}
-                                                                        <Line type="monotone" dataKey="position" stroke="#00d2ff" strokeWidth={2} dot={{ r: 3, fill: '#00d2ff' }} />
-                                                                    </LineChart>
-                                                                </ResponsiveContainer>
-                                                            </div>
-                                                        </>
-                                                    );
-                                                })()}
-
-                                                {/* === SCHADENS-ANZEIGE === */}
-                                                {(() => {
-                                                    const damageEntries = selectedDriverDetails.laps
-                                                        .filter((l: any) => l.car_damage_json)
-                                                        .map((l: any) => ({ lap: l.lap_number, damage: JSON.parse(l.car_damage_json) }));
-                                                    if (damageEntries.length === 0) return null;
-                                                    const last = damageEntries[damageEntries.length - 1].damage;
-                                                    const hasMajor = last.frontLeftWingDamage > 10 || last.frontRightWingDamage > 10 || last.rearWingDamage > 10 || last.floorDamage > 10 || last.gearBoxDamage > 10 || last.engineDamage > 10;
-                                                    return (
-                                                        <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(255,24,1,0.07)', borderRadius: '8px', border: '1px solid rgba(255,24,1,0.2)' }}>
-                                                            <div style={{ fontSize: '0.7rem', color: 'var(--f1-red)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.75rem' }}>⚠ Fahrzeugschäden (Final)</div>
-                                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                                                {[
-                                                                    { label: 'FL Flügel', val: last.frontLeftWingDamage },
-                                                                    { label: 'FR Flügel', val: last.frontRightWingDamage },
-                                                                    { label: 'Heckflügel', val: last.rearWingDamage },
-                                                                    { label: 'Unterboden', val: last.floorDamage },
-                                                                    { label: 'Diffusor', val: last.diffuserDamage },
-                                                                    { label: 'Sidepod', val: last.sidepodDamage },
-                                                                    { label: 'Getriebe', val: last.gearBoxDamage },
-                                                                    { label: 'Motor', val: last.engineDamage },
-                                                                    { label: 'Motor Ausfall', val: last.engineBlown ? '!' : 0 },
-                                                                ].filter(d => d.val && d.val > 0).map(d => (
-                                                                    <div key={d.label} style={{ fontSize: '0.75rem', padding: '4px 10px', borderRadius: '4px', background: (d.val as number) > 30 ? 'rgba(255,24,1,0.3)' : 'rgba(255,255,255,0.08)', color: (d.val as number) > 30 ? 'var(--f1-red)' : 'var(--silver)', fontWeight: 600 }}>
-                                                                        {d.label}: {d.val}{typeof d.val === 'number' ? '%' : ''}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
+                                            {fetchingDriver ? (
+                                                <div style={{ padding: '4rem', textAlign: 'center' }}>
+                                                    <p className="text-f1-bold animate-pulse">EXTRACTING TELEMETRY...</p>
+                                                </div>
+                                            ) : selectedDriverDetails.laps.length > 0 ? (
+                                                <div className="flex flex-col gap-large">
+                                                    <section>
+                                                        <h3 className="text-f1-bold" style={{ fontSize: '0.75rem', color: 'var(--f1-red)', letterSpacing: '2px', marginBottom: '1rem' }}>LAP TIME HISTORY</h3>
+                                                        <div className="glass-panel" style={{ width: '100%', height: '280px', padding: '1rem' }}>
+                                                            <ResponsiveContainer width="100%" height="100%">
+                                                                <LineChart data={selectedDriverDetails.laps} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                                                    <XAxis dataKey="lap_number" stroke="var(--text-secondary)" fontSize={10} axisLine={false} tickLine={false} />
+                                                                    <YAxis stroke="var(--text-secondary)" fontSize={10} axisLine={false} tickLine={false} domain={['auto', 'auto']} tickFormatter={(tick) => formatLapTime(tick)} width={65} />
+                                                                    <Tooltip 
+                                                                        contentStyle={{ backgroundColor: 'var(--surface-mid)', border: '1px solid var(--glass-border)', borderRadius: '4px' }} 
+                                                                        formatter={(v: any) => [formatLapTime(v), 'Time']} 
+                                                                    />
+                                                                    {safetyCarEvents.filter((e: any) => e.event_type === 0).map((e: any, i: number) => (
+                                                                        <ReferenceLine key={i} x={e.lap_number} stroke="var(--f1-cyan)" strokeDasharray="4 4" strokeWidth={1} label={{ value: e.safety_car_type === 1 ? 'SC' : 'VSC', position: 'top', fill: 'var(--f1-cyan)', fontSize: 10 }} />
+                                                                    ))}
+                                                                    <Line type="monotone" dataKey="lap_time_ms" stroke="var(--f1-red)" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#fff' }} />
+                                                                </LineChart>
+                                                            </ResponsiveContainer>
                                                         </div>
-                                                    );
-                                                })()}
+                                                    </section>
 
-                                                {/* === RUNDENZEITTABELLE mit Sektoren === */}
-                                                <h3 className="text-f1" style={{ fontSize: '0.75rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Rundenzeiten</h3>
-                                                <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
-                                                    <thead>
-                                                        <tr style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--silver)', fontSize: '0.7rem', textTransform: 'uppercase' }}>
-                                                            <th style={{ padding: '0.7rem 0.5rem' }}>Rd</th>
-                                                            <th style={{ padding: '0.7rem 0.5rem' }}>Zeit</th>
-                                                            <th style={{ padding: '0.7rem 0.5rem' }}>S1</th>
-                                                            <th style={{ padding: '0.7rem 0.5rem' }}>S2</th>
-                                                            <th style={{ padding: '0.7rem 0.5rem' }}>S3</th>
-                                                            <th style={{ padding: '0.7rem 0.5rem' }}>Reifen</th>
-                                                            <th style={{ padding: '0.7rem 0.5rem' }}>Info</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {selectedDriverDetails.laps.map((lap: any) => {
-                                                            const isOverallFastest = selectedDriverDetails.summary.fastest_lap &&
-                                                                lap.lap_time_ms === Math.min(...selectedDriverDetails.laps.filter((l: any) => l.is_valid).map((l: any) => l.lap_time_ms));
-                                                            const hasDmg = lap.car_damage_json && JSON.parse(lap.car_damage_json).engineBlown;
-                                                            return (
-                                                                <tr key={lap.lap_number} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: hasDmg ? 'rgba(255,24,1,0.05)' : 'transparent' }}>
-                                                                    <td style={{ padding: '0.65rem 0.5rem', color: 'var(--silver)', fontSize: '0.8rem' }}>{lap.lap_number}</td>
-                                                                    <td style={{ padding: '0.65rem 0.5rem', color: isOverallFastest ? '#9c27b0' : (lap.is_valid ? 'var(--white)' : 'rgba(255,24,1,0.5)'), fontWeight: isOverallFastest ? 900 : 400, fontSize: '0.85rem' }}>
-                                                                        {formatLapTime(lap.lap_time_ms)}
-                                                                        {isOverallFastest && <span style={{ fontSize: '0.55rem', marginLeft: '5px', background: '#9c27b0', color: 'white', padding: '1px 3px', borderRadius: '2px' }}>FL</span>}
-                                                                        {!lap.is_valid && <span style={{ fontSize: '0.55rem', marginLeft: '5px', color: 'var(--f1-red)' }}>INV</span>}
-                                                                    </td>
-                                                                    <td style={{ padding: '0.65rem 0.5rem', color: 'var(--silver)', fontSize: '0.8rem' }}>{lap.sector1_ms ? formatLapTime(lap.sector1_ms) : '-'}</td>
-                                                                    <td style={{ padding: '0.65rem 0.5rem', color: 'var(--silver)', fontSize: '0.8rem' }}>{lap.sector2_ms ? formatLapTime(lap.sector2_ms) : '-'}</td>
-                                                                    <td style={{ padding: '0.65rem 0.5rem', color: 'var(--silver)', fontSize: '0.8rem' }}>{lap.sector3_ms ? formatLapTime(lap.sector3_ms) : '-'}</td>
-                                                                    <td style={{ padding: '0.65rem 0.5rem' }}>
-                                                                        {lap.tyre_compound ? <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', background: getTyreInfo(lap.tyre_compound).color, border: '1px solid rgba(255,255,255,0.3)' }} title={`Compound ${lap.tyre_compound}`} /> : '-'}
-                                                                    </td>
-                                                                    <td style={{ padding: '0.65rem 0.5rem' }}>
-                                                                        {lap.is_pit_lap && <span style={{ background: '#ff8700', color: 'white', fontSize: '0.6rem', padding: '1px 5px', borderRadius: '3px', fontWeight: 900 }}>PIT</span>}
-                                                                        {hasDmg && <span style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.6rem', padding: '1px 5px', borderRadius: '3px', fontWeight: 900, marginLeft: '3px' }}>SCHADEN</span>}
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })}
-                                                    </tbody>
-                                                </table>
-                                            </>
-                                        ) : (
-                                            <p style={{ color: 'var(--silver)', textAlign: 'center', padding: '2rem' }}>Keine detaillierte Telemetrie für dieses Rennen vorhanden.</p>
-                                        )}
+                                                    {/* Damage section */}
+                                                    {(() => {
+                                                        const damageEntries = selectedDriverDetails.laps
+                                                            .filter((l: any) => l.car_damage_json)
+                                                            .map((l: any) => ({ lap: l.lap_number, damage: JSON.parse(l.car_damage_json) }));
+                                                        if (damageEntries.length === 0) return null;
+                                                        const last = damageEntries[damageEntries.length - 1].damage;
+                                                        const damages = [
+                                                            { label: 'Front Wing L', val: last.frontLeftWingDamage },
+                                                            { label: 'Front Wing R', val: last.frontRightWingDamage },
+                                                            { label: 'Rear Wing', val: last.rearWingDamage },
+                                                            { label: 'Floor', val: last.floorDamage },
+                                                            { label: 'Gearbox', val: last.gearBoxDamage },
+                                                            { label: 'Engine', val: last.engineDamage },
+                                                        ].filter(d => d.val && d.val > 0);
+
+                                                        if (damages.length === 0) return null;
+
+                                                        return (
+                                                            <section>
+                                                                <h3 className="text-f1-bold" style={{ fontSize: '0.75rem', color: 'var(--f1-red)', letterSpacing: '2px', marginBottom: '1rem' }}>TECHNICAL STATUS / DAMAGE</h3>
+                                                                <div className="flex flex-wrap gap-small">
+                                                                    {damages.map(d => (
+                                                                        <div key={d.label} className="glass-panel" style={{ padding: '0.75rem 1.25rem', borderLeft: (d.val as number) > 20 ? '3px solid var(--f1-red)' : '3px solid var(--f1-cyan)' }}>
+                                                                            <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{d.label}</div>
+                                                                            <div style={{ fontWeight: 900, color: (d.val as number) > 20 ? 'var(--f1-red)' : 'var(--text-primary)' }}>{d.val}%</div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </section>
+                                                        );
+                                                    })()}
+
+                                                    <section>
+                                                        <h3 className="text-f1-bold" style={{ fontSize: '0.75rem', color: 'var(--f1-red)', letterSpacing: '2px', marginBottom: '1rem' }}>DETAILED LAPS</h3>
+                                                        <div className="table-container">
+                                                            <table className="f1-table">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>Lap</th>
+                                                                        <th>Time</th>
+                                                                        <th className="hide-mobile">S1</th>
+                                                                        <th className="hide-mobile">S2</th>
+                                                                        <th className="hide-mobile">S3</th>
+                                                                        <th>Tyre</th>
+                                                                        <th style={{ textAlign: 'right' }}>Event</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {selectedDriverDetails.laps.map((lap: any) => {
+                                                                        const isOverallFastest = selectedDriverDetails.summary.fastest_lap &&
+                                                                            lap.lap_time_ms === Math.min(...selectedDriverDetails.laps.filter((l: any) => l.is_valid).map((l: any) => l.lap_time_ms));
+                                                                        return (
+                                                                            <tr key={lap.lap_number}>
+                                                                                <td className="pos-number" style={{ fontSize: '0.9rem' }}>{lap.lap_number}</td>
+                                                                                <td className="text-f1-bold" style={{ color: isOverallFastest ? '#9c27b0' : (lap.is_valid ? 'var(--text-primary)' : 'rgba(255,24,1,0.4)') }}>
+                                                                                    {formatLapTime(lap.lap_time_ms)}
+                                                                                </td>
+                                                                                <td className="hide-mobile" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{lap.sector1_ms ? formatLapTime(lap.sector1_ms) : '-'}</td>
+                                                                                <td className="hide-mobile" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{lap.sector2_ms ? formatLapTime(lap.sector2_ms) : '-'}</td>
+                                                                                <td className="hide-mobile" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{lap.sector3_ms ? formatLapTime(lap.sector3_ms) : '-'}</td>
+                                                                                <td>
+                                                                                    {lap.tyre_compound ? <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: getTyreInfo(lap.tyre_compound).color, border: '1px solid rgba(255,255,255,0.2)' }} /> : '-'}
+                                                                                </td>
+                                                                                <td style={{ textAlign: 'right' }}>
+                                                                                    {lap.is_pit_lap && <span style={{ color: 'var(--f1-cyan)', fontSize: '0.7rem', fontWeight: 900 }}>PIT</span>}
+                                                                                    {isOverallFastest && <span style={{ color: '#9c27b0', fontSize: '0.7rem', fontWeight: 900, marginLeft: '8px' }}>FASTEST</span>}
+                                                                                </td>
+                                                                            </tr>
+                                                                        );
+                                                                    })}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </section>
+                                                </div>
+                                            ) : (
+                                                <div className="glass-panel" style={{ padding: '4rem', textAlign: 'center' }}>
+                                                    <p style={{ opacity: 0.5 }}>Telemetry data unavailable for this driver.</p>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}
-
                         </div>
                     )}
                 </div>
             )}
-
-            {/* Styles */}
-            <style jsx global>{`
-        @media (max-width: 1024px) {
-          .hide-mobile { display: none; }
-        }
-        .hover-row:hover {
-            background: rgba(255,255,255,0.1) !important;
-        }
-        .race-select-btn {
-          cursor: pointer;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-          border-left: 3px solid transparent !important;
-        }
-        .race-select-btn:hover {
-          background: rgba(255,255,255,0.05);
-          transform: translateX(5px);
-        }
-        .race-select-btn.active {
-          border-left: 3px solid var(--f1-red) !important;
-          background: rgba(255,255,255,0.1);
-        }
-        .hover-f1:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-        }
-        .animate-pulse {
-          animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-          0% { opacity: 0.4; }
-          50% { opacity: 1; }
-          100% { opacity: 0.4; }
-        }
-      `}</style>
         </div>
     );
 }

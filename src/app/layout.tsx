@@ -15,14 +15,17 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <nav className="flex justify-between items-center container" style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--glass-border)' }}>
-          <Link href="/" className="text-f1" style={{ fontSize: '1.5rem', color: 'var(--f1-red)' }}>
-            F1<span style={{ color: 'var(--white)' }}>25</span> LEAGUE
-          </Link>
-          <div className="flex gap-2 items-center">
-            <Link href="/dashboard" className="text-f1" style={{ fontSize: '0.8rem', opacity: 0.8 }}>Standings</Link>
-            <Link href="/admin" className="text-f1" style={{ fontSize: '0.8rem', opacity: 0.8 }}>Admin</Link>
-            <Link href="/join" className="btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }}>Join</Link>
+        <nav className="nav-bar">
+          <div className="container flex justify-between items-center">
+            <Link href="/" className="text-f1-bold" style={{ fontSize: '1.5rem', color: 'var(--f1-red)' }}>
+              F1<span style={{ color: 'var(--text-primary)' }}>25</span> <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>LEAGUE</span>
+            </Link>
+            
+            <div className="flex gap-medium items-center nav-links">
+              <Link href="/dashboard" className="text-f1-bold" style={{ fontSize: '0.75rem', opacity: 0.8 }}>Standings</Link>
+              <Link href="/admin" className="text-f1-bold" style={{ fontSize: '0.75rem', opacity: 0.8 }}>Admin Hub</Link>
+              <Link href="/join" className="btn btn-secondary" style={{ padding: '0.5rem 1rem' }}>Join League</Link>
+            </div>
           </div>
         </nav>
         <main>

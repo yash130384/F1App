@@ -27,76 +27,85 @@ interface LapPositionChartProps {
 
 export function LapPositionChart({ participants, history, totalLaps }: LapPositionChartProps) {
     // Mapping von car_index auf Teilnehmer erstellen
-    const carIndexMap: Record<number, Participant> = {};
-    participants.forEach(p => {
-        carIndexMap[p.car_index] = p;
-    });
+    const carIndexMap: Record<number, Participant> = React.useMemo(() => {
+        const map: Record<number, Participant> = {};
+        participants.forEach(p => {
+            map[p.car_index] = p;
+        });
+        return map;
+    }, [participants]);
 
     // Top-Fahrer nach finaler Position für die Legende (Top 10)
-    const topDrivers = [...participants].sort((a, b) => a.position - b.position).slice(0, 10);
+    const topDrivers = React.useMemo(() => 
+        [...participants].sort((a, b) => a.position - b.position).slice(0, 10),
+    [participants]);
     
-    // Transform history into Recharts format: { lap: 1, driver1: 1, driver2: 2, ... }
-    const dataByLap: Record<number, any> = {};
-    
-    history.forEach(entry => {
-        if (!dataByLap[entry.lap_number]) {
-            dataByLap[entry.lap_number] = { lap: entry.lap_number };
-        }
-        
-        const driver = carIndexMap[entry.car_index];
-        if (driver) {
-            dataByLap[entry.lap_number][driver.game_name] = entry.position;
-        }
-    });
-
-    const chartData = Object.values(dataByLap).sort((a, b) => a.lap - b.lap);
+    // Transform history into Recharts format
+    const chartData = React.useMemo(() => {
+        const dataByLap: Record<number, any> = {};
+        history.forEach(entry => {
+            if (!dataByLap[entry.lap_number]) {
+                dataByLap[entry.lap_number] = { lap: entry.lap_number };
+            }
+            const driver = carIndexMap[entry.car_index];
+            if (driver) {
+                dataByLap[entry.lap_number][driver.game_name] = entry.position;
+            }
+        });
+        return Object.values(dataByLap).sort((a, b) => a.lap - b.lap);
+    }, [history, carIndexMap]);
 
     return (
-        <div className="p-6 f1-card" style={{ height: 500 }}>
-            <div className="flex flex-col justify-start items-start mb-6">
-                <h3 className="text-white font-bold text-lg">Race Position Evolution</h3>
-                <p className="text-slate-500 text-xs uppercase font-bold">Positionsverlauf (Top 10)</p>
-            </div>
-
-            <ResponsiveContainer width="100%" height="85%">
-                <LineChart data={chartData} margin={{ top: 5, right: 30, left: -20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                    <XAxis 
-                        dataKey="lap" 
-                        stroke="#666" 
-                        fontSize={10} 
-                        tickLine={false}
-                        label={{ value: 'LAP', position: 'insideBottomRight', offset: -5, fontSize: 9, fill: '#666' }}
+        <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 20, right: 30, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--glass-border)" vertical={false} opacity={0.3} />
+                <XAxis 
+                    dataKey="lap" 
+                    stroke="var(--text-muted)" 
+                    fontSize={10} 
+                    tickLine={false}
+                    axisLine={false}
+                    label={{ value: 'LAP', position: 'insideBottomRight', offset: 0, fontSize: 9, fill: 'var(--text-muted)', fontWeight: 800 }}
+                />
+                <YAxis 
+                    reversed 
+                    domain={[1, 20]} 
+                    stroke="var(--text-muted)" 
+                    fontSize={10} 
+                    tickLine={false}
+                    axisLine={false}
+                    ticks={[1, 5, 10, 15, 20]}
+                    label={{ value: 'POSITION', angle: -90, position: 'insideLeft', fontSize: 9, fill: 'var(--text-muted)', offset: 10, fontWeight: 800 }}
+                />
+                <Tooltip 
+                    contentStyle={{ 
+                        background: 'rgba(11, 11, 14, 0.95)', 
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid var(--glass-border)', 
+                        borderRadius: '4px', 
+                        fontSize: '10px',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+                    }}
+                    itemStyle={{ padding: '2px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                />
+                <Legend 
+                    iconType="circle" 
+                    wrapperStyle={{ fontSize: '9px', fontWeight: 800, paddingTop: '20px', textTransform: 'uppercase', color: 'var(--text-muted)' }} 
+                />
+                {topDrivers.map((p, i) => (
+                    <Line
+                        key={p.game_name}
+                        type="monotone"
+                        dataKey={p.game_name}
+                        name={p.driver_name || p.game_name}
+                        stroke={p.driver_color || 'var(--text-muted)'}
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4, strokeWidth: 0 }}
+                        isAnimationActive={false}
                     />
-                    <YAxis 
-                        reversed 
-                        domain={[1, 20]} 
-                        stroke="#666" 
-                        fontSize={10} 
-                        tickLine={false}
-                        ticks={[1, 5, 10, 15, 20]}
-                        label={{ value: 'POSITION', angle: -90, position: 'insideLeft', fontSize: 9, fill: '#666', offset: 10 }}
-                    />
-                    <Tooltip 
-                        contentStyle={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11 }}
-                        itemStyle={{ padding: '2px 0' }}
-                    />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: 10, paddingTop: 15 }} />
-                    {topDrivers.map((p, i) => (
-                        <Line
-                            key={p.game_name}
-                            type="monotone"
-                            dataKey={p.game_name}
-                            name={p.driver_name || p.game_name}
-                            stroke={p.driver_color || '#888'}
-                            strokeWidth={2.5}
-                            dot={false}
-                            activeDot={{ r: 4 }}
-                            isAnimationActive={false}
-                        />
-                    ))}
-                </LineChart>
-            </ResponsiveContainer>
-        </div>
+                ))}
+            </LineChart>
+        </ResponsiveContainer>
     );
 }

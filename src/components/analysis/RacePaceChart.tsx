@@ -20,33 +20,29 @@ interface RacePaceChartProps {
 }
 
 export default function RacePaceChart({ laps }: RacePaceChartProps) {
+    const { chartData, drivers } = React.useMemo(() => {
+        const dataByLap: Record<number, any> = {};
+        const driversMap = new Map<string, { name: string, color: string }>();
 
-    // Group by lap
-    const dataByLap: Record<number, any> = {};
-    const drivers = new Map<string, { name: string, color: string }>();
+        laps.forEach(l => {
+            if (l.lap_number === 0) return;
+            if (!dataByLap[l.lap_number]) dataByLap[l.lap_number] = { lap: l.lap_number };
+            
+            const name = l.driver_name || l.game_name;
+            driversMap.set(name, { name, color: l.driver_color || 'var(--text-muted)' });
+            
+            let time: number | null = l.lap_time_ms / 1000;
+            if (time > 180 || !l.is_valid) {
+                time = null; 
+            }
+            dataByLap[l.lap_number][name] = time ? parseFloat(time.toFixed(3)) : null;
+        });
 
-    laps.forEach(l => {
-        // Skip lap 0 (usually partial or out lap)
-        if (l.lap_number === 0) return;
-
-        if (!dataByLap[l.lap_number]) dataByLap[l.lap_number] = { lap: l.lap_number };
-        
-        const name = l.driver_name || l.game_name;
-        drivers.set(name, { name, color: l.driver_color || '#888' });
-        
-        let time: number | null = l.lap_time_ms / 1000;
-        
-        // Basic outlier filter (e.g. pit stops or crashes)
-        // If > 180s, it's likely not representative for "pace" comparison
-        if (time > 180 || !l.is_valid) {
-            time = null; // Don't show in chart
-        }
-
-        dataByLap[l.lap_number][name] = time? parseFloat(time.toFixed(3)) : null;
-    });
-
-    const chartData = Object.values(dataByLap).sort((a, b) => a.lap - b.lap);
-    const sortedDrivers = Array.from(drivers.values()).sort((a,b) => a.name.localeCompare(b.name));
+        return {
+            chartData: Object.values(dataByLap).sort((a, b) => a.lap - b.lap),
+            drivers: Array.from(driversMap.values()).sort((a,b) => a.name.localeCompare(b.name))
+        };
+    }, [laps]);
 
     const formatTime = (seconds: number) => {
         if (!seconds) return '-';
@@ -56,52 +52,57 @@ export default function RacePaceChart({ laps }: RacePaceChartProps) {
     };
 
     return (
-        <div className="p-6 f1-card" style={{ height: 500 }}>
-            <div className="flex flex-col justify-start items-start mb-6">
-                <h3 className="text-white font-bold text-lg">Race Pace Comparison</h3>
-                <p className="text-slate-500 text-xs uppercase font-bold">Rundenzeiten im Vergleich (Sekunden)</p>
-            </div>
-
-            <ResponsiveContainer width="100%" height="80%">
-                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                    <XAxis 
-                        dataKey="lap" 
-                        stroke="#666" 
-                        fontSize={10} 
-                        tickLine={false}
-                        label={{ value: 'RUNDE', position: 'insideBottomRight', offset: -5, fontSize: 9, fill: '#666' }}
+        <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--glass-border)" vertical={false} opacity={0.3} />
+                <XAxis 
+                    dataKey="lap" 
+                    stroke="var(--text-muted)" 
+                    fontSize={10} 
+                    tickLine={false}
+                    axisLine={false}
+                    label={{ value: 'LAP', position: 'insideBottomRight', offset: 0, fontSize: 9, fill: 'var(--text-muted)', fontWeight: 800 }}
+                />
+                <YAxis 
+                    stroke="var(--text-muted)" 
+                    fontSize={10} 
+                    tickLine={false}
+                    axisLine={false}
+                    domain={['auto', 'auto']}
+                    tickFormatter={formatTime}
+                    label={{ value: 'TIME', angle: -90, position: 'insideLeft', fontSize: 9, fill: 'var(--text-muted)', offset: 10, fontWeight: 800 }}
+                />
+                <Tooltip 
+                    contentStyle={{ 
+                        background: 'rgba(11, 11, 14, 0.95)', 
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid var(--glass-border)', 
+                        borderRadius: '4px', 
+                        fontSize: '10px',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+                    }}
+                    itemStyle={{ padding: '2px 0' }}
+                    labelFormatter={(l) => `LAP ${l}`}
+                    formatter={(v: any) => [formatTime(v), 'PACE']}
+                />
+                <Legend 
+                    iconType="circle" 
+                    wrapperStyle={{ fontSize: '9px', fontWeight: 800, paddingTop: '20px', textTransform: 'uppercase', color: 'var(--text-muted)' }} 
+                />
+                {drivers.map(d => (
+                    <Line
+                        key={d.name}
+                        type="monotone"
+                        dataKey={d.name}
+                        stroke={d.color}
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4, strokeWidth: 0 }}
+                        connectNulls={true}
+                        isAnimationActive={false}
                     />
-                    <YAxis 
-                        stroke="#666" 
-                        fontSize={10} 
-                        tickLine={false}
-                        domain={['auto', 'auto']}
-                        tickFormatter={formatTime}
-                        label={{ value: 'TIME', angle: -90, position: 'insideLeft', fontSize: 9, fill: '#666' }}
-                    />
-                    <Tooltip 
-                        contentStyle={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11 }}
-                        itemStyle={{ padding: '2px 0' }}
-                        formatter={(v: any) => [formatTime(v), 'Zeit']}
-                        labelFormatter={(l) => `Runde ${l}`}
-                    />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: 10, paddingTop: 15 }} />
-                    {sortedDrivers.map(d => (
-                        <Line
-                            key={d.name}
-                            type="monotone"
-                            dataKey={d.name}
-                            stroke={d.color}
-                            strokeWidth={2}
-                            dot={false}
-                            activeDot={{ r: 4 }}
-                            connectNulls={true}
-                            isAnimationActive={true}
-                        />
-                    ))}
-                </LineChart>
-            </ResponsiveContainer>
-        </div>
+                ))}
+            </LineChart>
+        </ResponsiveContainer>
     );
 }
