@@ -1643,4 +1643,135 @@ export async function getBestLapForTrack(leagueId: string, trackId: number) {
 }
 
 
+/**
+ * Calculates driving performance scores (Brake, Throttle, Consistency) from session telemetry.
+ */
+export async function getPerformanceScores(sessionId: string) {
+    try {
+        const participants = await query<any>(`
+            SELECT id, game_name, driver_id FROM telemetry_participants 
+            WHERE session_id = ? AND (is_human = true OR driver_id IS NOT NULL)
+        `, [sessionId]);
 
+        const scores: Record<string, any> = {};
+
+        for (const p of participants) {
+            // Fetch best valid lap for this driver
+            const bestLap = await query<any>(`
+                SELECT id, lap_time_ms FROM telemetry_laps 
+                WHERE participant_id = ? AND is_valid = true 
+                ORDER BY lap_time_ms ASC LIMIT 1
+            `, [p.id]);
+
+            if (bestLap.length === 0) continue;
+
+            const samplesRes = await getLapSamples(bestLap[0].id);
+            if (!samplesRes.success || !samplesRes.samples.length) continue;
+
+            const samples = samplesRes.samples;
+            
+            // 1. Brake Efficiency (Peak pressure & Trail braking)
+            let totalBrakeEvents = 0;
+            let peakBrakeSum = 0;
+            
+            for (let i = 1; i < samples.length; i++) {
+                if (samples[i].b > 0.1) {
+                    totalBrakeEvents++;
+                    peakBrakeSum += samples[i].b;
+                }
+            }
+            const brakeScore = Math.min(100, (peakBrakeSum / (totalBrakeEvents || 1)) * 100);
+
+            // 2. Throttle Smoothness (Rate of application)
+            let throttleJerk = 0;
+            for (let i = 1; i < samples.length; i++) {
+                throttleJerk += Math.abs(samples[i].t - samples[i-1].t);
+            }
+            const throttleScore = Math.max(0, 100 - (throttleJerk / (samples.length || 1)) * 500);
+
+            // 3. Consistency (Lap time variance)
+            const allLaps = await query<any>(`
+                SELECT lap_time_ms FROM telemetry_laps 
+                WHERE participant_id = ? AND is_valid = true AND lap_time_ms > 0
+            `, [p.id]);
+
+            let consistencyScore = 70; // Baseline
+            if (allLaps.length > 2) {
+                const times = allLaps.map((l: any) => l.lap_time_ms);
+                const avg = times.reduce((a: number, b: number) => a + b, 0) / times.length;
+                const stdDev = Math.sqrt(times.map(x => Math.pow(x - avg, 2)).reduce((a, b) => a + b) / times.length);
+                consistencyScore = Math.max(0, Math.min(100, 100 - (stdDev / 100))); // Loss 1pt per 100ms dev
+            }
+
+            scores[p.id] = {
+                brake: Math.round(brakeScore),
+                throttle: Math.round(throttleScore),
+                consistency: Math.round(consistencyScore),
+                overall: Math.round((brakeScore + throttleScore + consistencyScore) / 3)
+            };
+        }
+
+        return { success: true, scores };
+    } catch (error: any) {
+        console.error('getPerformanceScores error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Fetches car setups for all participants in a session.
+ */
+export async function getCarSetups(sessionId: string) {
+    try {
+        const setups = await query<any>(`
+            SELECT tcs.*, tp.game_name, d.name as driver_name, d.color as driver_color
+            FROM telemetry_car_setups tcs
+            JOIN telemetry_participants tp ON tcs.participant_id = tp.id
+            LEFT JOIN drivers d ON tp.driver_id = d.id
+            WHERE tp.session_id = ?
+            ORDER BY tcs.lap_number DESC
+        `, [sessionId]);
+
+        return { success: true, setups };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Fetches speed traps for a session.
+ */
+export async function getSpeedTraps(sessionId: string) {
+    try {
+        const traps = await query<any>(`
+            SELECT tst.*, tp.game_name, d.name as driver_name, d.color as driver_color
+            FROM telemetry_speed_traps tst
+            JOIN telemetry_participants tp ON tst.participant_id = tp.id
+            LEFT JOIN drivers d ON tp.driver_id = d.id
+            WHERE tst.session_id = ?
+            ORDER BY tst.speed DESC
+        `, [sessionId]);
+
+        return { success: true, traps };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Fetches track metadata (turns, markers) for a given track ID.
+ */
+export async function getTrackMetadata(trackId: number) {
+    try {
+        const metadata = await query<any>(`
+            SELECT curve_name, distance_start, distance_end
+            FROM telemetry_track_metadata
+            WHERE track_id = ?
+            ORDER BY distance_start ASC
+        `, [trackId]);
+
+        return { success: true, metadata };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}

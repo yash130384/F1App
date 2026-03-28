@@ -232,10 +232,16 @@ export async function POST(req: Request) {
                             // Speed Traps speichern
                             if (p.speedTraps && Array.isArray(p.speedTraps)) {
                                 for (const st of p.speedTraps) {
-                                    await run(
-                                        `INSERT INTO telemetry_speed_traps (id, session_id, participant_id, speed, lap_number, distance) VALUES (?, ?, ?, ?, ?, ?)`,
-                                        [crypto.randomUUID(), sessionId, participantId, st.speed, st.lapNum, st.distance]
+                                    const existingST = await query<any>(
+                                        `SELECT id FROM telemetry_speed_traps WHERE participant_id = ? AND lap_number = ? AND distance = ?`,
+                                        [participantId, st.lapNum, st.distance]
                                     );
+                                    if (existingST.length === 0) {
+                                        await run(
+                                            `INSERT INTO telemetry_speed_traps (id, session_id, participant_id, speed, lap_number, distance) VALUES (?, ?, ?, ?, ?, ?)`,
+                                            [crypto.randomUUID(), sessionId, participantId, st.speed, st.lapNum, st.distance]
+                                        );
+                                    }
                                 }
                             }
 
