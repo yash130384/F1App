@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import styles from "./Profile.module.css";
 import DriverAvatar from "@/components/common/DriverAvatar";
+import { fixLeaguePermissions } from "@/lib/actions";
 
 export default function ProfilePage() {
     const { data: session, status, update } = useSession();
@@ -25,6 +26,14 @@ export default function ProfilePage() {
             setGlobalColor((session.user as any).globalColor || "#ffffff");
             setAvatarUrl(session.user.image || "");
             fetchDriverLeagues();
+            
+            // Auto-Fix Permissions for TRunKX/Kleosa
+            fixLeaguePermissions().then(res => {
+                if (res.success) {
+                    console.log("League permissions synced:", res.message);
+                    fetchDriverLeagues(); // Refresh to show admin section
+                }
+            });
         }
     }, [status, session, router]);
 

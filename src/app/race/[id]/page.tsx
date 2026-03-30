@@ -28,6 +28,7 @@ function RaceDetailContent() {
 
     // Data states
     const [graphData, setGraphData] = useState<any[]>([]);
+    const [rawLaps, setRawLaps] = useState<any[]>([]);
     const [analysisData, setAnalysisData] = useState<any>(null);
 
     const router = useRouter();
@@ -49,7 +50,10 @@ function RaceDetailContent() {
                     getRaceAnalysis(sid)
                 ]);
 
-                if (graphRes.success) setGraphData(graphRes.laps || []);
+                if (graphRes.success) {
+                    setGraphData(graphRes.laps || []);
+                    setRawLaps(graphRes.rawLaps || []);
+                }
                 if (analysisRes.success) setAnalysisData(analysisRes);
             }
         }
@@ -181,7 +185,7 @@ function RaceDetailContent() {
                             <div className="f1-card">
                                 <h3 className="text-f1-bold text-[10px] mb-8 uppercase tracking-widest text-f1-red">Round Time Chart (Pace)</h3>
                                 <div className="h-[300px]">
-                                    <RacePaceChart laps={graphData} />
+                                    <RacePaceChart laps={rawLaps} />
                                 </div>
                             </div>
 
@@ -189,7 +193,7 @@ function RaceDetailContent() {
                             <div className="f1-card">
                                 <h3 className="text-f1-bold text-[10px] mb-8 uppercase tracking-widest text-f1-red">Gap to Leader Evolution</h3>
                                 <div className="h-[300px]">
-                                    <GapToLeaderChart laps={graphData} />
+                                    <GapToLeaderChart laps={rawLaps} />
                                 </div>
                             </div>
                         </div>

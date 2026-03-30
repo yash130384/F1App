@@ -241,16 +241,17 @@ export async function getDashboardData(leagueName: string) {
         const leagueId = leagues[0].id;
 
         const standings = await query<any>(`
-            SELECT d.*,
+            SELECT d.*, u.avatar_url,
                 COUNT(CASE WHEN rr.position = 1 AND r.is_finished = true THEN 1 END) as wins,
                 COUNT(CASE WHEN rr.position <= 3 AND rr.position > 0 AND r.is_finished = true THEN 1 END) as podiums,
                 COUNT(CASE WHEN rr.fastest_lap = true AND r.is_finished = true THEN 1 END) as fastest_laps,
                 COUNT(CASE WHEN rr.clean_driver = true AND r.is_finished = true THEN 1 END) as clean_races
             FROM drivers d 
+            LEFT JOIN users u ON d.user_id = u.id
             LEFT JOIN race_results rr ON d.id = rr.driver_id
             LEFT JOIN races r ON rr.race_id = r.id
             WHERE d.league_id = ? 
-            GROUP BY d.id
+            GROUP BY d.id, u.id
             ORDER BY d.total_points DESC, wins DESC, podiums DESC
         `, [leagueId]);
 
@@ -444,9 +445,10 @@ export async function getRaceDetails(raceId: string) {
         if (race.length === 0) throw new Error('Race not found.');
 
         const results = await query<any>(`
-            SELECT rr.*, d.name as driver_name, d.color as driver_color
+            SELECT rr.*, d.name as driver_name, d.color as driver_color, u.avatar_url
             FROM race_results rr
             JOIN drivers d ON rr.driver_id = d.id
+            LEFT JOIN users u ON d.user_id = u.id
             WHERE rr.race_id = ?
             ORDER BY rr.position ASC
         `, [raceId]);
@@ -1195,6 +1197,14 @@ export async function getAllDriversRaceTelemetry(sessionId: string) {
         return {
             success: true,
             laps: formattedLaps,
+            rawLaps: laps.map((l: any) => {
+                const pInfo = participants.find((p: any) => p.id === l.participant_id);
+                return {
+                    ...l,
+                    driver_name: pInfo?.driver_name,
+                    driver_color: pInfo?.driver_color
+                };
+            }),
             drivers: participants.map((p: any) => ({ id: p.driver_id, name: p.driver_name, color: p.driver_color }))
         };
     } catch (error: any) {
@@ -1528,6 +1538,25 @@ export async function getSpeedTraps(sessionId: string) {
 /**
  * Fetches track metadata (turns, markers) for a given track ID.
  */
+/**
+ * Temporärer Fix für Liga-Berechtigungen (TRunKX -> Kleosa)
+ */
+export async function fixLeaguePermissions() {
+    try {
+        const session = await getServerSession(authOptions) as any;
+        if (!session || !session.user) return { success: false, error: 'No session' };
+        
+        const username = (session.user.name || '').toUpperCase();
+        if (username.includes('TRUNKX')) {
+            await run(`UPDATE leagues SET owner_id = ? WHERE name LIKE '%Kleosa%'`, [session.user.id]);
+            return { success: true, message: 'Permissions fixed for Kleosa' };
+        }
+        return { success: false, error: 'Not TRunKX' };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
 export async function getTrackMetadata(trackId: number) {
     try {
         const metadata = await query<any>(`
