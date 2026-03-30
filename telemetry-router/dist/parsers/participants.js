@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseParticipants = parseParticipants;
-function parseParticipants(buffer) {
+export function parseParticipants(buffer) {
     const participants = [];
     const numActiveCars = buffer.readUInt8(29);
     for (let i = 0; i < numActiveCars; i++) {

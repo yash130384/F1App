@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseFinalClassificationData = parseFinalClassificationData;
-function parseFinalClassificationData(buffer, header) {
+export function parseFinalClassificationData(buffer, header) {
     let offset = 29; // Header size
     const numCars = buffer.readUInt8(offset++);
     const classificationData = [];

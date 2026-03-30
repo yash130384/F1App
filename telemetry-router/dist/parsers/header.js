@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseHeader = parseHeader;
-function parseHeader(buffer) {
+export function parseHeader(buffer) {
     return {
         packetFormat: buffer.readUInt16LE(0),
         gameYear: buffer.readUInt8(2),

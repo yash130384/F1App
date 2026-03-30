@@ -1,13 +1,10 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PayloadMapper = void 0;
 /**
  * Der PayloadMapper transformiert den detaillierten internen Zustand eines Fahrers
  * in ein optimiertes Objekt für die Übertragung an das Frontend (SSE/API).
  * Er sorgt dafür, dass nur notwendige Daten gesendet werden und Runden-Buffer
  * nach der Übertragung geleert werden, um Duplikate zu vermeiden.
  */
-class PayloadMapper {
+export class PayloadMapper {
     /**
      * Erstellt eine Momentaufnahme (Snapshot) für einen Fahrer, die direkt an das Frontend
      * gesendet werden kann.
@@ -126,4 +123,3 @@ class PayloadMapper {
         };
     }
 }
-exports.PayloadMapper = PayloadMapper;

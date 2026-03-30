@@ -1,6 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseMotionData = parseMotionData;
 // PacketMotionData: Header (29 bytes) + 22 * CarMotionData
 // CarMotionData per car layout (F1 25):
 //   worldPositionX:       float  (offset 0)
@@ -23,7 +20,7 @@ exports.parseMotionData = parseMotionData;
 //   roll:                 float  (offset 56)
 // Total per car: 60 bytes
 const CAR_MOTION_SIZE = 60;
-function parseMotionData(buffer) {
+export function parseMotionData(buffer) {
     const motions = [];
     for (let i = 0; i < 22; i++) {
         const base = 29 + i * CAR_MOTION_SIZE;

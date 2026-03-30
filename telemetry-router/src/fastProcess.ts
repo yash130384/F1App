@@ -177,7 +177,8 @@ function handlePacket(msg: Buffer, state: SessionState) {
                 state.updateMotionEx(header.playerCarIndex, motionEx);
                 break;
             }
-            case 20: { // Tyre Sets
+            case 12: // Tyre Sets (F1 24/23)
+            case 20: { // Tyre Sets (F1 25)
                 const tyreData = parseTyreSets(msg);
                 state.updateTyreSets(tyreData.carIdx, tyreData.tyreSetData);
                 break;

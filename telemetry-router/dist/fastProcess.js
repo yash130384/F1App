@@ -1,26 +1,21 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.fastProcessRecordings = fastProcessRecordings;
-const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
-const node_fetch_1 = __importDefault(require("node-fetch"));
-const state_1 = require("./state");
-const header_1 = require("./parsers/header");
-const session_1 = require("./parsers/session");
-const participants_1 = require("./parsers/participants");
-const lapData_1 = require("./parsers/lapData");
-const telemetry_1 = require("./parsers/telemetry");
-const carStatus_1 = require("./parsers/carStatus");
-const eventData_1 = require("./parsers/eventData");
-const carDamage_1 = require("./parsers/carDamage");
-const sessionHistory_1 = require("./parsers/sessionHistory");
-const motionData_1 = require("./parsers/motionData");
-const motionEx_1 = require("./parsers/motionEx");
-const tyreSets_1 = require("./parsers/tyreSets");
-const enquirer_1 = require("enquirer");
+import fs from 'fs';
+import path from 'path';
+import fetch from 'node-fetch';
+import { SessionState } from './state';
+import { parseHeader } from './parsers/header';
+import { parseSession } from './parsers/session';
+import { parseParticipants } from './parsers/participants';
+import { parseLapData } from './parsers/lapData';
+import { parseTelemetry } from './parsers/telemetry';
+import { parseCarStatus } from './parsers/carStatus';
+import { parseEventData } from './parsers/eventData';
+import { parseCarDamage } from './parsers/carDamage';
+import { parseSessionHistoryData } from './parsers/sessionHistory';
+import { parseMotionData } from './parsers/motionData';
+import { parseMotionExData } from './parsers/motionEx';
+import { parseTyreSets } from './parsers/tyreSets';
+import Enquirer from 'enquirer';
+const { prompt } = Enquirer;
 /**
  * Der FastProcessor ermöglicht die nachträgliche Verarbeitung von .bin-Aufzeichnungen.
  * Er simuliert einen extrem schnellen UDP-Stream, indem er die Pakete aus einer Datei liest,
@@ -28,23 +23,23 @@ const enquirer_1 = require("enquirer");
  *
  * @param config Die globale Anwendungskonfiguration.
  */
-async function fastProcessRecordings(config) {
+export async function fastProcessRecordings(config) {
     console.log('\n--- 🚀 Fast Recording Processor ---');
     // Pfadsuch-Logik für den "recordings" Ordner
-    const recDir = path_1.default.join(process.cwd(), 'recordings');
-    const rootRecDir = path_1.default.join(process.cwd(), '..', 'recordings');
-    let targetDir = fs_1.default.existsSync(recDir) ? recDir : (fs_1.default.existsSync(rootRecDir) ? rootRecDir : null);
+    const recDir = path.join(process.cwd(), 'recordings');
+    const rootRecDir = path.join(process.cwd(), '..', 'recordings');
+    let targetDir = fs.existsSync(recDir) ? recDir : (fs.existsSync(rootRecDir) ? rootRecDir : null);
     if (!targetDir) {
         console.error('Kein "recordings" Ordner gefunden.');
         return;
     }
-    const files = fs_1.default.readdirSync(targetDir).filter(f => f.endsWith('.bin'));
+    const files = fs.readdirSync(targetDir).filter(f => f.endsWith('.bin'));
     if (files.length === 0) {
         console.error(`Keine .bin Dateien in ${targetDir} gefunden.`);
         return;
     }
     // Interaktive Auswahl der zu verarbeitenden Dateien
-    const response = await (0, enquirer_1.prompt)({
+    const response = await prompt({
         type: 'multiselect',
         name: 'selectedFiles',
         message: 'Wähle Aufzeichnungen zum Verarbeiten (Leertaste zum Wählen):',
@@ -53,7 +48,7 @@ async function fastProcessRecordings(config) {
     if (response.selectedFiles.length === 0)
         return;
     for (const fileName of response.selectedFiles) {
-        const filePath = path_1.default.join(targetDir, fileName);
+        const filePath = path.join(targetDir, fileName);
         console.log(`\nVerarbeite ${fileName}...`);
         await processFile(filePath, config);
     }
@@ -66,9 +61,9 @@ async function fastProcessRecordings(config) {
  * @param config Die globale Anwendungskonfiguration.
  */
 async function processFile(filePath, config) {
-    const state = new state_1.SessionState();
-    const stats = fs_1.default.statSync(filePath);
-    const fd = fs_1.default.openSync(filePath, 'r');
+    const state = new SessionState();
+    const stats = fs.statSync(filePath);
+    const fd = fs.openSync(filePath, 'r');
     let offset = 0;
     let packetCount = 0;
     let chunkCount = 0;
@@ -76,7 +71,7 @@ async function processFile(filePath, config) {
     while (offset < stats.size) {
         // Binaär-Präfix lesen: [4B Preamble "F125"][2B Length]
         const headerBuffer = Buffer.alloc(6);
-        fs_1.default.readSync(fd, headerBuffer, 0, 6, offset);
+        fs.readSync(fd, headerBuffer, 0, 6, offset);
         offset += 6;
         const length = headerBuffer.readUInt16LE(4);
         if (length === 0 || length > 2000) {
@@ -84,7 +79,7 @@ async function processFile(filePath, config) {
             break;
         }
         const packetBuffer = Buffer.alloc(length);
-        fs_1.default.readSync(fd, packetBuffer, 0, length, offset);
+        fs.readSync(fd, packetBuffer, 0, length, offset);
         offset += length;
         // Paket parsen und State aktualisieren
         handlePacket(packetBuffer, state);
@@ -98,7 +93,7 @@ async function processFile(filePath, config) {
     }
     // Finale Übermittlung nach Dateiende (wichtig für Session-Promotion in der DB)
     await sendChunk(state, config, true);
-    fs_1.default.closeSync(fd);
+    fs.closeSync(fd);
     console.log(`\nFertig: ${packetCount} Pakete verarbeitet.`);
 }
 /**
@@ -108,25 +103,25 @@ function handlePacket(msg, state) {
     if (msg.length < 24)
         return; // Mindestlänge für F1 2024/25 Header
     try {
-        const header = (0, header_1.parseHeader)(msg);
+        const header = parseHeader(msg);
         switch (header.packetId) {
             case 0: { // Motion
-                const motionArray = (0, motionData_1.parseMotionData)(msg);
+                const motionArray = parseMotionData(msg);
                 motionArray.forEach((m, i) => state.updateMotion(i, m));
                 break;
             }
             case 1: { // Session
-                const sessionData = (0, session_1.parseSession)(msg);
+                const sessionData = parseSession(msg);
                 state.updateSession(sessionData);
                 break;
             }
             case 2: { // Lap Data
-                const lapDataArray = (0, lapData_1.parseLapData)(msg);
+                const lapDataArray = parseLapData(msg);
                 lapDataArray.forEach((lap, i) => state.updateLapData(i, lap));
                 break;
             }
             case 3: { // Event
-                const eventData = (0, eventData_1.parseEventData)(msg);
+                const eventData = parseEventData(msg);
                 if (eventData.eventStringCode === 'SEND') {
                     state.handleSessionEnd();
                 }
@@ -136,37 +131,38 @@ function handlePacket(msg, state) {
                 break;
             }
             case 4: { // Participants
-                const participantsData = (0, participants_1.parseParticipants)(msg);
+                const participantsData = parseParticipants(msg);
                 participantsData.forEach((p, i) => state.updateParticipant(i, p));
                 break;
             }
             case 6: { // Telemetry
-                const telemetryData = (0, telemetry_1.parseTelemetry)(msg);
+                const telemetryData = parseTelemetry(msg);
                 telemetryData.forEach((t, i) => state.updateTelemetry(i, t));
                 break;
             }
             case 7: { // Car Status
-                const carStatusArray = (0, carStatus_1.parseCarStatus)(msg);
+                const carStatusArray = parseCarStatus(msg);
                 carStatusArray.forEach((cs, i) => state.updateCarStatus(i, cs));
                 break;
             }
             case 10: { // Car Damage
-                const carDamageArray = (0, carDamage_1.parseCarDamage)(msg);
+                const carDamageArray = parseCarDamage(msg);
                 carDamageArray.forEach((cd, i) => state.updateCarDamage(i, cd));
                 break;
             }
             case 11: { // Session History
-                const sessionHistory = (0, sessionHistory_1.parseSessionHistoryData)(msg, header);
+                const sessionHistory = parseSessionHistoryData(msg, header);
                 state.updateSessionHistory(sessionHistory);
                 break;
             }
             case 13: { // MotionEx
-                const motionEx = (0, motionEx_1.parseMotionExData)(msg);
+                const motionEx = parseMotionExData(msg);
                 state.updateMotionEx(header.playerCarIndex, motionEx);
                 break;
             }
-            case 20: { // Tyre Sets
-                const tyreData = (0, tyreSets_1.parseTyreSets)(msg);
+            case 12: // Tyre Sets (F1 24/23)
+            case 20: { // Tyre Sets (F1 25)
+                const tyreData = parseTyreSets(msg);
                 state.updateTyreSets(tyreData.carIdx, tyreData.tyreSetData);
                 break;
             }
@@ -199,7 +195,7 @@ async function sendChunk(state, config, isFinal = false) {
         force: true // Signalisiert der API, dass die Daten priorisiert verarbeitet werden sollen
     };
     try {
-        const res = await (0, node_fetch_1.default)(config.url, {
+        const res = await fetch(config.url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),

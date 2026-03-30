@@ -129,9 +129,9 @@ export class PayloadMapper {
 
             // Zusätzliche Strategie-Fenster (ideal für Boxenstopp-Planung)
             sessionStatus: p.carStatusData ? {
-                pitStopWindowIdealLap: (p as any).pitStopWindowIdealLap ?? 0,
-                pitStopWindowLatestLap: (p as any).pitStopWindowLatestLap ?? 0,
-                pitStopRejoinPosition: (p as any).pitStopRejoinPosition ?? 0,
+                pitStopWindowIdealLap: p.pitStopWindowIdealLap ?? 0,
+                pitStopWindowLatestLap: p.pitStopWindowLatestLap ?? 0,
+                pitStopRejoinPosition: p.pitStopRejoinPosition ?? 0,
             } : undefined,
         };
     }

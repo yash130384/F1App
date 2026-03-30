@@ -1,6 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseCarStatus = parseCarStatus;
 // PacketCarStatusData: Header (29 bytes) + 22 * CarStatusData
 // CarStatusData layout (F1 25, 55 bytes per car):
 //   tractionControl:      uint8   (offset 0)
@@ -30,7 +27,7 @@ exports.parseCarStatus = parseCarStatus;
 //   networkPaused:        uint8   (offset 54)
 // Total per car: 55 bytes
 const CAR_STATUS_SIZE = 55;
-function parseCarStatus(buffer) {
+export function parseCarStatus(buffer) {
     const statuses = [];
     for (let i = 0; i < 22; i++) {
         const offset = 29 + (i * CAR_STATUS_SIZE);

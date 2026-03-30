@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseSessionHistoryData = parseSessionHistoryData;
-function parseSessionHistoryData(buffer, header) {
+export function parseSessionHistoryData(buffer, header) {
     let offset = 29; // Header size
     const carIdx = buffer.readUInt8(offset++);
     const numLaps = buffer.readUInt8(offset++);

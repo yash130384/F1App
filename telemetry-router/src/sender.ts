@@ -64,7 +64,6 @@ export function startSender(config: AppConfig, state: SessionState) {
                 packet: payload
             };
 
-            // AbortController für Timeouts verwenden, um hängende Verbindungen zu vermeiden
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
 
@@ -78,12 +77,17 @@ export function startSender(config: AppConfig, state: SessionState) {
                 clearTimeout(timeoutId);
 
                 if (!res.ok) {
-                    console.error(`Fehler beim Senden: HTTP-Status ${res.status}`);
+                    console.error(`❌ API Fehler beim Senden: HTTP ${res.status}`);
+                } else {
+                    console.log(`✅ Telemetrie-Paket an API übertragen (${payload.participants.length} Fahrer)`);
                 }
             } catch (e: any) {
                 clearTimeout(timeoutId);
-                console.error(`Netzwerkfehler beim Senden der Telemetrie: ${e.message}`);
+                console.error(`❌ Netzwerkfehler beim Senden: ${e.message}`);
             }
+        } else if (payload.participants.length > 0) {
+            // Nur loggen, wenn Teilnehmer da sind, aber kein Mensch (Noise Reduction)
+            // console.log(`ℹ️ Überspringe Paket: Keine menschlichen Fahrer erkannt.`);
         }
     }, config.intervalMs);
 }

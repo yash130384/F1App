@@ -1,13 +1,8 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.startPlayback = startPlayback;
-const fs_1 = __importDefault(require("fs"));
-const node_fetch_1 = __importDefault(require("node-fetch"));
-const path_1 = __importDefault(require("path"));
-const enquirer_1 = require("enquirer");
+import fs from 'fs';
+import fetch from 'node-fetch';
+import path from 'path';
+import Enquirer from 'enquirer';
+const { prompt } = Enquirer;
 /**
  * Startet den Playback-Modus für Legacy-JSON-Aufzeichnungen.
  * Dieser Modus erlaubt es, eine zuvor als JSON gespeicherte Session erneut an die API zu senden.
@@ -15,26 +10,26 @@ const enquirer_1 = require("enquirer");
  *
  * @param config Die globale Anwendungskonfiguration.
  */
-async function startPlayback(config) {
+export async function startPlayback(config) {
     console.log('\n--- Wiedergabemodus (Legacy JSON) ---');
-    const logsDir = path_1.default.join(process.cwd(), 'logs');
-    if (!fs_1.default.existsSync(logsDir)) {
+    const logsDir = path.join(process.cwd(), 'logs');
+    if (!fs.existsSync(logsDir)) {
         console.error('Kein "logs" Verzeichnis gefunden.');
         return;
     }
-    const files = fs_1.default.readdirSync(logsDir).filter(f => f.endsWith('.json'));
+    const files = fs.readdirSync(logsDir).filter(f => f.endsWith('.json'));
     if (files.length === 0) {
         console.error('Keine JSON-Aufzeichnungen in ./logs gefunden.');
         return;
     }
     // Interaktive Auswahl der Aufzeichnung
-    const response = await (0, enquirer_1.prompt)({
+    const response = await prompt({
         type: 'select',
         name: 'file',
         message: 'Wählen Sie eine Datei zur Wiedergabe:',
         choices: files
     });
-    const fileData = fs_1.default.readFileSync(path_1.default.join(logsDir, response.file), 'utf-8');
+    const fileData = fs.readFileSync(path.join(logsDir, response.file), 'utf-8');
     let jsonData;
     try {
         let text = fileData.trim();
@@ -63,7 +58,7 @@ async function startPlayback(config) {
             packet: payload
         };
         try {
-            const res = await (0, node_fetch_1.default)(config.url, {
+            const res = await fetch(config.url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)

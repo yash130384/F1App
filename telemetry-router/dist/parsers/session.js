@@ -1,6 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseSession = parseSession;
 /**
  * Mapping-Tabelle für Strecken-IDs zu Klarnamen.
  */
@@ -21,7 +18,7 @@ const TRACK_MAP = {
  * @param buffer Der rohe binäre Buffer des UDP-Pakets.
  * @returns Objekt mit detaillierten Session-Informationen.
  */
-function parseSession(buffer) {
+export function parseSession(buffer) {
     // Session Typ Mapping (Training, Quali, Rennen)
     const sessionTypeRaw = buffer.readUInt8(35);
     let sessionTypeMapped = "Unknown";

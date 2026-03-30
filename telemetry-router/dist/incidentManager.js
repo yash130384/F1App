@@ -1,12 +1,9 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.IncidentManager = void 0;
 /**
  * Der IncidentManager ist verantwortlich für die Protokollierung und Verwaltung
  * von Sondersituationen während eines Rennens (Strafen, Unfälle, Safety-Car-Phasen).
  * Er entlastet die SessionState-Klasse von der detaillierten Event-Logik.
  */
-class IncidentManager {
+export class IncidentManager {
     /** Liste der Safety-Car Statusänderungen (wird nach Übermittlung geleert). */
     safetyCarEvents = [];
     /** Chronologisches Log aller Vorfälle für die Anzeige im Admin-Hub oder Protokoll. */
@@ -64,4 +61,3 @@ class IncidentManager {
         return this.incidentLog;
     }
 }
-exports.IncidentManager = IncidentManager;

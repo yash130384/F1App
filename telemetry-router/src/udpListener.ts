@@ -217,18 +217,16 @@ export function startUdpListener(config: AppConfig, onStatusUpdate?: (status: St
                     state.updateMotionEx(header.playerCarIndex, motionEx);
                     break;
                 }
-                case 15: { // Lap Positions: Positionshistorie pro Runde (eher selten genutzt)
-                    state.updateLapPositions(msg);
-                    break;
-                }
-                case 20: { // Tyre Sets: Verfügbare und genutzte Reifensätze (nur verfügbar in P/Q/R)
+                case 12:   // Tyre Sets (F1 24/23)
+                case 20: { // Tyre Sets (F1 25)
                     const tyreData = parseTyreSets(msg);
                     state.updateTyreSets(tyreData.carIdx, tyreData.tyreSetData);
                     break;
                 }
             }
         } catch (e: any) {
-            console.error('Kritischer Fehler beim Verarbeiten eines UDP-Pakets:', e.message);
+            const headerInfo = msg.length >= 29 ? `ID ${(msg[24])} (${msg.length} Bytes)` : `Unbekannt (${msg.length} Bytes)`;
+            console.error(`❌ Kritischer Fehler beim Verarbeiten von Paket ${headerInfo}: ${e.message}`);
         }
     });
 

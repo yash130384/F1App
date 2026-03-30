@@ -1,12 +1,15 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseTyreSets = parseTyreSets;
-function parseTyreSets(buffer) {
-    const carIdx = buffer.readUInt8(29);
+export function parseTyreSets(buffer) {
+    const headerSize = 29;
+    const carIdx = buffer.readUInt8(headerSize);
     const tyreSetData = [];
+    // F1 24 (ID 12) = 231 Bytes, F1 25 (ID 20) = ?
+    // Wir bestimmen den Multiplikator anhand der Buffer-Länge
+    const setSize = buffer.length >= 251 ? 11 : 10;
     // cs_maxNumTyreSets is 20
     for (let i = 0; i < 20; i++) {
-        const offset = 30 + (i * 11);
+        const offset = (headerSize + 1) + (i * setSize);
+        if (offset + 10 > buffer.length)
+            break;
         tyreSetData.push({
             actualTyreCompound: buffer.readUInt8(offset),
             visualTyreCompound: buffer.readUInt8(offset + 1),
@@ -19,7 +22,9 @@ function parseTyreSets(buffer) {
             fitted: buffer.readUInt8(offset + 9)
         });
     }
-    const fittedIdx = buffer.readUInt8(30 + (20 * 11));
+    // fittedIdx ist das letzte Byte
+    const fittedIdxOffset = (headerSize + 1) + (20 * setSize);
+    const fittedIdx = (fittedIdxOffset < buffer.length) ? buffer.readUInt8(fittedIdxOffset) : 0;
     return {
         carIdx,
         tyreSetData,

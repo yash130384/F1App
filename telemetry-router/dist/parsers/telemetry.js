@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseTelemetry = parseTelemetry;
-function parseTelemetry(buffer) {
+export function parseTelemetry(buffer) {
     const telemetry = [];
     // Header is 29 bytes.
     // 22 cars * 60 bytes per CarTelemetryData = 1320 bytes.

@@ -1,6 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseCarDamage = parseCarDamage;
 // PacketCarDamageData: Header (29 bytes) + 22 * CarDamageData
 // CarDamageData layout (per car):
 //  tyresWear[4]:           4 * float = 16 bytes  (offset 0)
@@ -27,7 +24,7 @@ exports.parseCarDamage = parseCarDamage;
 //  engineSeized:           uint8                 (offset 45)
 // Total per car: 46 bytes
 const CAR_DAMAGE_SIZE = 46;
-function parseCarDamage(buffer) {
+export function parseCarDamage(buffer) {
     const damages = [];
     for (let i = 0; i < 22; i++) {
         const base = 29 + i * CAR_DAMAGE_SIZE;

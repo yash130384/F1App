@@ -1,10 +1,4 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderDashboard = renderDashboard;
-const readline_1 = __importDefault(require("readline"));
+import readline from 'readline';
 /**
  * Rendert eine kompakte Übersicht des aktuellen Status direkt in das Terminal.
  * Löscht bei jedem Aufruf die Konsole für einen sauberen "Live-Dashboard" Effekt.
@@ -12,8 +6,8 @@ const readline_1 = __importDefault(require("readline"));
  * @param config Die globale Anwendungskonfiguration.
  * @param state Der aktuelle Zustand aus dem SessionState.
  */
-function renderDashboard(config, state) {
-    const rl = readline_1.default.createInterface({
+export function renderDashboard(config, state) {
+    const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout
     });

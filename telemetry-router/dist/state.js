@@ -1,15 +1,12 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.SessionState = void 0;
-const incidentManager_1 = require("./incidentManager");
-const payloadMapper_1 = require("./payloadMapper");
-const trackIntel_1 = require("./trackIntel");
+import { IncidentManager } from './incidentManager';
+import { PayloadMapper } from './payloadMapper';
+import { TrackIntel } from './trackIntel';
 /**
  * Zentrale Verwaltung des Zustands einer laufenden F1-Telemetrie-Session.
  * Folgt dem Single Responsibility Principle: Delegiert spezialisierte Aufgaben an Unter-Komponenten
  * wie den IncidentManager (Vorfälle) und PayloadMapper (Daten-Transformation).
  */
-class SessionState {
+export class SessionState {
     /** Typ der aktuellen Session (z.B. "Race", "Qualifying 1") */
     sessionType = 'Unknown';
     /** Interne Track-ID vom Spiel */
@@ -34,9 +31,9 @@ class SessionState {
     finalClassification = [];
     // Interner Speicher für Fahrerdaten und Hilfsklassen
     players = new Map();
-    incidentManager = new incidentManager_1.IncidentManager();
+    incidentManager = new IncidentManager();
     lapPositions = [];
-    trackIntel = new trackIntel_1.TrackIntel();
+    trackIntel = new TrackIntel();
     /**
      * Erstellt einen neuen PlayerState oder gibt den existierenden für einen Fahrzeug-Index zurück.
      * Sorgt für eine konsistente Initialisierung neuer Fahrer-Objekte.
@@ -351,7 +348,7 @@ class SessionState {
     buildPayloadAndClear() {
         const participantsList = Array.from(this.players.entries())
             .filter(([_, p]) => p.gameName && !p.gameName.startsWith('Unknown_'))
-            .map(([_, p]) => payloadMapper_1.PayloadMapper.mapPlayer(_, p));
+            .map(([_, p]) => PayloadMapper.mapPlayer(_, p));
         const safetyCarEvents = this.incidentManager.fetchAndClearEvents();
         const lapPositions = [...this.lapPositions];
         this.lapPositions = [];
@@ -440,4 +437,3 @@ class SessionState {
         };
     }
 }
-exports.SessionState = SessionState;

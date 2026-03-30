@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseEventData = parseEventData;
-function parseEventData(buffer) {
+export function parseEventData(buffer) {
     const eventStringCode = buffer.toString('utf8', 29, 33);
     const event = { eventStringCode };
     // Safety Car event

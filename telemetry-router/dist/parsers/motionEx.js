@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseMotionExData = parseMotionExData;
-function parseMotionExData(buffer) {
+export function parseMotionExData(buffer) {
     let offset = 29; // Header
     const suspensionPosition = [
         buffer.readFloatLE(offset), buffer.readFloatLE(offset + 4),

@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseLapData = parseLapData;
-function parseLapData(buffer) {
+export function parseLapData(buffer) {
     const laps = [];
     // Header is 29 bytes.
     // 22 cars * 57 bytes per LapData = 1254 bytes.

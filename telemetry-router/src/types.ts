@@ -121,9 +121,13 @@ export interface PlayerState {
     carDamageData?: CarDamageData;
     motionData?: MotionData;
     motionExData?: MotionExData;
-    carSetupData?: any; // To be replaced with CarSetupData from parsers
+    carSetupData?: any; 
     tyreSets?: TyreSetData[];
     speedTraps: any[];
     currentLapSamples: LapSample[];
     bestLapSamples: LapSample[];
+    // Vorhersagen (meist aus CarStatus oder LapData berechnet)
+    pitStopWindowIdealLap?: number;
+    pitStopWindowLatestLap?: number;
+    pitStopRejoinPosition?: number;
 }
