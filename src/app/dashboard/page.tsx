@@ -7,6 +7,7 @@ import { getDashboardData, getAllLeagues, getRaceDetails, deleteRace, getActiveT
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 import RaceCountdown, { RevealCountdown } from './RaceCountdown';
 import LiveTrackMap from './LiveTrackMap';
+import DriverAvatar from '@/components/common/DriverAvatar';
 
 // Props for our refactored Graph Component
 interface RaceGraphContentProps {
@@ -160,7 +161,12 @@ function RaceResultsTable({ raceResults, handleDriverClick, compact = false }: R
                             </td>
                             <td>
                                 <div className="flex items-center gap-small">
-                                    <div style={{ width: '3px', height: '16px', background: res.driver_color || 'var(--text-muted)', borderRadius: '1px' }} />
+                                    <DriverAvatar 
+                                        src={res.avatar_url} 
+                                        name={res.driver_name} 
+                                        size={28} 
+                                        borderColor={res.driver_color}
+                                    />
                                     <span className="text-f1-bold" style={{ fontSize: compact ? '0.875rem' : '1rem' }}>
                                         {res.driver_name}
                                     </span>
@@ -453,7 +459,12 @@ export default function Dashboard() {
                                                     <td className="pos-number text-mono">{idx + 1}</td>
                                                         <td>
                                                             <div className="flex items-center gap-small">
-                                                                <div style={{ width: '3px', height: '18px', background: driver.color || 'var(--text-muted)', borderRadius: '1px' }} />
+                                                                <DriverAvatar 
+                                                                    src={driver.avatar_url} 
+                                                                    name={driver.name} 
+                                                                    size={32} 
+                                                                    borderColor={driver.color}
+                                                                />
                                                                 <span className="text-f1-bold" style={{ fontSize: '1.1rem' }}>{driver.name}</span>
                                                                 {driver.formIndicator === 'UP' && <span style={{ color: '#00ff00' }}>↑</span>}
                                                                 {driver.formIndicator === 'DOWN' && <span style={{ color: 'var(--f1-red)' }}>↓</span>}
@@ -678,7 +689,12 @@ export default function Dashboard() {
                                                                         </td>
                                                                         <td>
                                                                             <div className="flex items-center gap-small">
-                                                                                <div style={{ width: '3px', height: '18px', background: standings.find((d: any) => d.id === res.driver_id)?.color || 'var(--text-muted)', borderRadius: '1px' }} />
+                                                                                <DriverAvatar 
+                                                                                    src={res.avatar_url} 
+                                                                                    name={res.driver_name} 
+                                                                                    size={28} 
+                                                                                    borderColor={standings.find((d: any) => d.id === res.driver_id)?.color}
+                                                                                />
                                                                                 <span className="text-f1-bold">{res.driver_name}</span>
                                                                                 <div className="flex gap-small">
                                                                                     {res.is_dnf && <span style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>DNF</span>}

@@ -77,8 +77,7 @@ export const authOptions: AuthOptions = {
         }
     },
     pages: {
-        
-        // signIn: '/login'
+        signIn: '/login'
     },
     secret: process.env.NEXTAUTH_SECRET || "F1APP_SUPER_SECRET_KEY_123!"
 };

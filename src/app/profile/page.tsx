@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import styles from "./Profile.module.css";
+import DriverAvatar from "@/components/common/DriverAvatar";
 
 export default function ProfilePage() {
     const { data: session, status, update } = useSession();
@@ -102,13 +103,13 @@ export default function ProfilePage() {
                     <h2 className={styles.cardTitle}>Identity</h2>
                     
                     <div className={styles.avatarSection}>
-                        <img 
-                            src={avatarUrl || "https://api.dicebear.com/7.x/bottts/svg?seed=" + session.user.name} 
-                            alt="Avatar" 
-                            className={styles.avatar} 
-                            style={{ borderColor: globalColor }}
+                        <DriverAvatar 
+                            src={avatarUrl} 
+                            name={session.user.name || "Driver"} 
+                            size={120} 
+                            borderColor={globalColor}
                         />
-                        <span style={{fontWeight: 800, fontSize: '1.2rem'}}>{session.user.name}</span>
+                        <span style={{fontWeight: 800, fontSize: '1.2rem', marginTop: '1rem'}}>{session.user.name}</span>
                         <span style={{color: 'rgba(255,255,255,0.5)'}}>{session.user.email}</span>
                     </div>
                 </div>

@@ -1,12 +1,14 @@
 'use client';
 
 import styles from '../LeagueDashboard.module.css';
+import DriverAvatar from '@/components/common/DriverAvatar';
 
 interface Driver {
   id: string;
   name: string;
   team: string;
   color?: string;
+  avatar_url?: string | null;
 }
 
 interface RosterManagementProps {
@@ -30,10 +32,12 @@ export default function RosterManagement({ drivers }: RosterManagementProps) {
           {drivers.map(d => (
             <div key={d.id} className={`f1-card ${styles.driverCard}`}>
               <div className="flex items-center gap-4">
-                <div 
-                  className={styles.teamColor} 
-                  style={{ background: d.color || 'var(--f1-red)' }}
-                ></div>
+                <DriverAvatar 
+                  src={d.avatar_url} 
+                  name={d.name} 
+                  size={36} 
+                  borderColor={d.color}
+                />
                 <div>
                   <div className={`text-f1 ${styles.driverName}`}>{d.name}</div>
                   <div className={styles.driverTeam}>{d.team}</div>
@@ -47,3 +51,4 @@ export default function RosterManagement({ drivers }: RosterManagementProps) {
     </section>
   );
 }
+
