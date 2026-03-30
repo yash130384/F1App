@@ -1,0 +1,171 @@
+.dashboardContainer {
+  padding: 4rem 1.5rem;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+@media (min-width: 768px) {
+  .header {
+    flex-direction: row;
+  }
+}
+
+.badge {
+  background: var(--f1-red);
+  color: white;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.leagueId {
+  color: var(--silver);
+  font-size: 0.8rem;
+  letter-spacing: 2px;
+}
+
+.title {
+  font-size: 3.5rem;
+  line-height: 1;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.settingsBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mainGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .mainGrid {
+    grid-template-columns: 1fr 300px;
+  }
+}
+
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.driverCard {
+  padding: 0.8rem 1.2rem;
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.teamColor {
+  width: 4px;
+  height: 24px;
+}
+
+.driverName {
+  font-size: 1rem;
+}
+
+.driverTeam {
+  font-size: 0.7rem;
+  color: var(--silver);
+  text-transform: uppercase;
+}
+
+.removeBtn {
+  color: var(--error);
+  font-size: 0.7rem;
+  font-weight: 900;
+  opacity: 0.5;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.removeBtn:hover {
+  opacity: 1;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 2rem;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.sectionTitle {
+  font-size: 1.2rem;
+  color: var(--f1-red);
+  margin-bottom: 1rem;
+}
+
+.sidebarSectionTitle {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.sidebarCard {
+  border-top: 4px solid var(--f1-red);
+}
+
+.quickActionList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.deleteBtn {
+  width: 100%;
+  text-align: left;
+  font-size: 0.7rem;
+  color: var(--error);
+  font-weight: 900;
+  padding: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.telemetryText {
+  font-size: 0.8rem;
+  color: var(--silver);
+  margin-bottom: 1rem;
+}
+
+.statusIndicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--f1-red);
+  font-weight: 900;
+  font-size: 0.7rem;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.loadingScreen, .errorScreen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
