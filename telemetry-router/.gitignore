@@ -1,7 +1,0 @@
-node_modules/
-dist/
-recordings/
-track_data/
-config.json
-*.bin
-.DS_Store
