@@ -9,7 +9,6 @@ export default function JoinLeague() {
     const [team, setTeam] = useState('');
     const [gameName, setGameName] = useState('');
     const [color, setColor] = useState('#ffffff');
-    const [joinPassword, setJoinPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
@@ -19,7 +18,7 @@ export default function JoinLeague() {
         setLoading(true);
         setError(null);
 
-        const res = await joinLeague(leagueName, joinPassword, driverName, team, color, gameName);
+        const res = await joinLeague(leagueName, driverName, team, color, gameName);
 
         if (res.success) {
             setSuccess(true);
@@ -56,18 +55,6 @@ export default function JoinLeague() {
                         onChange={(e) => setLeagueName(e.target.value)}
                         required
                         placeholder="Exactly as created"
-                        style={{ padding: '1rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
-                    />
-                </label>
-
-                <label className="flex flex-col gap-1">
-                    <span style={{ color: 'var(--silver)', fontSize: '0.9rem', textTransform: 'uppercase', fontWeight: 700 }}>Join Password</span>
-                    <input
-                        type="password"
-                        value={joinPassword}
-                        onChange={(e) => setJoinPassword(e.target.value)}
-                        required
-                        placeholder="Shared by admin"
                         style={{ padding: '1rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
                     />
                 </label>

@@ -35,13 +35,13 @@ import {
 import { DEFAULT_CONFIG, PointsConfig, calculatePoints, formatPoints } from '@/lib/scoring';
 import { F1_TRACKS_2025, getTrackNameById } from '@/lib/constants';
 
-export default function AdminHub() {
+export default function AdminHub({ params }: { params: { leagueId: string } }) {
     // Auth State
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [isLoggedIn, setIsLoggedIn] = useState(true);
     const [authType, setAuthType] = useState<'league' | null>(null);
     const [leagueName, setLeagueName] = useState('');
-    const [adminPass, setAdminPass] = useState('');
-    const [leagueId, setLeagueId] = useState<string | null>(null);
+    const adminPass = "session";
+    const leagueId = params.leagueId;
 
     // Dynamic Data State
     const [activeTab, setActiveTab] = useState<'races' | 'drivers' | 'points' | 'telemetry'>('races');
@@ -80,10 +80,26 @@ export default function AdminHub() {
 
     useEffect(() => {
         refreshLeagues();
-        checkSession();
+        
     }, []);
 
-    const checkSession = async () => {
+    useEffect(() => {
+        async function init() {
+            setIsLoggedIn(true);
+            const pRes = await getPointsConfig(leagueId);
+            if (pRes.success && pRes.config) setPointsConfig(pRes.config);
+            const teamsRes = await getAllTeams(leagueId);
+            if (teamsRes.success) setTeams(teamsRes.teams || []);
+            refreshRaces(leagueId);
+            refreshTelemetry(leagueId, "session");
+            const driversRes = await getAdminLeagueDrivers(leagueId, "session");
+            if (driversRes.success) setDrivers(driversRes.drivers || []);
+            const dashRes = await getDashboardData(leagueId);
+            if(dashRes.success && dashRes.league) setLeagueName(dashRes.league.name);
+        }
+        if (leagueId) init();
+    }, [leagueId]);
+    const checkSession_unused = async () => {
         const session = localStorage.getItem('f1_admin_session');
         if (session) {
             try {
@@ -95,8 +111,8 @@ export default function AdminHub() {
                         setIsLoggedIn(true);
                         setAuthType('league');
                         setLeagueName(parsed.name);
-                        setAdminPass(parsed.pass); // keep pass for actions
-                        setLeagueId(res.leagueId);
+                        // removed setAdminPass // keep pass for actions
+                        // setLeagueId
                         setDrivers(res.drivers || []);
                         setActiveTab('races');
 
@@ -149,7 +165,7 @@ export default function AdminHub() {
         if (res.success) {
             setIsLoggedIn(true);
             setAuthType('league');
-            setLeagueId(res.leagueId);
+            // removed setLeagueId
             // Use getAdminLeagueDrivers to fetch drivers with team info
             const driversRes = await getAdminLeagueDrivers(res.leagueId, adminPass);
             if (driversRes.success) setDrivers(driversRes.drivers || []);
@@ -177,8 +193,8 @@ export default function AdminHub() {
         setIsLoggedIn(false);
         setAuthType(null);
         setLeagueName('');
-        setAdminPass('');
-        setLeagueId(null);
+        // removed setAdminPass
+        // removed setLeagueId
         localStorage.removeItem('f1_admin_session');
     }
 
@@ -464,7 +480,7 @@ export default function AdminHub() {
                             <input
                                 type="password"
                                 value={adminPass}
-                                onChange={e => setAdminPass(e.target.value)}
+                                onChange={() => {}}
                                 placeholder="••••••••"
                                 required
                                 className="glass-panel"

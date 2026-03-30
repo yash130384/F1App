@@ -2,6 +2,16 @@
 
 import * as crypto from 'node:crypto';
 import { query, run } from './db';
+
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+
+async function verifyLeagueOwner(leagueId: string) {
+    const session = await getServerSession(authOptions) as any;
+    if (!session || !session.user || !session.user.id) throw new Error('Unauthorized session.');
+    const leagues = await query<any>(`SELECT owner_id FROM leagues WHERE id = ?`, [leagueId]);
+    if (leagues.length === 0 || leagues[0].owner_id !== session.user.id) throw new Error('Unauthorized. Not the owner.');
+}
 import { calculatePoints, DEFAULT_CONFIG, PointsConfig } from './scoring';
 
 /**
@@ -9,10 +19,7 @@ import { calculatePoints, DEFAULT_CONFIG, PointsConfig } from './scoring';
  */
 export async function getDiscoverableSessions(leagueId: string, adminPass: string) {
     try {
-        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
-        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
-            throw new Error('Unauthorized.');
-        }
+        await verifyLeagueOwner(leagueId);
 
         const sessions = await query<any>(`
             SELECT ts.id, ts.league_id as original_league_name, ts.track_id, ts.session_type, ts.created_at,
@@ -33,10 +40,7 @@ export async function getDiscoverableSessions(leagueId: string, adminPass: strin
  */
 export async function claimSession(leagueId: string, adminPass: string, sessionId: string) {
     try {
-        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
-        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
-            throw new Error('Unauthorized.');
-        }
+        await verifyLeagueOwner(leagueId);
 
         await run(`UPDATE telemetry_sessions SET league_id = ? WHERE id = ?`, [leagueId, sessionId]);
         
@@ -49,12 +53,15 @@ export async function claimSession(leagueId: string, adminPass: string, sessionI
 /**
  * Creates a new league.
  */
-export async function createLeague(name: string, adminPass: string, joinPass: string) {
+export async function createLeague(name: string) {
     try {
+        const session = await getServerSession(authOptions) as any;
+        if (!session || !session.user || !session.user.id) throw new Error('Unauthorized session.');
+        const userId = session.user.id;
         const leagueId = crypto.randomUUID();
         await run(
-            `INSERT INTO leagues (id, name, admin_password, join_password) VALUES (?, ?, ?, ?)`,
-            [leagueId, name, adminPass, joinPass]
+            `INSERT INTO leagues (id, name, owner_id) VALUES (?, ?, ?)`,
+            [leagueId, name, userId]
         );
 
         // Initialize default points config
@@ -75,15 +82,13 @@ export async function createLeague(name: string, adminPass: string, joinPass: st
 /**
  * Validates a league for joining and creates a driver.
  */
-export async function joinLeague(leagueName: string, joinPass: string, driverName: string, team: string, color: string, gameName?: string) {
+export async function joinLeague(leagueName: string, driverName: string, team: string, color: string, gameName?: string) {
     try {
         const leagues = await query<any>(
-            `SELECT id, join_password FROM leagues WHERE name = ?`,
+            `SELECT id FROM leagues WHERE name = ?`,
             [leagueName]
         );
-
         if (leagues.length === 0) throw new Error('League not found.');
-        if (leagues[0].join_password !== joinPass) throw new Error('Incorrect Join Password.');
 
         const leagueId = leagues[0].id;
         const driverId = crypto.randomUUID();
@@ -130,8 +135,7 @@ export async function adminLogin(leagueName: string, adminPass: string) {
  */
 export async function adminAddTeam(leagueId: string, adminPass: string, name: string, color: string) {
     try {
-        const leagues = await query<any>(`SELECT id FROM leagues WHERE id = ? AND admin_password = ?`, [leagueId, adminPass]);
-        if (leagues.length === 0) throw new Error('Unauthorized.');
+        await verifyLeagueOwner(leagueId);
 
         const teamId = crypto.randomUUID();
         await run(`INSERT INTO teams (id, league_id, name, color) VALUES (?, ?, ?, ?)`, [teamId, leagueId, name, color]);
@@ -146,8 +150,7 @@ export async function adminAddTeam(leagueId: string, adminPass: string, name: st
  */
 export async function adminDeleteTeam(leagueId: string, adminPass: string, teamId: string) {
     try {
-        const leagues = await query<any>(`SELECT id FROM leagues WHERE id = ? AND admin_password = ?`, [leagueId, adminPass]);
-        if (leagues.length === 0) throw new Error('Unauthorized.');
+        await verifyLeagueOwner(leagueId);
 
         // Unlink drivers from this team
         await run(`UPDATE drivers SET team_id = NULL WHERE team_id = ?`, [teamId]);
@@ -163,8 +166,7 @@ export async function adminDeleteTeam(leagueId: string, adminPass: string, teamI
  */
 export async function assignDriverToTeam(leagueId: string, adminPass: string, driverId: string, teamId: string | null) {
     try {
-        const leagues = await query<any>(`SELECT id FROM leagues WHERE id = ? AND admin_password = ?`, [leagueId, adminPass]);
-        if (leagues.length === 0) throw new Error('Unauthorized.');
+        await verifyLeagueOwner(leagueId);
 
         if (teamId) {
             // Check count of drivers in team
@@ -198,8 +200,7 @@ export async function getAllTeams(leagueId: string) {
  */
 export async function getAdminLeagueDrivers(leagueId: string, adminPass: string) {
     try {
-        const leagues = await query<any>(`SELECT id FROM leagues WHERE id = ? AND admin_password = ?`, [leagueId, adminPass]);
-        if (leagues.length === 0) throw new Error('Unauthorized.');
+        await verifyLeagueOwner(leagueId);
 
         const drivers = await query<any>(
             `SELECT id, name, team, color, game_name, team_id FROM drivers WHERE league_id = ?`,
@@ -385,10 +386,7 @@ export async function recalculateStandings(leagueId: string) {
 export async function scheduleRace(leagueId: string, track: string, date: string, adminPass: string, isRandom = false, revealHours = 0) {
     try {
         // Auth Check
-        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
-        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
-            throw new Error('Unauthorized.');
-        }
+        await verifyLeagueOwner(leagueId);
 
         let finalTrack = track;
         if (isRandom) {
@@ -673,16 +671,16 @@ export async function getRaceDetails(raceId: string) {
 export async function seedTestData() {
     try {
         const leagueName = `Test League ${Date.now()}`;
-        await createLeague(leagueName, 'admin', 'join');
+        await createLeague(leagueName);
 
         // Get the league ID
         const leagues = await query<any>(`SELECT id FROM leagues WHERE name = ?`, [leagueName]);
         const leagueId = leagues[0].id;
 
         // Add drivers
-        await joinLeague(leagueName, 'join', 'Max Verstappen', 'Red Bull', '#0600ef');
-        await joinLeague(leagueName, 'join', 'Lewis Hamilton', 'Mercedes', '#00d2be');
-        await joinLeague(leagueName, 'join', 'Lando Norris', 'McLaren', '#ff8700');
+        await joinLeague(leagueName, 'Max Verstappen', 'Red Bull', '#0600ef');
+        await joinLeague(leagueName, 'Lewis Hamilton', 'Mercedes', '#00d2be');
+        await joinLeague(leagueName, 'Lando Norris', 'McLaren', '#ff8700');
 
         const drivers = await query<any>(`SELECT id FROM drivers WHERE league_id = ?`, [leagueId]);
 
@@ -708,10 +706,7 @@ export async function seedTestData() {
 export async function deleteRace(raceId: string, leagueId: string, adminPass: string) {
     try {
         // 1. Auth Check
-        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
-        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
-            throw new Error('Unauthorized or invalid admin password.');
-        }
+        await verifyLeagueOwner(leagueId);
 
         // 2. Perform deletion in one go if possible, but better-sqlite3 doesn't support complex transactions via run() easily without .transaction()
         // So we do it sequentially. The points update is the critical part.
@@ -735,10 +730,7 @@ export async function deleteRace(raceId: string, leagueId: string, adminPass: st
  */
 export async function deleteScheduledRace(raceId: string, leagueId: string, adminPass: string) {
     try {
-        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
-        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
-            throw new Error('Unauthorized.');
-        }
+        await verifyLeagueOwner(leagueId);
 
         await run(`DELETE FROM races WHERE id = ? AND is_finished = false`, [raceId]);
         return { success: true };
@@ -755,10 +747,7 @@ export async function deleteScheduledRace(raceId: string, leagueId: string, admi
 export async function deleteDriver(driverId: string, leagueId: string, adminPass: string) {
     try {
         // 1. Auth Check (League Admin)
-        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
-        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
-            throw new Error('Unauthorized or invalid admin password.');
-        }
+        await verifyLeagueOwner(leagueId);
 
         // 2. Delete driver's results
         await run(`DELETE FROM race_results WHERE driver_id = ?`, [driverId]);
@@ -810,10 +799,7 @@ export async function getPointsConfig(leagueId: string) {
 export async function updatePointsConfig(leagueId: string, config: PointsConfig, adminPass: string) {
     try {
         // Auth Check
-        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
-        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
-            throw new Error('Unauthorized or invalid admin password.');
-        }
+        await verifyLeagueOwner(leagueId);
 
         // Check if config exists
         const existingConfig = await query<any>(`SELECT league_id FROM points_config WHERE league_id = ?`, [leagueId]);
@@ -856,10 +842,7 @@ export async function updatePointsConfig(leagueId: string, config: PointsConfig,
 export async function updateRaceResults(leagueId: string, raceId: string, results: any[], adminPass: string) {
     try {
         // 1. Auth Check
-        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
-        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
-            throw new Error('Unauthorized.');
-        }
+        await verifyLeagueOwner(leagueId);
 
         // 2. Fetch Points Config
         const configRes = await getPointsConfig(leagueId);
@@ -933,10 +916,7 @@ export async function getActiveTelemetrySession(leagueId: string) {
  */
 export async function getUnassignedTelemetryPlayers(leagueId: string, adminPass: string) {
     try {
-        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
-        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
-            throw new Error('Unauthorized.');
-        }
+        await verifyLeagueOwner(leagueId);
 
         const unassigned = await query<any>(`
             SELECT tp.game_name, tp.session_id, ts.created_at
@@ -960,10 +940,7 @@ export async function getUnassignedTelemetryPlayers(leagueId: string, adminPass:
  */
 export async function assignTelemetryPlayer(leagueId: string, adminPass: string, gameName: string, driverId: string) {
     try {
-        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
-        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
-            throw new Error('Unauthorized.');
-        }
+        await verifyLeagueOwner(leagueId);
 
         // Broad update: assign this driver ID to anywhere this gameName appears in this league's sessions where it's currently null
         const sessions = await query<any>(`SELECT id FROM telemetry_sessions WHERE league_id = ?`, [leagueId]);
@@ -1039,10 +1016,7 @@ export async function internalPromoteTelemetryToRace(leagueId: string, sessionId
 
 export async function promoteTelemetryToRace(leagueId: string, adminPass: string, sessionId: string, track: string, existingRaceId?: string) {
     try {
-        const leagues = await query<any>(`SELECT admin_password FROM leagues WHERE id = ?`, [leagueId]);
-        if (leagues.length === 0 || leagues[0].admin_password !== adminPass) {
-            throw new Error('Unauthorized.');
-        }
+        await verifyLeagueOwner(leagueId);
 
         // 1. Alle Teilnehmer laden (inkl. nicht zugeordnete)
         const participants = await query<any>(
@@ -1771,6 +1745,17 @@ export async function getTrackMetadata(trackId: number) {
         `, [trackId]);
 
         return { success: true, metadata };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function getUserLeagues() {
+    try {
+        const session = await getServerSession(authOptions) as any;
+        if (!session || !session.user || !session.user.id) throw new Error('Unauthorized');
+        const leagues = await query<any>(`SELECT id, name FROM leagues WHERE owner_id = ? ORDER BY name ASC`, [session.user.id]);
+        return { success: true, leagues };
     } catch (error: any) {
         return { success: false, error: error.message };
     }

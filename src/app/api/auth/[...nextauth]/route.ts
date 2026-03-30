@@ -8,19 +8,22 @@ export const authOptions: AuthOptions = {
         CredentialsProvider({
             name: "Credentials",
             credentials: {
-                email: { label: "Email", type: "email", placeholder: "test@test.de" },
+                username: { label: "Username", type: "text", placeholder: "Markus Lanz" },
                 password: { label: "Password", type: "password" }
             },
-            async authorize(credentials: Record<"email" | "password", string> | undefined) {
-                if (!credentials?.email || !credentials?.password) {
+            async authorize(credentials: Record<"username" | "password", string> | undefined) {
+                if (!credentials?.username || !credentials?.password) {
                     return null;
                 }
 
-                // E-Mail abfragen
-                const users = await query<any>("SELECT * FROM users WHERE email = ? LIMIT 1", [credentials.email]);
+                // Username abfragen
+                const users = await query<any>("SELECT * FROM users WHERE username = ? LIMIT 1", [credentials.username]);
                 
                 if (users.length === 0) {
-                    return null;
+                    // Try case insensitive fallback if exact match doesn't work right away
+                    const usersFallback = await query<any>("SELECT * FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1", [credentials.username]);
+                    if (usersFallback.length === 0) return null;
+                    users[0] = usersFallback[0];
                 }
 
                 const user = users[0];
@@ -74,7 +77,7 @@ export const authOptions: AuthOptions = {
         }
     },
     pages: {
-        // Optionale Custom Pages können hier später referenziert werden
+        
         // signIn: '/login'
     },
     secret: process.env.NEXTAUTH_SECRET || "F1APP_SUPER_SECRET_KEY_123!"

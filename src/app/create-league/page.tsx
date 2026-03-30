@@ -5,8 +5,6 @@ import { createLeague } from '@/lib/actions';
 
 export default function CreateLeague() {
     const [name, setName] = useState('');
-    const [adminPassword, setAdminPassword] = useState('');
-    const [joinPassword, setJoinPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
@@ -16,7 +14,7 @@ export default function CreateLeague() {
         setLoading(true);
         setError(null);
 
-        const res = await createLeague(name, adminPassword, joinPassword);
+        const res = await createLeague(name);
 
         if (res.success) {
             setSuccess(true);
@@ -31,16 +29,14 @@ export default function CreateLeague() {
             <div className="container animate-fade-in" style={{ padding: '4rem 1.5rem', textAlign: 'center' }}>
                 <h1 className="text-f1 text-gradient" style={{ fontSize: '3rem', marginBottom: '1.5rem' }}>League Created!</h1>
                 <p style={{ color: 'var(--silver)', marginBottom: '2rem' }}>
-                    Share the <strong>Join Password</strong> with your drivers to get started.
+                    Your new league is ready. You can now manage it from your profile.
                 </p>
                 <div className="f1-card" style={{ maxWidth: '400px', margin: '0 auto' }}>
                     <p style={{ color: 'var(--silver)' }}>League Name</p>
                     <p className="text-f1" style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>{name}</p>
-                    <p style={{ color: 'var(--silver)' }}>Join Password</p>
-                    <p className="text-f1" style={{ fontSize: '1.5rem', color: 'var(--f1-red)' }}>{joinPassword}</p>
                 </div>
-                <button className="btn-primary" style={{ marginTop: '2rem', marginInline: 'auto' }} onClick={() => window.location.href = '/'}>
-                    Go to Dashboard
+                <button className="btn-primary" style={{ marginTop: '2rem', marginInline: 'auto' }} onClick={() => window.location.href = '/profile/leagues'}>
+                    Go to Manage Leagues
                 </button>
             </div>
         );
@@ -59,30 +55,6 @@ export default function CreateLeague() {
                         onChange={(e) => setName(e.target.value)}
                         required
                         placeholder="e.g. Saturday Night F1"
-                        style={{ padding: '1rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
-                    />
-                </label>
-
-                <label className="flex flex-col gap-1">
-                    <span style={{ color: 'var(--silver)', fontSize: '0.9rem', textTransform: 'uppercase', fontWeight: 700 }}>Admin Password</span>
-                    <input
-                        type="password"
-                        value={adminPassword}
-                        onChange={(e) => setAdminPassword(e.target.value)}
-                        required
-                        placeholder="For league management"
-                        style={{ padding: '1rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
-                    />
-                </label>
-
-                <label className="flex flex-col gap-1">
-                    <span style={{ color: 'var(--silver)', fontSize: '0.9rem', textTransform: 'uppercase', fontWeight: 700 }}>Join Password</span>
-                    <input
-                        type="text"
-                        value={joinPassword}
-                        onChange={(e) => setJoinPassword(e.target.value)}
-                        required
-                        placeholder="Share this with drivers"
                         style={{ padding: '1rem', background: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
                     />
                 </label>

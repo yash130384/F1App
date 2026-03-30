@@ -8,8 +8,7 @@ export const leagues = pgTable('leagues', {
   id: uuid('id').defaultRandom().primaryKey(),
   createdAt: timestamp('created_at').defaultNow(),
   name: text('name').unique().notNull(),
-  adminPassword: text('admin_password').notNull(),
-  joinPassword: text('join_password').notNull(),
+  ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'cascade' }),
 });
 
 /**

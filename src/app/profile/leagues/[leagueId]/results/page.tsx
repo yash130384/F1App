@@ -1,79 +1,43 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { adminLogin, saveRaceResults } from '@/lib/actions';
+import { getAdminLeagueDrivers, saveRaceResults } from '@/lib/actions';
 import { calculatePoints, formatPoints } from '@/lib/scoring';
 import { F1_TRACKS_2025 } from '@/lib/constants';
 
-export default function AdminResults() {
-    const [auth, setAuth] = useState({ name: '', pass: '' });
-    const [isAuthed, setIsAuthed] = useState(false);
-    const [leagueId, setLeagueId] = useState<string | null>(null);
+export default function ManualResults({ params }: { params: { leagueId: string } }) {
+    const leagueId = params.leagueId;
     const [drivers, setDrivers] = useState<any[]>([]);
     const [track, setTrack] = useState('');
     const [results, setResults] = useState<Record<string, { position: number; qualiPosition: number; fastestLap: boolean; cleanDriver: boolean; isDnf: boolean }>>({});
-    const [loading, setLoading] = useState(false);
-    const [checkingSession, setCheckingSession] = useState(true);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        checkSession();
-    }, []);
-
-    const checkSession = async () => {
-        const session = localStorage.getItem('f1_admin_session');
-        if (session) {
+        async function fetchDrivers() {
+            setLoading(true);
             try {
-                const parsed = JSON.parse(session);
-                if (parsed.type === 'league') {
-                    setLoading(true);
-                    const res = await adminLogin(parsed.name, parsed.pass);
-                    if (res.success) {
-                        setLeagueId(res.leagueId);
-                        setDrivers(res.drivers || []);
-                        setIsAuthed(true);
-                        setAuth({ name: parsed.name, pass: parsed.pass });
-
-                        // Initialize results state
-                        const initialResults: any = {};
-                        (res.drivers || []).forEach((d: any) => {
-                            initialResults[d.id] = { position: 20, qualiPosition: 0, fastestLap: false, cleanDriver: false, isDnf: false };
-                        });
-                        setResults(initialResults);
-                    }
-                    setLoading(false);
+                const res = await getAdminLeagueDrivers(leagueId, "session");
+                if (res.success) {
+                    setDrivers(res.drivers || []);
+                    
+                    const initialResults: any = {};
+                    (res.drivers || []).forEach((d: any) => {
+                        initialResults[d.id] = { position: 20, qualiPosition: 0, fastestLap: false, cleanDriver: false, isDnf: false };
+                    });
+                    setResults(initialResults);
+                } else {
+                    setError(res.error || "Failed to load drivers");
                 }
-            } catch (e) {
-                console.error('Session parse error', e);
+            } catch (err: any) {
+                setError(err.message || "An error occurred");
+            } finally {
+                setLoading(false);
             }
         }
-        setCheckingSession(false);
-    };
-
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        setError(null);
-
-        const res = await adminLogin(auth.name, auth.pass);
-
-        if (res.success) {
-            setLeagueId(res.leagueId);
-            setDrivers(res.drivers || []);
-            setIsAuthed(true);
-
-            // Initialize results state
-            const initialResults: any = {};
-            (res.drivers || []).forEach((d: any) => {
-                initialResults[d.id] = { position: 20, qualiPosition: 0, fastestLap: false, cleanDriver: false, isDnf: false };
-            });
-            setResults(initialResults);
-            setLoading(false);
-        } else {
-            setError(res.error || 'Login failed.');
-            setLoading(false);
-        }
-    };
+        
+        fetchDrivers();
+    }, [leagueId]);
 
     const updateResult = (driverId: string, field: string, value: any) => {
         setResults(prev => ({
@@ -83,7 +47,11 @@ export default function AdminResults() {
     };
 
     const handleSubmit = async () => {
-        if (!leagueId) return;
+        if (!leagueId || !track) {
+            alert("Please select a track before submitting.");
+            return;
+        }
+        
         setLoading(true);
         setError(null);
 
@@ -100,57 +68,29 @@ export default function AdminResults() {
 
         if (res.success) {
             alert('Race Results Submitted!');
-            window.location.href = '/';
+            window.location.href = `/profile/leagues/${leagueId}`;
         } else {
             setError(res.error || 'Failed to save results.');
             setLoading(false);
         }
     };
 
-    if (checkingSession) {
+    if (loading && drivers.length === 0) {
         return (
             <div className="flex items-center justify-center min-vh-100">
                 <div className="text-center">
-                    <div className="text-f1 animate-pulse" style={{ fontSize: '1.5rem' }}>VERIFYING ACCESS...</div>
+                    <div className="text-f1 animate-pulse" style={{ fontSize: '1.5rem' }}>LOADING LEAGUE DATA...</div>
                 </div>
             </div>
         );
     }
-
-    if (!isAuthed) {
+    
+    if (error && drivers.length === 0) {
         return (
-            <div className="container flex items-center justify-center min-vh-100">
-                <div className="f1-card animate-scale-in" style={{ maxWidth: '450px', width: '100%', padding: '3.5rem 3rem', border: '1px solid var(--glass-border)', boxShadow: '0 20px 80px rgba(0,0,0,0.6)' }}>
-                    <div className="text-center mb-10">
-                        <div className="text-f1 text-gradient mb-2" style={{ fontSize: '2.5rem', letterSpacing: '-2px' }}>ADMIN ACCESS</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--silver)', fontWeight: 900, letterSpacing: '5px', opacity: 0.8 }}>SYSTEM AUTHORIZATION</div>
-                    </div>
-
-                    <form onSubmit={handleLogin} className="flex flex-col gap-3">
-                        <div className="input-group">
-                            <label>LEAGUE NAME</label>
-                            <input
-                                value={auth.name}
-                                onChange={e => setAuth({ ...auth, name: e.target.value })}
-                                placeholder="e.g. My F1 League"
-                                required
-                            />
-                        </div>
-                        <div className="input-group">
-                            <label>PASSWORD</label>
-                            <input
-                                type="password"
-                                value={auth.pass}
-                                onChange={e => setAuth({ ...auth, pass: e.target.value })}
-                                placeholder="••••••••"
-                                required
-                            />
-                        </div>
-                        {error && <p style={{ color: 'var(--error)', fontSize: '0.8rem', marginTop: '0.5rem' }}>{error}</p>}
-                        <button type="submit" className="btn-primary mt-4" style={{ width: '100%', justifyContent: 'center' }} disabled={loading}>
-                            {loading ? 'AUTHENTICATING...' : 'LOGIN TOHub'}
-                        </button>
-                    </form>
+            <div className="flex items-center justify-center min-vh-100">
+                <div className="text-center f1-card" style={{ padding: '2rem' }}>
+                    <div className="text-f1 text-gradient" style={{ fontSize: '1.5rem' }}>ACCESS DENIED</div>
+                    <div style={{ color: 'var(--error)', marginTop: '1rem' }}>{error}</div>
                 </div>
             </div>
         );
@@ -169,12 +109,15 @@ export default function AdminResults() {
                         value={track}
                         onChange={e => setTrack(e.target.value)}
                         style={{ padding: '0.8rem', border: '1px solid var(--f1-red)', background: 'rgba(255, 24, 1, 0.05)', borderRadius: '4px', color: 'white', width: '100%' }}
+                        disabled={loading}
                     >
                         <option value="">-- Select Track --</option>
                         {F1_TRACKS_2025.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                 </div>
             </header>
+
+            {error && <div style={{ color: 'var(--error)', marginBottom: '1rem' }}>{error}</div>}
 
             <div className="flex flex-col gap-3">
                 {drivers.map(driver => (
