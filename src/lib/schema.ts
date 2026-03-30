@@ -24,10 +24,26 @@ export const teams = pgTable('teams', {
 });
 
 /**
- * Fahrer
+ * Benutzer (Globale User-Accounts)
+ */
+export const users = pgTable('users', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  email: text('email').unique().notNull(),
+  passwordHash: text('password_hash').notNull(),
+  emailVerified: boolean('email_verified').default(false),
+  username: text('username').notNull(),
+  globalColor: text('global_color').default('#ffffff'),
+  avatarUrl: text('avatar_url'),
+  steamName: text('steam_name'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+/**
+ * Fahrer (Liga-spezifisches Profil eines Users)
  */
 export const drivers = pgTable('drivers', {
   id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
   leagueId: uuid('league_id').references(() => leagues.id, { onDelete: 'cascade' }),
   teamId: uuid('team_id').references(() => teams.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow(),

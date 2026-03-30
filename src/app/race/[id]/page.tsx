@@ -5,25 +5,14 @@ import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
     getRaceDetails,
-    getSessionSafetyCarEvents,
     getAllDriversRaceTelemetry,
-    getRaceAnalysis,
-    getSessionLaps,
-    getCarSetups,
-    getSpeedTraps,
-    getTrackMetadata,
-    getPerformanceScores,
+    getRaceAnalysis
 } from '@/lib/actions';
 import { TyreStrategyChart } from '@/components/race/TyreStrategyChart';
 import { LapPositionChart } from '@/components/race/LapPositionChart';
-import GapToLeaderChart from '@/components/analysis/GapToLeaderChart';
-import RacePaceChart from '@/components/analysis/RacePaceChart';
-import CarSetupViewer from '@/components/analysis/CarSetupViewer';
-import SpeedTrapOverview from '@/components/analysis/SpeedTrapOverview';
-import PerformanceScorecard from '@/components/analysis/PerformanceScorecard';
 import { useRouter } from 'next/navigation';
 
-type TabType = 'OVERVIEW' | 'ANALYSIS' | 'SETUPS' | 'SPEEDTRAPS';
+type TabType = 'OVERVIEW';
 
 function RaceDetailContent() {
     const params = useParams();
@@ -39,13 +28,7 @@ function RaceDetailContent() {
 
     // Data states
     const [graphData, setGraphData] = useState<any[]>([]);
-    const [scEvents, setScEvents] = useState<any[]>([]);
     const [analysisData, setAnalysisData] = useState<any>(null);
-    const [sessionLaps, setSessionLaps] = useState<any[]>([]);
-    const [carSetups, setCarSetups] = useState<any[]>([]);
-    const [speedTraps, setSpeedTraps] = useState<any[]>([]);
-    const [trackMeta, setTrackMeta] = useState<any[]>([]);
-    const [performanceScores, setPerformanceScores] = useState<any>(null);
 
     const router = useRouter();
 
@@ -61,25 +44,13 @@ function RaceDetailContent() {
             setTelemetrySessionId(sid);
 
             if (sid) {
-                const [graphRes, scRes, analysisRes, lapsRes, setupsRes, trapsRes, metaRes, perfRes] = await Promise.all([
+                const [graphRes, analysisRes] = await Promise.all([
                     getAllDriversRaceTelemetry(sid),
-                    getSessionSafetyCarEvents(sid),
-                    getRaceAnalysis(sid),
-                    getSessionLaps(sid),
-                    getCarSetups(sid),
-                    getSpeedTraps(sid),
-                    getTrackMetadata(res.race.track_id),
-                    getPerformanceScores(sid)
+                    getRaceAnalysis(sid)
                 ]);
 
                 if (graphRes.success) setGraphData(graphRes.laps || []);
-                if (scRes.success && (scRes as any).events) setScEvents((scRes as any).events.filter((e: any) => e.event_type === 0));
                 if (analysisRes.success) setAnalysisData(analysisRes);
-                if (lapsRes.success) setSessionLaps(lapsRes.laps || []);
-                if (setupsRes.success) setCarSetups(setupsRes.setups || []);
-                if (trapsRes.success) setSpeedTraps(trapsRes.traps || []);
-                if (metaRes.success) setTrackMeta(metaRes.metadata || []);
-                if (perfRes.success) setPerformanceScores(perfRes.scores);
             }
         }
         setLoading(false);
@@ -151,10 +122,7 @@ function RaceDetailContent() {
 
                 {/* ── TAB NAVIGATION ── */}
                 <div className="container border-t border-white/5 flex flex-wrap">
-                    <TabButton type="OVERVIEW" label="Übersicht" />
-                    <TabButton type="ANALYSIS" label="Analyse" />
-                    {carSetups.length > 0 && <TabButton type="SETUPS" label="Setups" />}
-                    {speedTraps.length > 0 && <TabButton type="SPEEDTRAPS" label="Speed Traps" />}
+                    <TabButton type="OVERVIEW" label="Übersicht & Strategie" />
                 </div>
             </div>
 
@@ -221,60 +189,6 @@ function RaceDetailContent() {
                                 />
                             </div>
                         </div>
-                    </div>
-                )}
-
-                {activeTab === 'ANALYSIS' && (
-                    <div className="flex flex-col gap-large animate-in fade-in slide-in-from-right-4 duration-500">
-                        {/* Performance Scorecards */}
-                        {performanceScores && (
-                            <section>
-                                <div className="flex items-center justify-between mb-8">
-                                    <h2 className="text-f1-bold text-xs uppercase tracking-[0.2em] text-f1-red">Driver Performance Profiles</h2>
-                                    <div className="text-[10px] text-silver/20 font-mono italic uppercase">Qualitative_Output_V1</div>
-                                </div>
-                                <PerformanceScorecard scores={performanceScores} drivers={driverList} />
-                            </section>
-                        )}
-
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
-                            <div className="f1-card">
-                                <h3 className="text-f1-bold text-[10px] mb-8 uppercase tracking-widest text-f1-red">Pace Analysis</h3>
-                                <div className="h-[400px]">
-                                    <RacePaceChart laps={sessionLaps} />
-                                </div>
-                            </div>
-                            <div className="f1-card">
-                                <h3 className="text-f1-bold text-[10px] mb-8 uppercase tracking-widest text-f1-red">Distance Delta (Gap to Leader)</h3>
-                                <div className="h-[400px]">
-                                    <GapToLeaderChart laps={sessionLaps} />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {activeTab === 'SETUPS' && (
-                    <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                        <section>
-                            <div className="flex items-center justify-between mb-8">
-                                <h2 className="text-f1-bold text-xs uppercase tracking-[0.2em] text-f1-red">Engineering & Setup Analysis</h2>
-                                <div className="text-[10px] text-silver/20 font-mono italic uppercase">Packet_05_CarSetups</div>
-                            </div>
-                            <CarSetupViewer setups={carSetups} />
-                        </section>
-                    </div>
-                )}
-
-                {activeTab === 'SPEEDTRAPS' && (
-                    <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                         <section>
-                            <div className="flex items-center justify-between mb-8">
-                                <h2 className="text-f1-bold text-xs uppercase tracking-[0.2em] text-f1-red">Velocimetry Data (Speed Traps)</h2>
-                                <div className="text-[10px] text-silver/20 font-mono italic uppercase">Packet_03_EventPackets</div>
-                            </div>
-                            <SpeedTrapOverview traps={speedTraps} />
-                        </section>
                     </div>
                 )}
             </div>

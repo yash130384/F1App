@@ -75,18 +75,12 @@ export async function POST(req: Request) {
             sessionId = activeSession[0].id;
         }
 
-        // --- Throttling Logic ---
-        const now = Date.now();
-        const lastWriteTime = lastDbWrite.get(sessionId) || 0;
-        const shouldWriteToDb = body.force || isSessionEnded || isNewSession || (now - lastWriteTime > 5000);
-
-        if (shouldWriteToDb) {
-            lastDbWrite.set(sessionId, now);
-
-            // Update session timestamp
-            if (!isNewSession) {
-                await run(`UPDATE telemetry_sessions SET updated_at = CURRENT_TIMESTAMP, track_length = ?, track_flags = ? WHERE id = ?`, [trackLength, trackFlags || 0, sessionId]);
-            }
+        // --- Bulk DB Speicherung ---
+        // Da der Router Sessions nun gesammelt hochlädt, wird nicht mehr gethrottelt.
+        // Update session timestamp
+        if (!isNewSession) {
+            await run(`UPDATE telemetry_sessions SET updated_at = CURRENT_TIMESTAMP, track_length = ?, track_flags = ? WHERE id = ?`, [trackLength, trackFlags || 0, sessionId]);
+        }
 
             // 2. Safety-Car-Events & Incidents speichern
             if (safetyCarEvents && Array.isArray(safetyCarEvents)) {
@@ -277,7 +271,6 @@ export async function POST(req: Request) {
                     }
                 }));
             }
-        }
 
         // --- Live-Store immer aktualisieren (Full frequency) ---
         if (participants && Array.isArray(participants)) {

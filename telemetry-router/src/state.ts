@@ -59,6 +59,26 @@ export class SessionState {
     private trackIntel: TrackIntel = new TrackIntel();
 
     /**
+     * Setzt den Status der Session komplett zurück (z.B. wenn eine neue UID erkannt wurde).
+     */
+    public reset() {
+        this.sessionType = 'Unknown';
+        this.trackId = -1;
+        this.trackName = 'Unknown';
+        this.trackLength = 0;
+        this.isActive = false;
+        this.isSessionEnded = false;
+        this.trackFlags = 0;
+        this.packetCount = 0;
+        this.lastPacketTime = 0;
+        this.sessionData = undefined;
+        this.finalClassification = [];
+        this.players.clear();
+        this.incidentManager = new IncidentManager();
+        this.lapPositions = [];
+    }
+
+    /**
      * Erstellt einen neuen PlayerState oder gibt den existierenden für einen Fahrzeug-Index zurück.
      * Sorgt für eine konsistente Initialisierung neuer Fahrer-Objekte.
      * 

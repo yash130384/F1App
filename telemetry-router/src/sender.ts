@@ -47,11 +47,14 @@ export function startSender(config: AppConfig, state: SessionState) {
 
     // --- LIVE-ROUTING MODUS (HTTP POST) ---
     console.log(`🚀 Starte Live-Übermittlung an ${config.url}`);
-    console.log(`   Modus: ${config.transmissionMode} (Intervall: ${config.intervalMs}ms)`);
+    console.log(`   Modus: ${config.transmissionMode} (Übertragung nach Session-Ende)`);
 
     setInterval(async () => {
-        // Zustand abrufen und temporäre Buffer (z.B. neue Runden) leeren
+        if (!state.isSessionEnded) return;
+
+        // Zustand abrufen und temporäre Buffer leeren
         const payload = state.buildPayloadAndClear();
+        state.isSessionEnded = false; // Verhindert mehrfaches Senden derselben Session
 
         // ÜBERMITTLUNGS-FILTER:
         // Wir senden Daten nur, wenn mindestens ein menschlicher Fahrer in der Session ist. 
@@ -87,7 +90,7 @@ export function startSender(config: AppConfig, state: SessionState) {
             }
         } else if (payload.participants.length > 0) {
             // Nur loggen, wenn Teilnehmer da sind, aber kein Mensch (Noise Reduction)
-            // console.log(`ℹ️ Überspringe Paket: Keine menschlichen Fahrer erkannt.`);
+            console.log(`ℹ️ Überspringe Paket: Keine menschlichen Fahrer erkannt.`);
         }
-    }, config.intervalMs);
+    }, 5000); // Check alle 5 Sekunden ob die Session beendet wurde
 }

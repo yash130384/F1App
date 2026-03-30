@@ -58,12 +58,20 @@ export function startUdpListener(config: AppConfig, onStatusUpdate?: (status: St
     // Startet die HTTP-Übermittlungsschleife im Hintergrund
     startSender(config, state);
 
-    // Dashboard-UI deaktiviert (User requested noise reduction)
-    /*
+    // Timeout Check: Wenn 5 Minuten kein Paket ankam (bei aktiver Session), Aufzeichnung stoppen + Session beenden
     setInterval(() => {
-        renderDashboard(config, state.getDashboardState());
-    }, 500);
-    */
+        if (state.isActive && !state.isSessionEnded) {
+            const idleTime = Date.now() - state.lastPacketTime;
+            if (idleTime > 5 * 60 * 1000) { // 5 Minuten
+                console.log('⏰ 5-Minuten-Timeout erreicht. Beende Aufzeichnung.');
+                state.handleSessionEnd();
+                if (recordingStream) {
+                    recordingStream.end();
+                    recordingStream = null;
+                }
+            }
+        }
+    }, 10000); // Check alle 10 Sekunden
 
     // Fehlerbehandlung für den UDP-Socket
     server.on('error', (err) => {
@@ -93,6 +101,9 @@ export function startUdpListener(config: AppConfig, onStatusUpdate?: (status: St
                 tempRecordingFilename = null;
                 finalRecordingFilename = null;
                 
+                // Alten State bereinigen, damit Driver/Session Daten nicht in die neue Session übernommen werden
+                state.reset();
+                
                 if (currentSessionUID !== BigInt(0)) {
                     startTimeStr = new Date().toISOString().replace(/[:.]/g, '-');
                     tempRecordingFilename = path.join(recordingsDir, `_temp_session_${currentSessionUID}_${startTimeStr}.bin`);
@@ -116,7 +127,11 @@ export function startUdpListener(config: AppConfig, onStatusUpdate?: (status: St
                         const anzahl = humans > 0 ? humans : 0;
                         const validOrt = state.trackName.replace(/[^a-z0-9]/gi, ''); 
                         const validSession = state.sessionType.replace(/[^a-z0-9 ]/gi, '').trim().replace(/ /g, '');
-                        finalRecordingFilename = path.join(recordingsDir, `${validOrt}_${validSession}_${startTimeStr}_${anzahl}.bin`);
+                        // Art_Ort_Datum_Uhrzeit(ohne Sekunden).bin
+                        const now = new Date();
+                        const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+                        const timeStr = now.toISOString().split('T')[1].substring(0, 5).replace(':', '-'); // HH-MM
+                        finalRecordingFilename = path.join(recordingsDir, `${validSession}_${validOrt}_${dateStr}_${timeStr}.bin`);
                         
                         try {
                             fs.renameSync(tempRecordingFilename, finalRecordingFilename);

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from 'next/link';
 import "./globals.css";
+import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
   title: "F1 25 Racing League Manager",
@@ -24,12 +25,15 @@ export default function RootLayout({
             <div className="flex gap-small items-center nav-links">
               <Link href="/dashboard" className="nav-link">Standings</Link>
               <Link href="/admin" className="nav-link">Admin Hub</Link>
+              <Link href="/profile" className="nav-link" style={{color: 'var(--f1-red)', fontWeight: 'bold'}}>Profile</Link>
               <Link href="/join" className="btn btn-primary btn-sm">Join League</Link>
             </div>
           </div>
         </nav>
         <main>
-          {children}
+          <Providers>
+            {children}
+          </Providers>
         </main>
       </body>
     </html>
