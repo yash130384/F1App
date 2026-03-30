@@ -28,11 +28,13 @@ export default function RacePaceChart({ laps }: RacePaceChartProps) {
             if (l.lap_number === 0) return;
             if (!dataByLap[l.lap_number]) dataByLap[l.lap_number] = { lap: l.lap_number };
             
-            const name = l.driver_name || l.game_name;
+            const name = l.driver_name || l.game_name || 'Unknown';
             driversMap.set(name, { name, color: l.driver_color || 'var(--text-muted)' });
             
             let time: number | null = l.lap_time_ms / 1000;
-            if (time > 180 || !l.is_valid) {
+            // Handle potentially invalid or zero times
+            const isValid = l.is_valid !== false && (l as any).isValid !== false;
+            if (time <= 0 || time > 180 || !isValid) {
                 time = null; 
             }
             dataByLap[l.lap_number][name] = time ? parseFloat(time.toFixed(3)) : null;

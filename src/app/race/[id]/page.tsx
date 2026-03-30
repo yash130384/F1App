@@ -52,7 +52,7 @@ function RaceDetailContent() {
 
                 if (graphRes.success) {
                     setGraphData(graphRes.laps || []);
-                    setRawLaps(graphRes.rawLaps || []);
+                    setRawLaps((graphRes as any).rawLaps || []);
                 }
                 if (analysisRes.success) setAnalysisData(analysisRes);
             }
@@ -161,7 +161,7 @@ function RaceDetailContent() {
                             {/* Position Evolution */}
                             <div className="f1-card">
                                 <h3 className="text-f1-bold text-[10px] mb-8 uppercase tracking-widest text-f1-red">Position Evolution</h3>
-                                <div className="h-[300px]">
+                                <div style={{ height: '400px', minHeight: '400px' }}>
                                     <LapPositionChart 
                                         participants={analysisData?.participants || []}
                                         history={analysisData?.positionHistory || []}
@@ -184,7 +184,7 @@ function RaceDetailContent() {
                             {/* Round Time / Race Pace */}
                             <div className="f1-card">
                                 <h3 className="text-f1-bold text-[10px] mb-8 uppercase tracking-widest text-f1-red">Round Time Chart (Pace)</h3>
-                                <div className="h-[300px]">
+                                <div style={{ height: '400px', minHeight: '400px' }}>
                                     <RacePaceChart laps={rawLaps} />
                                 </div>
                             </div>
@@ -192,7 +192,7 @@ function RaceDetailContent() {
                             {/* Gap to Leader */}
                             <div className="f1-card">
                                 <h3 className="text-f1-bold text-[10px] mb-8 uppercase tracking-widest text-f1-red">Gap to Leader Evolution</h3>
-                                <div className="h-[300px]">
+                                <div style={{ height: '400px', minHeight: '400px' }}>
                                     <GapToLeaderChart laps={rawLaps} />
                                 </div>
                             </div>
