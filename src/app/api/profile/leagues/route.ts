@@ -14,7 +14,7 @@ export async function GET(req: Request) {
 
         // Finde alle Driver des Users und prüfe dabei ob er Owner der Liga ist
         const drivers = await query<any>(`
-            SELECT d.id as driver_id, d.league_id, d.team_id, l.name as league_name, (l.owner_id = ?) as is_owner
+            SELECT d.id as driver_id, d.league_id, d.team_id, l.name as league_name, (l.owner_id = ?) as is_owner, l.teams_locked
             FROM drivers d
             JOIN leagues l ON d.league_id = l.id
             WHERE d.user_id = ?
@@ -30,6 +30,7 @@ export async function GET(req: Request) {
                 leagueName: row.league_name,
                 teamId: row.team_id,
                 isAdmin: !!row.is_owner,
+                isLocked: !!row.teams_locked,
                 availableTeams: teams
             });
         }
@@ -56,10 +57,20 @@ export async function PUT(req: Request) {
              return NextResponse.json({ error: "Missing driver ID" }, { status: 400 });
         }
 
-        // Sicherstellen dass der Driver zum einloggten User gehört
-        const valid = await query<any>("SELECT id FROM drivers WHERE id = ? AND user_id = ?", [driverId, userId]);
+        // Sicherstellen dass der Driver zum einloggten User gehört UND ob die Liga gesperrt ist
+        const valid = await query<any>(`
+            SELECT d.id, l.teams_locked 
+            FROM drivers d 
+            JOIN leagues l ON d.league_id = l.id 
+            WHERE d.id = ? AND d.user_id = ?
+        `, [driverId, userId]);
+
         if (valid.length === 0) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        if (valid[0].teams_locked) {
+            return NextResponse.json({ error: "Teams are locked by the administrator" }, { status: 403 });
         }
 
         if (!teamId || teamId.trim() === '') {

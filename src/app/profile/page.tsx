@@ -201,12 +201,19 @@ export default function ProfilePage() {
                                             className={styles.teamSelect}
                                             value={dl.teamId || ''}
                                             onChange={(e) => handleTeamChange(dl.driverId, e.target.value)}
+                                            disabled={dl.isLocked}
+                                            style={{ opacity: dl.isLocked ? 0.6 : 1, cursor: dl.isLocked ? 'not-allowed' : 'pointer' }}
                                         >
                                             <option value="">No Team (Free Agent)</option>
                                             {dl.availableTeams?.map((t: any) => (
                                                 <option key={t.id} value={t.id}>{t.name}</option>
                                             ))}
                                         </select>
+                                        {dl.isLocked && (
+                                            <div style={{ fontSize: '0.65rem', color: 'var(--f1-red)', marginTop: '4px', textAlign: 'right', fontWeight: 900 }}>
+                                                LOCKED BY ADMIN
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}

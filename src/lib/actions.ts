@@ -535,6 +535,26 @@ export async function deleteRace(raceId: string, leagueId: string) {
 }
 
 /**
+ * Fetches all races (finished and scheduled) for a league.
+ */
+export async function getLeagueRaces(leagueId: string) {
+    try {
+        await verifyLeagueOwner(leagueId);
+
+        const races = await query<any>(`
+            SELECT id, track, scheduled_date, is_finished, result_json
+            FROM races
+            WHERE league_id = ?
+            ORDER BY scheduled_date DESC, id DESC
+        `, [leagueId]);
+
+        return { success: true, races };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
  * Deletes a scheduled race.
  */
 export async function deleteScheduledRace(raceId: string, leagueId: string) {
@@ -598,6 +618,26 @@ export async function getPointsConfig(leagueId: string) {
         return { success: true, config };
     } catch (error: any) {
         console.error('Get Points Config Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Fetches result details for a specific race.
+ */
+export async function getRaceResults(raceId: string) {
+    try {
+        const results = await query<any>(`
+            SELECT rr.*, d.name as driver_name
+            FROM race_results rr
+            JOIN drivers d ON rr.driver_id = d.id
+            WHERE rr.race_id = ?
+        `, [raceId]);
+
+        const race = await query<any>(`SELECT track FROM races WHERE id = ?`, [raceId]);
+
+        return { success: true, results, track: race[0]?.track };
+    } catch (error: any) {
         return { success: false, error: error.message };
     }
 }
@@ -1404,6 +1444,37 @@ export async function getTelemetrySessionsForLeague(leagueId: string) {
 }
 
 /**
+ * Fetches all unassigned telemetry sessions.
+ */
+export async function getUnassignedTelemetrySessions() {
+    try {
+        const sessions = await query<any>(`
+            SELECT id, track_id, session_type, created_at
+            FROM telemetry_sessions
+            WHERE league_id IS NULL
+            ORDER BY created_at DESC
+            LIMIT 50
+        `);
+        return { success: true, sessions };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Links a telemetry session to a league.
+ */
+export async function linkTelemetryToLeague(sessionId: string, leagueId: string) {
+    try {
+        await verifyLeagueOwner(leagueId);
+        await run(`UPDATE telemetry_sessions SET league_id = ? WHERE id = ?`, [leagueId, sessionId]);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
  * Fetches the absolute best lap for a specific track in a league.
  */
 export async function getBestLapForTrack(leagueId: string, trackId: number) {
@@ -1658,6 +1729,104 @@ export async function getAdminLeagueDrivers(leagueId: string) {
         return { success: true, drivers };
     } catch (error: any) {
         console.error('Get Admin League Drivers Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Fetches all teams for a league.
+ */
+export async function getLeagueTeams(leagueId: string) {
+    try {
+        const teams = await query<any>(`SELECT * FROM teams WHERE league_id = ? ORDER BY name ASC`, [leagueId]);
+        return { success: true, teams };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Adds a team to a league.
+ */
+export async function addLeagueTeam(leagueId: string, name: string, color: string) {
+    try {
+        await verifyLeagueOwner(leagueId);
+        const id = crypto.randomUUID();
+        await run(`INSERT INTO teams (id, league_id, name, color) VALUES (?, ?, ?, ?)`, [id, leagueId, name, color]);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Updates a team's info.
+ */
+export async function updateLeagueTeam(leagueId: string, teamId: string, name: string, color: string) {
+    try {
+        await verifyLeagueOwner(leagueId);
+        await run(`UPDATE teams SET name = ?, color = ? WHERE id = ?`, [name, color, teamId]);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Deletes a team.
+ */
+export async function deleteLeagueTeam(leagueId: string, teamId: string) {
+    try {
+        await verifyLeagueOwner(leagueId);
+        await run(`DELETE FROM teams WHERE id = ?`, [teamId]);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Updates specific league settings.
+ */
+export async function updateLeagueSettings(leagueId: string, settings: { teams_locked?: boolean, name?: string }) {
+    try {
+        await verifyLeagueOwner(leagueId);
+        
+        if (settings.hasOwnProperty('teams_locked')) {
+            // First time this might fail if column doesn't exist. I'll wrap it.
+            try {
+                await run(`UPDATE leagues SET teams_locked = ? WHERE id = ?`, [settings.teams_locked ? 1 : 0, leagueId]);
+            } catch (e) {
+                // If column missing, add it (simple migration)
+                await run(`ALTER TABLE leagues ADD COLUMN teams_locked INTEGER DEFAULT 0`);
+                await run(`UPDATE leagues SET teams_locked = ? WHERE id = ?`, [settings.teams_locked ? 1 : 0, leagueId]);
+            }
+        }
+
+        if (settings.name) {
+            await run(`UPDATE leagues SET name = ? WHERE id = ?`, [settings.name, leagueId]);
+        }
+        
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function deleteLeague(leagueId: string) {
+    try {
+        await verifyLeagueOwner(leagueId);
+
+        // Delete all related data in sequence
+        await run(`DELETE FROM race_results WHERE race_id IN (SELECT id FROM races WHERE league_id = ?)`, [leagueId]);
+        await run(`DELETE FROM races WHERE league_id = ?`, [leagueId]);
+        await run(`DELETE FROM drivers WHERE league_id = ?`, [leagueId]);
+        await run(`DELETE FROM teams WHERE league_id = ?`, [leagueId]);
+        await run(`DELETE FROM points_config WHERE league_id = ?`, [leagueId]);
+        await run(`DELETE FROM leagues WHERE id = ?`, [leagueId]);
+
+        return { success: true };
+    } catch (error: any) {
         return { success: false, error: error.message };
     }
 }

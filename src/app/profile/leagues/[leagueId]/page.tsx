@@ -66,7 +66,7 @@ export default function LeagueDashboard({ params }: { params: Promise<{ leagueId
 
                 {/* Sidebar: Einstellungen und Telemetrie-Status */}
                 <div className="flex flex-col gap-6">
-                    <QuickActions />
+                    <QuickActions leagueId={leagueId} />
                     <TelemetryHub />
                 </div>
             </div>

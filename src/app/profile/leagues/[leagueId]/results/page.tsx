@@ -2,12 +2,19 @@
 
 import React from 'react';
 import { useState, useEffect } from 'react';
-import { getAdminLeagueDrivers, saveRaceResults } from '@/lib/actions';
+import { getAdminLeagueDrivers, saveRaceResults, getRaceResults } from '@/lib/actions';
 import { calculatePoints, formatPoints } from '@/lib/scoring';
 import { F1_TRACKS_2025 } from '@/lib/constants';
 
-export default function ManualResults({ params }: { params: Promise<{ leagueId: string }> }) {
+export default function ManualResults({ 
+    params, 
+    searchParams 
+}: { 
+    params: Promise<{ leagueId: string }>,
+    searchParams: Promise<{ raceId?: string }>
+}) {
     const { leagueId } = React.use(params);
+    const { raceId } = React.use(searchParams);
     const [drivers, setDrivers] = useState<any[]>([]);
     const [track, setTrack] = useState('');
     const [results, setResults] = useState<Record<string, { position: number; qualiPosition: number; fastestLap: boolean; cleanDriver: boolean; isDnf: boolean }>>({});
@@ -15,21 +22,38 @@ export default function ManualResults({ params }: { params: Promise<{ leagueId: 
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        async function fetchDrivers() {
+        async function fetchData() {
             setLoading(true);
             try {
-                const res = await getAdminLeagueDrivers(leagueId);
-                if (res.success) {
-                    setDrivers(res.drivers || []);
-                    
-                    const initialResults: any = {};
-                    (res.drivers || []).forEach((d: any) => {
-                        initialResults[d.id] = { position: 20, qualiPosition: 0, fastestLap: false, cleanDriver: false, isDnf: false };
-                    });
-                    setResults(initialResults);
-                } else {
-                    setError(res.error || "Failed to load drivers");
+                const driversRes = await getAdminLeagueDrivers(leagueId);
+                if (!driversRes.success) throw new Error(driversRes.error);
+                
+                setDrivers(driversRes.drivers || []);
+                
+                // Set initial empty state
+                const initialResults: any = {};
+                (driversRes.drivers || []).forEach((d: any) => {
+                    initialResults[d.id] = { position: 20, qualiPosition: 0, fastestLap: false, cleanDriver: false, isDnf: false };
+                });
+
+                // If editing a race, load its data
+                if (raceId) {
+                    const raceRes = await getRaceResults(raceId);
+                    if (raceRes.success && raceRes.results) {
+                        setTrack(raceRes.track || '');
+                        raceRes.results.forEach((r: any) => {
+                            initialResults[r.driver_id] = {
+                                position: r.position,
+                                qualiPosition: r.quali_position || 0,
+                                fastestLap: !!r.fastest_lap,
+                                cleanDriver: !!r.clean_driver,
+                                isDnf: !!r.is_dnf
+                            };
+                        });
+                    }
                 }
+                
+                setResults(initialResults);
             } catch (err: any) {
                 setError(err.message || "An error occurred");
             } finally {
@@ -37,8 +61,8 @@ export default function ManualResults({ params }: { params: Promise<{ leagueId: 
             }
         }
         
-        fetchDrivers();
-    }, [leagueId]);
+        fetchData();
+    }, [leagueId, raceId]);
 
     const updateResult = (driverId: string, field: string, value: any) => {
         setResults(prev => ({
@@ -65,7 +89,7 @@ export default function ManualResults({ params }: { params: Promise<{ leagueId: 
             is_dnf: results[d.id].isDnf
         }));
 
-        const res = await saveRaceResults(leagueId, track, formattedResults);
+        const res = await saveRaceResults(leagueId, track, formattedResults, raceId);
 
         if (res.success) {
             alert('Race Results Submitted!');
