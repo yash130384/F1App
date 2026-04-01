@@ -1,12 +1,13 @@
 'use client';
 
+import React from 'react';
 import { useState, useEffect } from 'react';
 import { getAdminLeagueDrivers, saveRaceResults } from '@/lib/actions';
 import { calculatePoints, formatPoints } from '@/lib/scoring';
 import { F1_TRACKS_2025 } from '@/lib/constants';
 
-export default function ManualResults({ params }: { params: { leagueId: string } }) {
-    const leagueId = params.leagueId;
+export default function ManualResults({ params }: { params: Promise<{ leagueId: string }> }) {
+    const { leagueId } = React.use(params);
     const [drivers, setDrivers] = useState<any[]>([]);
     const [track, setTrack] = useState('');
     const [results, setResults] = useState<Record<string, { position: number; qualiPosition: number; fastestLap: boolean; cleanDriver: boolean; isDnf: boolean }>>({});

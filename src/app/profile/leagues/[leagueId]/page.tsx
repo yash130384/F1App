@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useState, useEffect } from 'react';
 import { getLeagueById, getAdminLeagueDrivers } from '@/lib/actions';
 import styles from './LeagueDashboard.module.css';
@@ -16,8 +17,8 @@ import { LoadingState, ErrorState } from './_components/StatusScreens';
  * Das Haupt-Dashboard für eine spezifische F1-Liga.
  * Diese Seite koordiniert den Datenabruf und delegiert die Darstellung an spezialisierte Sub-Komponenten.
  */
-export default function LeagueDashboard({ params }: { params: { leagueId: string } }) {
-    const leagueId = params.leagueId;
+export default function LeagueDashboard({ params }: { params: Promise<{ leagueId: string }> }) {
+    const { leagueId } = React.use(params);
     const [league, setLeague] = useState<any>(null);
     const [drivers, setDrivers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);

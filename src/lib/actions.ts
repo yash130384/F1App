@@ -8,8 +8,17 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 async function verifyLeagueOwner(leagueId: string) {
     const session = await getServerSession(authOptions) as any;
-    if (!session || !session.user || !session.user.id) throw new Error('Unauthorized session.');
+    if (!session || !session.user || !session.user.id) {
+        console.log('DEBUG: No session or no user.id', { sessionUser: session?.user });
+        throw new Error('Unauthorized session.');
+    }
     const res = await query<any>('SELECT owner_id FROM leagues WHERE id = ?', [leagueId]);
+    console.log('DEBUG: verifyLeagueOwner', { 
+        leagueId, 
+        dbOwner: res[0]?.owner_id, 
+        sessionUserId: session.user.id,
+        match: res[0]?.owner_id == session.user.id
+    });
     if (res.length === 0 || String(res[0].owner_id) !== String(session.user.id)) throw new Error('Unauthorized. Not the owner.');
 }
 
