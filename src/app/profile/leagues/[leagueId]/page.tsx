@@ -55,7 +55,12 @@ export default function LeagueDashboard({ params }: { params: Promise<{ leagueId
     return (
         <div className={`container animate-fade-in ${styles.dashboardContainer}`}>
             {/* Header mit Liganame und Primär-Aktionen */}
-            <LeagueHeader name={league?.name} leagueId={leagueId} />
+            <LeagueHeader 
+                name={league?.name} 
+                leagueId={leagueId} 
+                isJoinLocked={!!league?.join_locked}
+                isTeamsLocked={!!league?.teams_locked}
+            />
 
             <div className={styles.mainGrid}>
                 {/* Hauptbereich: Roster und Historie */}

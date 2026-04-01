@@ -99,6 +99,9 @@ export default function ProfilePage() {
             <div className={styles.header}>
                 <h1 className={styles.headerTitle}>DRIVER NETWORK</h1>
                 <div style={{display: 'flex', gap: '1rem'}}>
+                    <Link href="/create-league" className={`${styles.btnAction} ${styles.btnSecondary}`} style={{ borderColor: 'var(--f1-red)', color: 'var(--f1-red)' }}>
+                        ESTABLISH LEAGUE
+                    </Link>
                     <Link href="/profile/analysis" className={`${styles.btnAction} ${styles.btnSecondary}`}>
                         MY TELEMETRY
                     </Link>

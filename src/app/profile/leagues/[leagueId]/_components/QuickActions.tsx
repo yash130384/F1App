@@ -20,6 +20,9 @@ export default function QuickActions({ leagueId }: { leagueId: string }) {
         <Link href={`/profile/leagues/${leagueId}/scoring`} className="w-full">
           <button className="btn-secondary w-full text-left" style={{ fontSize: '0.8rem' }}>SCORING SYSTEM</button>
         </Link>
+        <Link href={`/profile/leagues/${leagueId}/settings`} className="w-full">
+          <button className="btn-secondary w-full text-left" style={{ fontSize: '0.8rem' }}>LEAGUE SETTINGS</button>
+        </Link>
         <Link href={`/profile/leagues/${leagueId}/telemetry`} className="w-full">
           <button className="btn-secondary w-full text-left" style={{ fontSize: '0.8rem' }}>TELEMETRY HUB</button>
         </Link>

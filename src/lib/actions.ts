@@ -1698,14 +1698,25 @@ export async function createLeague(name: string) {
  */
 export async function joinLeague(leagueName: string, driverName: string, team: string, color: string, gameName?: string) {
     try {
-        const leagues = await query<any>('SELECT id FROM leagues WHERE name = ?', [leagueName]);
+        const leagues = await query<any>('SELECT id, join_locked FROM leagues WHERE name = ?', [leagueName]);
         if (leagues.length === 0) throw new Error('League not found.');
+        
+        if (leagues[0].join_locked) {
+            throw new Error('This league is currently locked for new members. Contact the administrator.');
+        }
+
         const leagueId = leagues[0].id;
+        
+        // Map to user account if available
+        const { getServerSession } = await import("next-auth");
+        const { authOptions } = await import("@/app/api/auth/[...nextauth]/route");
+        const session = await getServerSession(authOptions);
+        const userId = session?.user ? (session.user as any).id : null;
 
         const driverId = crypto.randomUUID();
         await run(
-            'INSERT INTO drivers (id, league_id, name, team, color, game_name, team_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [driverId, leagueId, driverName, team || '', color || '#ffffff', gameName || null, null]
+            'INSERT INTO drivers (id, league_id, name, team, color, game_name, team_id, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [driverId, leagueId, driverName, team || '', color || '#ffffff', gameName || null, null, userId]
         );
         return { success: true };
     } catch (error: any) {
@@ -1788,7 +1799,7 @@ export async function deleteLeagueTeam(leagueId: string, teamId: string) {
 /**
  * Updates specific league settings.
  */
-export async function updateLeagueSettings(leagueId: string, settings: { teams_locked?: boolean, name?: string }) {
+export async function updateLeagueSettings(leagueId: string, settings: { teams_locked?: boolean, join_locked?: boolean, name?: string }) {
     try {
         await verifyLeagueOwner(leagueId);
         
@@ -1800,6 +1811,15 @@ export async function updateLeagueSettings(leagueId: string, settings: { teams_l
                 // If column missing, add it (simple migration)
                 await run(`ALTER TABLE leagues ADD COLUMN teams_locked INTEGER DEFAULT 0`);
                 await run(`UPDATE leagues SET teams_locked = ? WHERE id = ?`, [settings.teams_locked ? 1 : 0, leagueId]);
+            }
+        }
+
+        if (settings.hasOwnProperty('join_locked')) {
+            try {
+                await run(`UPDATE leagues SET join_locked = ? WHERE id = ?`, [settings.join_locked ? 1 : 0, leagueId]);
+            } catch (e) {
+                await run(`ALTER TABLE leagues ADD COLUMN join_locked INTEGER DEFAULT 0`);
+                await run(`UPDATE leagues SET join_locked = ? WHERE id = ?`, [settings.join_locked ? 1 : 0, leagueId]);
             }
         }
 
