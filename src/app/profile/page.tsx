@@ -180,7 +180,18 @@ export default function ProfilePage() {
                             {driverLeagues.map((dl, idx) => (
                                 <div key={idx} className={styles.leagueCard} style={{borderLeftColor: globalColor}}>
                                     <div>
-                                        <div className={styles.leagueName}>{dl.leagueName}</div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <div className={styles.leagueName}>{dl.leagueName}</div>
+                                            {dl.isAdmin && (
+                                                <Link 
+                                                    href={`/profile/leagues/${dl.leagueId}`} 
+                                                    className={styles.adminBadge}
+                                                    title="Admin Dashboard"
+                                                >
+                                                    ADMIN
+                                                </Link>
+                                            )}
+                                        </div>
                                         <div style={{fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)'}}>
                                             Driver Record ID: {dl.driverId.substring(0,8)}...
                                         </div>

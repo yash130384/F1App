@@ -24,7 +24,6 @@ export default function RootLayout({
             
             <div className="flex gap-small items-center nav-links">
               <Link href="/dashboard" className="nav-link">Standings</Link>
-              <Link href="/admin" className="nav-link">Admin Hub</Link>
               <Link href="/profile" className="nav-link" style={{color: 'var(--f1-red)', fontWeight: 'bold'}}>Profile</Link>
               <Link href="/join" className="btn btn-primary btn-sm">Join League</Link>
             </div>

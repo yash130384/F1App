@@ -12,13 +12,13 @@ export async function GET(req: Request) {
 
         const userId = (session.user as any).id;
 
-        // Finde alle Driver des Users
+        // Finde alle Driver des Users und prüfe dabei ob er Owner der Liga ist
         const drivers = await query<any>(`
-            SELECT d.id as driver_id, d.league_id, d.team_id, l.name as league_name 
+            SELECT d.id as driver_id, d.league_id, d.team_id, l.name as league_name, (l.owner_id = ?) as is_owner
             FROM drivers d
             JOIN leagues l ON d.league_id = l.id
             WHERE d.user_id = ?
-        `, [userId]);
+        `, [userId, userId]);
 
         const result = [];
         for (const row of drivers) {
@@ -29,6 +29,7 @@ export async function GET(req: Request) {
                 leagueId: row.league_id,
                 leagueName: row.league_name,
                 teamId: row.team_id,
+                isAdmin: !!row.is_owner,
                 availableTeams: teams
             });
         }

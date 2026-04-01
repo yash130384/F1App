@@ -365,7 +365,7 @@ export default function Dashboard() {
                             ))}
                             {leaguesList.length === 0 && (
                                 <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem', gridColumn: '1 / -1' }}>
-                                    <p style={{ color: 'var(--text-secondary)' }}>No leagues found. Go to Admin Hub to seed data or create one!</p>
+                                    <p style={{ color: 'var(--text-secondary)' }}>No leagues found. Go to <Link href="/profile/leagues" style={{ color: 'var(--f1-red)', fontWeight: 'bold', textDecoration: 'underline' }}>League Management</Link> to create one!</p>
                                 </div>
                             )}
                         </div>
