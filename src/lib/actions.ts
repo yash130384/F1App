@@ -10,7 +10,7 @@ async function verifyLeagueOwner(leagueId: string) {
     const session = await getServerSession(authOptions) as any;
     if (!session || !session.user || !session.user.id) throw new Error('Unauthorized session.');
     const res = await query<any>('SELECT owner_id FROM leagues WHERE id = ?', [leagueId]);
-    if (res.length === 0 || res[0].owner_id !== session.user.id) throw new Error('Unauthorized. Not the owner.');
+    if (res.length === 0 || String(res[0].owner_id) !== String(session.user.id)) throw new Error('Unauthorized. Not the owner.');
 }
 
 import { calculatePoints, DEFAULT_CONFIG, PointsConfig } from './scoring';

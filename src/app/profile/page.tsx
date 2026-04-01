@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import styles from "./Profile.module.css";
 import DriverAvatar from "@/components/common/DriverAvatar";
-const { fixLeaguePermissions } = require("@/lib/actions") as any;
+import { fixLeaguePermissions } from "@/lib/actions";
 
 export default function ProfilePage() {
     const { data: session, status, update } = useSession();
