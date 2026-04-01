@@ -48,10 +48,7 @@ export default async function ManageLeaguesPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
                     {leagues.map((l: any) => (
                         <Link href={`/profile/leagues/${l.id}`} key={l.id}>
-                            <div className="f1-card" style={{ cursor: 'pointer', transition: 'transform 0.2s', borderLeft: '4px solid var(--f1-red)' }}
-                                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(5px)'}
-                                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}
-                            >
+                            <div className="f1-card" style={{ borderLeft: '4px solid var(--f1-red)' }}>
                                 <h2 className="text-f1 text-gradient" style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>{l.name}</h2>
                                 <div className="flex items-center gap-2" style={{ color: 'var(--silver)', fontSize: '0.85rem', opacity: 0.8 }}>
                                     <span>Manage Rules & Data</span>
