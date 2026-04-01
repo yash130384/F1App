@@ -6,17 +6,36 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import styles from "./Profile.module.css";
 import DriverAvatar from "@/components/common/DriverAvatar";
-import { fixLeaguePermissions } from "@/lib/actions";
+import { 
+    fixLeaguePermissions, 
+    updateUserPassword, 
+    updateUserEmail, 
+    getOpenLeagues, 
+    joinLeagueById 
+} from "@/lib/actions";
 
 export default function ProfilePage() {
     const { data: session, status, update } = useSession();
     const router = useRouter();
     
+    // Profile Identity States
     const [isSaving, setIsSaving] = useState(false);
     const [steamName, setSteamName] = useState("");
     const [globalColor, setGlobalColor] = useState("#ffffff");
     const [avatarUrl, setAvatarUrl] = useState("");
     const [driverLeagues, setDriverLeagues] = useState<any[]>([]);
+
+    // Password & Email States
+    const [oldPassword, setOldPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [email, setEmail] = useState("");
+    const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+    const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
+
+    // League Recruitment States
+    const [openLeagues, setOpenLeagues] = useState<any[]>([]);
+    const [selectedLeagueId, setSelectedLeagueId] = useState("");
+    const [joinInProgess, setJoinInProgress] = useState(false);
 
     useEffect(() => {
         if (status === "unauthenticated") {
@@ -25,7 +44,9 @@ export default function ProfilePage() {
             setSteamName((session.user as any).steamName || "");
             setGlobalColor((session.user as any).globalColor || "#ffffff");
             setAvatarUrl(session.user.image || "");
+            setEmail(session.user.email || "");
             fetchDriverLeagues();
+            fetchOpenLeagues();
             
             // Auto-Fix Permissions for TRunKX/Kleosa
             if (typeof fixLeaguePermissions === 'function') {
@@ -51,6 +72,13 @@ export default function ProfilePage() {
         }
     };
 
+    const fetchOpenLeagues = async () => {
+        const res = await getOpenLeagues();
+        if (res.success) {
+            setOpenLeagues(res.leagues || []);
+        }
+    };
+
     const handleSaveProfile = async () => {
         setIsSaving(true);
         try {
@@ -70,6 +98,53 @@ export default function ProfilePage() {
             console.error(e);
         }
         setIsSaving(false);
+    };
+
+    const handleUpdatePassword = async () => {
+        if (!oldPassword || !newPassword) {
+            alert("Bitte fülle beide Passwort-Felder aus.");
+            return;
+        }
+        setIsUpdatingPassword(true);
+        const res = await updateUserPassword(oldPassword, newPassword);
+        if (res.success) {
+            alert("Passwort erfolgreich geändert!");
+            setOldPassword("");
+            setNewPassword("");
+        } else {
+            alert("Fehler: " + res.error);
+        }
+        setIsUpdatingPassword(false);
+    };
+
+    const handleUpdateEmail = async () => {
+        if (!email) return;
+        setIsUpdatingEmail(true);
+        const res = await updateUserEmail(email);
+        if (res.success) {
+            await update({ email });
+            alert("E-Mail erfolgreich aktualisiert!");
+        } else {
+            alert("Fehler: " + res.error);
+        }
+        setIsUpdatingEmail(false);
+    };
+
+    const handleJoinLeague = async () => {
+        if (!selectedLeagueId) return;
+        setJoinInProgress(true);
+        
+        const driverName = (session?.user?.name) || steamName || "New Driver";
+        const res = await joinLeagueById(selectedLeagueId, driverName, "", globalColor);
+        
+        if (res.success) {
+            alert("Erfolgreich beigetreten!");
+            setSelectedLeagueId("");
+            fetchDriverLeagues();
+        } else {
+            alert("Fehler beim Beitritt: " + res.error);
+        }
+        setJoinInProgress(false);
     };
 
     const handleTeamChange = async (driverId: string, teamId: string | null) => {
@@ -112,7 +187,7 @@ export default function ProfilePage() {
             </div>
 
             <div className={styles.grid}>
-                {/* Avatar & Identität */}
+                {/* Identity & Security */}
                 <div className={styles.card}>
                     <h2 className={styles.cardTitle}>Identity</h2>
                     
@@ -124,13 +199,61 @@ export default function ProfilePage() {
                             borderColor={globalColor}
                         />
                         <span style={{fontWeight: 800, fontSize: '1.2rem', marginTop: '1rem'}}>{session.user.name}</span>
-                        <span style={{color: 'rgba(255,255,255,0.5)'}}>{session.user.email}</span>
+                        <div style={{width: '100%', marginTop: '1rem'}} className={styles.inputGroup}>
+                            <label>Email Address</label>
+                            <div style={{display: 'flex', gap: '0.5rem'}}>
+                                <input 
+                                    type="email" 
+                                    className={styles.input} 
+                                    value={email} 
+                                    onChange={e => setEmail(e.target.value)} 
+                                />
+                                <button 
+                                    className={styles.btnAction} 
+                                    style={{padding: '0 1rem', minWidth: 'auto'}}
+                                    onClick={handleUpdateEmail}
+                                    disabled={isUpdatingEmail}
+                                >
+                                    {isUpdatingEmail ? "..." : "UPDATE"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{marginTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem'}}>
+                        <h3 style={{fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--f1-red)'}}>SECURITY</h3>
+                        <div className={styles.inputGroup}>
+                            <label>Current Password</label>
+                            <input 
+                                type="password" 
+                                className={styles.input} 
+                                value={oldPassword} 
+                                onChange={e => setOldPassword(e.target.value)} 
+                            />
+                        </div>
+                        <div className={styles.inputGroup}>
+                            <label>New Password</label>
+                            <input 
+                                type="password" 
+                                className={styles.input} 
+                                value={newPassword} 
+                                onChange={e => setNewPassword(e.target.value)} 
+                            />
+                        </div>
+                        <button 
+                            className={styles.btnAction} 
+                            style={{width: '100%', marginTop: '0.5rem'}}
+                            onClick={handleUpdatePassword}
+                            disabled={isUpdatingPassword}
+                        >
+                            {isUpdatingPassword ? "UPDATING..." : "CHANGE PASSWORD"}
+                        </button>
                     </div>
                 </div>
 
                 {/* Globale Einstellungen */}
                 <div className={styles.card}>
-                    <h2 className={styles.cardTitle}>Global Settings</h2>
+                    <h2 className={styles.cardTitle}>Visuals & Ingame</h2>
                     
                     <div className={styles.inputGroup}>
                         <label>Avatar URL</label>
@@ -165,12 +288,41 @@ export default function ProfilePage() {
 
                     <button 
                         className={styles.btnAction} 
-                        style={{marginTop: '1rem'}} 
+                        style={{marginTop: '1.5rem'}} 
                         onClick={handleSaveProfile}
                         disabled={isSaving}
                     >
-                        {isSaving ? "SYNCING..." : "SAVE PROFILE"}
+                        {isSaving ? "SYNCING..." : "SAVE VISUALS"}
                     </button>
+
+                    <div style={{marginTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem'}}>
+                        <h3 style={{fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--f1-red)'}}>RECRUITMENT</h3>
+                        <label style={{fontSize: '0.75rem', opacity: 0.6, display: 'block', marginBottom: '0.5rem'}}>JOIN OPEN LEAGUE</label>
+                        <div style={{display: 'flex', gap: '0.5rem'}}>
+                            <select 
+                                className={styles.input} 
+                                style={{background: 'rgba(0,0,0,0.3)', cursor: 'pointer'}}
+                                value={selectedLeagueId}
+                                onChange={e => setSelectedLeagueId(e.target.value)}
+                            >
+                                <option value="">Select a League...</option>
+                                {openLeagues.map(l => (
+                                    <option key={l.id} value={l.id}>{l.name}</option>
+                                ))}
+                            </select>
+                            <button 
+                                className={`${styles.btnAction} ${styles.btnPrimary}`}
+                                style={{minWidth: '100px'}}
+                                onClick={handleJoinLeague}
+                                disabled={!selectedLeagueId || joinInProgess}
+                            >
+                                {joinInProgess ? "..." : "JOIN"}
+                            </button>
+                        </div>
+                        <p style={{fontSize: '0.7rem', marginTop: '0.5rem', opacity: 0.5}}>
+                            Only showing leagues set to 'Public' or 'Open Selection'.
+                        </p>
+                    </div>
                 </div>
                 
                 {/* Ligen & Teams */}

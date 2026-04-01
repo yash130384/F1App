@@ -1,6 +1,7 @@
 'use server';
 
 import * as crypto from 'node:crypto';
+import bcrypt from "bcryptjs";
 import { query, run } from './db';
 
 import { getServerSession } from "next-auth/next";
@@ -1885,6 +1886,85 @@ export async function deleteLeague(leagueId: string) {
 
         return { success: true };
     } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Updates the user's password.
+ */
+export async function updateUserPassword(oldPassword: string, newPassword: string) {
+    try {
+        const session = await getServerSession(authOptions) as any;
+        if (!session || !session.user || !session.user.id) throw new Error('Unauthorized.');
+
+        const users = await query<any>('SELECT password_hash FROM users WHERE id = ?', [session.user.id]);
+        if (users.length === 0) throw new Error('User not found.');
+
+        const isValid = await bcrypt.compare(oldPassword, users[0].password_hash);
+        if (!isValid) throw new Error('Das aktuelle Passwort ist nicht korrekt.');
+
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(newPassword, salt);
+
+        await run('UPDATE users SET password_hash = ? WHERE id = ?', [hash, session.user.id]);
+        return { success: true };
+    } catch (error: any) {
+        console.error('Update Password Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Updates the user's email.
+ */
+export async function updateUserEmail(newEmail: string) {
+    try {
+        const session = await getServerSession(authOptions) as any;
+        if (!session || !session.user || !session.user.id) throw new Error('Unauthorized.');
+
+        await run('UPDATE users SET email = ? WHERE id = ?', [newEmail, session.user.id]);
+        return { success: true };
+    } catch (error: any) {
+        console.error('Update Email Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Fetches all available (not join_locked) leagues.
+ */
+export async function getOpenLeagues() {
+    try {
+        let leagues: any[] = [];
+        try {
+            leagues = await query<any>('SELECT id, name FROM leagues WHERE join_locked = 0 OR join_locked IS NULL ORDER BY name ASC');
+        } catch (e) {
+            leagues = await query<any>('SELECT id, name FROM leagues ORDER BY name ASC');
+        }
+        return { success: true, leagues };
+    } catch (error: any) {
+        console.error('Get Open Leagues Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Join a league by ID.
+ */
+export async function joinLeagueById(leagueId: string, driverName: string, team: string, color: string, gameName?: string) {
+    try {
+        const leagues = await query<any>('SELECT name, join_locked FROM leagues WHERE id = ?', [leagueId]);
+        if (leagues.length === 0) throw new Error('League not found.');
+        
+        if (leagues[0].join_locked) {
+            throw new Error('Diese Liga ist aktuell für neue Mitglieder gesperrt.');
+        }
+
+        const leagueName = leagues[0].name;
+        return await joinLeague(leagueName, driverName, team, color, gameName);
+    } catch (error: any) {
+        console.error('Join League By ID Error:', error);
         return { success: false, error: error.message };
     }
 }
