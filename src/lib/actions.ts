@@ -830,188 +830,172 @@ export async function assignTelemetryPlayer(leagueId: string, gameName: string, 
     try {
         await verifyLeagueOwner(leagueId);
 
-        // Broad update: assign this driver ID to anywhere this gameName appears in this league's sessions where it's currently null
-        const sessions = await query<any>(`SELECT id FROM telemetry_sessions WHERE league_id = ?`, [leagueId]);
-        if (sessions.length > 0) {
-            const sessionIds = sessions.map((s: any) => s.id);
-            const placeholders = sessionIds.map(() => '?').join(',');
+        // Validate inputs
+        if (!gameName || (!driverId && driverId !== '')) {
+            throw new Error('Invalid game name or driver ID.');
+        }
 
+        // Handle unassignment (empty driver ID)
+        if (!driverId) {
             await run(
-                `UPDATE telemetry_participants SET driver_id = ? WHERE game_name = ? AND session_id IN (${placeholders})`,
-                [driverId, gameName, ...sessionIds]
+                `UPDATE telemetry_participants SET driver_id = NULL WHERE session_id IN (
+                    SELECT id FROM telemetry_sessions WHERE league_id = ?
+                ) AND game_name = ?`,
+                [leagueId, gameName]
+            );
+            return { success: true };
+        }
+
+        // Validate driver exists in league
+        const driverCheck = await query<any>(
+            `SELECT id FROM drivers WHERE id = ? AND league_id = ?`,
+            [driverId, leagueId]
+        );
+        if (driverCheck.length === 0) {
+            throw new Error('Driver not found in this league.');
+        }
+
+        // Assign driver to participant
+        await run(
+            `UPDATE telemetry_participants SET driver_id = ? WHERE session_id IN (
+                SELECT id FROM telemetry_sessions WHERE league_id = ?
+            ) AND game_name = ?`,
+            [driverId, leagueId, gameName]
+        );
+
+        return { success: true };
+    } catch (error: any) {
+        console.error('assignTelemetryPlayer Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Promotes a telemetry session to official race results.
+ */
+export async function promoteTelemetryToRace(leagueId: string, sessionId: string, trackName: string) {
+    try {
+        await verifyLeagueOwner(leagueId);
+
+        // Get session info
+        const sessions = await query<any>(
+            `SELECT * FROM telemetry_sessions WHERE id = ? AND league_id = ?`,
+            [sessionId, leagueId]
+        );
+        if (sessions.length === 0) {
+            throw new Error('Session not found or not in this league.');
+        }
+
+        const session = sessions[0];
+        const trackId = session.track_id;
+
+        // Get all assigned participants with their best lap times
+        const participants = await query<any>(`
+            SELECT tp.id, tp.game_name, tp.driver_id, tp.position,
+                   (SELECT MIN(lap_time_ms) FROM telemetry_laps tl 
+                    WHERE tl.participant_id = tp.id AND tl.is_valid = true) as best_lap_ms,
+                   (SELECT COUNT(*) FROM telemetry_laps tl 
+                    WHERE tl.participant_id = tp.id) as lap_count,
+                   tp.pit_stops, tp.penalties_time, tp.total_race_time
+            FROM telemetry_participants tp
+            WHERE tp.session_id = ? AND tp.driver_id IS NOT NULL
+            ORDER BY tp.position ASC
+        `, [sessionId]);
+
+        if (participants.length === 0) {
+            throw new Error('No drivers assigned to this session.');
+        }
+
+        // Fetch points configuration
+        const configRes = await getPointsConfig(leagueId);
+        const config = configRes.success ? configRes.config : DEFAULT_CONFIG;
+
+        // Create or update race
+        const existingRace = await query<any>(
+            `SELECT id FROM races WHERE league_id = ? AND track = ? AND is_finished = false ORDER BY scheduled_date ASC LIMIT 1`,
+            [leagueId, trackName]
+        );
+
+        let raceId = existingRace.length > 0 ? existingRace[0].id : crypto.randomUUID();
+
+        if (existingRace.length === 0) {
+            await run(
+                `INSERT INTO races (id, league_id, track, is_finished, race_date) VALUES (?, ?, ?, true, CURRENT_TIMESTAMP)`,
+                [raceId, leagueId, trackName]
+            );
+        } else {
+            await run(
+                `UPDATE races SET is_finished = true, race_date = CURRENT_TIMESTAMP WHERE id = ?`,
+                [raceId]
             );
         }
 
-        // Also save to driver so it's auto-mapped in future
-        await run(`UPDATE drivers SET game_name = ? WHERE id = ? AND league_id = ?`, [gameName, driverId, leagueId]);
-
-        return { success: true };
-    } catch (error: any) {
-        return { success: false, error: error.message };
-    }
-}
-
-/**
- * Promotes a closed telemetry session into an official race result.
- */
-export async function internalPromoteTelemetryToRace(leagueId: string, sessionId: string, track: string, existingRaceId?: string) {
-    try {
-        const participants = await query<any>(
-            `SELECT tp.*, 
-            (SELECT MIN(lap_time_ms) FROM telemetry_laps tl WHERE tl.participant_id = tp.id AND tl.is_valid = true) as fastest_lap_ms
-            FROM telemetry_participants tp 
-            WHERE tp.session_id = ? AND tp.driver_id IS NOT NULL
-            ORDER BY tp.position ASC`,
-            [sessionId]
-        );
-
-        if (participants.length === 0) {
-            throw new Error('No assigned drivers found in this session to promote.');
-        }
-
-        let minLap = Infinity;
-        let fastestDriverId: string | null = null;
+        // Insert race results for each driver
         for (const p of participants) {
-            if (p.fastest_lap_ms && p.fastest_lap_ms < minLap) {
-                minLap = p.fastest_lap_ms;
-                fastestDriverId = p.driver_id;
-            }
+            const points = calculatePoints({
+                position: p.position,
+                fastestLap: false, // Can be enhanced if tracking fastest lap per session
+                cleanDriver: true, // Assume clean by default
+                isDnf: (p.lap_count || 0) === 0
+            }, config);
+
+            const resultId = crypto.randomUUID();
+            await run(
+                `INSERT INTO race_results (id, race_id, driver_id, position, points_earned, fastest_lap, clean_driver, is_dnf)
+                 VALUES (?, ?, ?, ?, ?, false, true, ?)`,
+                [resultId, raceId, p.driver_id, p.position, points, (p.lap_count || 0) === 0]
+            );
+
+            // Update driver's total points
+            await run(
+                `UPDATE drivers SET total_points = total_points + ? WHERE id = ?`,
+                [points, p.driver_id]
+            );
         }
 
-        const resultsToSave = participants.map((p: any) => ({
-            driver_id: p.driver_id,
-            position: p.position || 0,
-            quali_position: p.start_position || 0,
-            fastest_lap: p.driver_id === fastestDriverId,
-            clean_driver: (p.warnings || 0) === 0 && (p.penalties_time || 0) === 0,
-            is_dnf: false,
-            pit_stops: p.pit_stops || 0,
-            warnings: p.warnings || 0,
-            penalties_time: p.penalties_time || 0
-        }));
+        // Link session to race
+        await run(
+            `UPDATE telemetry_sessions SET race_id = ?, is_active = false WHERE id = ?`,
+            [raceId, sessionId]
+        );
 
-        const saveRes = await saveRaceResults(leagueId, track, resultsToSave, existingRaceId);
-
-        if (saveRes.success && saveRes.raceId) {
-            await run(`UPDATE telemetry_sessions SET race_id = ? WHERE id = ?`, [saveRes.raceId, sessionId]);
-        }
-
-        return saveRes;
+        return { success: true, raceId };
     } catch (error: any) {
+        console.error('promoteTelemetryToRace Error:', error);
         return { success: false, error: error.message };
     }
 }
 
-export async function promoteTelemetryToRace(leagueId: string, sessionId: string, track: string, existingRaceId?: string) {
+/**
+ * Internal function to promote telemetry automatically (called from API worker).
+ */
+export async function internalPromoteTelemetryToRace(leagueId: string, sessionId: string, trackName: string) {
     try {
-        await verifyLeagueOwner(leagueId);
+        // Skip owner verification for internal use
+        const sessions = await query<any>(
+            `SELECT * FROM telemetry_sessions WHERE id = ? AND league_id = ?`,
+            [sessionId, leagueId]
+        );
+        if (sessions.length === 0) {
+            console.log('Session not found, skipping auto-promote');
+            return { success: false, error: 'Session not found' };
+        }
 
-        // 1. Alle Teilnehmer laden (inkl. nicht zugeordnete)
-        const participants = await query<any>(
-            `SELECT tp.*, 
-            (SELECT MIN(lap_time_ms) FROM telemetry_laps tl WHERE tl.participant_id = tp.id AND tl.is_valid = true) as fastest_lap_ms
-            FROM telemetry_participants tp 
-            WHERE tp.session_id = ?
-            ORDER BY tp.position ASC`,
+        // Only promote if there are assigned drivers
+        const assignedCount = await query<any>(
+            `SELECT COUNT(*) as cnt FROM telemetry_participants WHERE session_id = ? AND driver_id IS NOT NULL`,
             [sessionId]
         );
 
-        // Mindestens 1 zugeordneter Fahrer muss vorhanden sein
-        const assignedParticipants = participants.filter((p: any) => p.driver_id);
-        if (assignedParticipants.length === 0) {
-            throw new Error('Keine zugeordneten Fahrer in der Session gefunden.');
+        if ((assignedCount[0]?.cnt || 0) === 0) {
+            console.log('No assigned drivers, skipping auto-promote');
+            return { success: false, error: 'No assigned drivers' };
         }
 
-        // Schnellste Runde nur unter zugeordneten Fahrern bestimmen
-        let minLap = Infinity;
-        let fastestDriverId: string | null = null;
-        for (const p of assignedParticipants) {
-            if (p.fastest_lap_ms && p.fastest_lap_ms < minLap) {
-                minLap = p.fastest_lap_ms;
-                fastestDriverId = p.driver_id;
-            }
-        }
-
-        const resultsToSave = participants.map((p: any) => {
-            if (!p.driver_id) return null; // Nicht zugeordnet → wird unten als DNF per Liga-Fahrer ergänzt
-            return {
-                driver_id: p.driver_id,
-                position: p.position || 0,
-                quali_position: p.start_position || 0,
-                fastest_lap: p.driver_id === fastestDriverId,
-                clean_driver: (p.warnings || 0) === 0 && (p.penalties_time || 0) === 0,
-                is_dnf: false,
-                pit_stops: p.pit_stops || 0,
-                warnings: p.warnings || 0,
-                penalties_time: p.penalties_time || 0
-            };
-        }).filter(Boolean);
-
-        // Alle Liga-Fahrer die NICHT in der Session erschienen sind, erhalten DNF
-        // (Fahrer die in der Liga sind, aber nicht im Rennen waren)
-        // Diese werden außerhalb hinzugefügt durch saveRaceResults falls benötigt.
-        // Hier: Alle Teilnehmer OHNE driver_id bekommen separaten DNF-Eintrag falls sie einem Liga-Fahrer entsprechen.
-        // Wir holen alle Liga-Fahrer und fügen fehlende als DNF hinzu:
-        const allLeagueDrivers = await query<any>(
-            `SELECT id FROM drivers WHERE league_id = ?`,
-            [leagueId]
-        );
-        const presentDriverIds = new Set(resultsToSave.map((r: any) => r.driver_id));
-        for (const ld of allLeagueDrivers) {
-            if (!presentDriverIds.has(ld.id)) {
-                // Fahrer war nicht im Rennen (oder nicht zugeordnet) → DNF mit 0 Punkten
-                resultsToSave.push({
-                    driver_id: ld.id,
-                    position: 0,
-                    quali_position: 0,
-                    fastest_lap: false,
-                    clean_driver: false,
-                    is_dnf: true,
-                    pit_stops: 0,
-                    warnings: 0,
-                    penalties_time: 0
-                });
-            }
-        }
-
-        // 2. Reuse the saveRaceResults logic
-        const saveRes = await saveRaceResults(leagueId, track, resultsToSave, existingRaceId);
-
-        if (saveRes.success && saveRes.raceId) {
-            await run(`UPDATE telemetry_sessions SET race_id = ? WHERE id = ?`, [saveRes.raceId, sessionId]);
-        }
-
-        return saveRes;
-
+        // Delegate to main function
+        return await promoteTelemetryToRace(leagueId, sessionId, trackName);
     } catch (error: any) {
-        return { success: false, error: error.message };
-    }
-}
-
-/**
- * Updates a driver's In-Game Name.
- */
-export async function updateDriverGameName(driverId: string, leagueId: string, gameName: string) {
-    try {
-        await verifyLeagueOwner(leagueId);
-
-        await run(`UPDATE drivers SET game_name = ? WHERE id = ? AND league_id = ?`, [gameName || null, driverId, leagueId]);
-        return { success: true };
-    } catch (error: any) {
-        return { success: false, error: error.message };
-    }
-}
-
-/**
- * Updates a driver's Color.
- */
-export async function updateDriverColor(driverId: string, leagueId: string, color: string) {
-    try {
-        await verifyLeagueOwner(leagueId);
-
-        await run(`UPDATE drivers SET color = ? WHERE id = ? AND league_id = ?`, [color || '#ffffff', driverId, leagueId]);
-        return { success: true };
-    } catch (error: any) {
+        console.error('internalPromoteTelemetryToRace Error:', error);
         return { success: false, error: error.message };
     }
 }
@@ -1174,7 +1158,7 @@ export async function getDriverPositionHistory(raceId: string, driverId: string)
 
         // Fahrzeug-Index über den Teilnehmer-Datensatz bestimmen
         const participant = await query<any>(
-            `SELECT id FROM telemetry_participants WHERE session_id = ? AND driver_id = ? LIMIT 1`,
+            `SELECT id, game_name FROM telemetry_participants WHERE session_id = ? AND driver_id = ? LIMIT 1`,
             [sessionId, driverId]
         );
         if (participant.length === 0) return { success: true, positions: [] };
@@ -1182,15 +1166,6 @@ export async function getDriverPositionHistory(raceId: string, driverId: string)
         // car_index aus der session via game_name ermitteln:
         // Position-Historie ist nach car_index gespeichert, daher brauchen wir den Mapping-Weg.
         // Wir holen alle Positionen für diese Session und gleichen über den Fahrer-Namen ab.
-        const participantGameName = await query<any>(
-            `SELECT game_name FROM telemetry_participants WHERE id = ?`,
-            [participant[0].id]
-        );
-        if (participantGameName.length === 0) return { success: true, positions: [] };
-
-        // Der car_index ist nicht direkt gespeichert, daher nutzen wir die Reihenfolge der Teilnehmer.
-        // Alternativ: Alle Positions-Historien für die Session laden und nach Übereinstimmung mit bekannten
-        // Rundendaten des Fahrers filtern.
         // Einfachster Ansatz: Wir geben alle Positionen per car_index zurück, die der Fahrer-Position entsprechen.
         // Da wir nicht direkt den car_index im participant speichern, laden wir alle Positionen
         // und versuchen anhand der Rundenzeiten die beste Übereinstimmung.
@@ -1205,7 +1180,7 @@ export async function getDriverPositionHistory(raceId: string, driverId: string)
             ORDER BY lap_number ASC, car_index ASC
         `, [sessionId]);
 
-        return { success: true, positions: allPositions, sessionId, participantId: participant[0].id, gameName: participantGameName[0].game_name };
+        return { success: true, positions: allPositions, sessionId, participantId: participant[0].id, gameName: participant[0].game_name };
     } catch (error: any) {
         console.error('Positionsverlauf Fehler:', error);
         return { success: false, error: error.message };

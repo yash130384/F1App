@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getTelemetrySessionDetails, assignTelemetryPlayer, getDashboardData } from '@/lib/actions';
+import { getTelemetrySessionDetails, assignTelemetryPlayer, getDashboardData, promoteTelemetryToRace } from '@/lib/actions';
 import { LoadingState, ErrorState } from '../../_components/StatusScreens';
 import Link from 'next/link';
 
@@ -18,6 +18,7 @@ export default function SessionAssignmentPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
+  const [promoting, setPromoting] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -42,22 +43,50 @@ export default function SessionAssignmentPage() {
     setLoading(false);
   }
 
-  const handleAssign = async (gameName: string, driverId: string | null) => {
-    setSaving(gameName);
-    try {
-        const res = await assignTelemetryPlayer(leagueId, gameName, driverId || ''); 
-        // Note: assignTelemetryPlayer currently expects strings, if we send null we might need to handle it or clear it in DB.
-        // For now, let's assume valid selection is needed.
-        if (res.success) {
-            loadData();
-        } else {
-            alert('Error: ' + res.error);
-        }
-    } catch (e: any) {
-        alert('Exception: ' + e.message);
-    }
-    setSaving(null);
-  };
+   const handleAssign = async (gameName: string, driverId: string | null) => {
+     setSaving(gameName);
+     try {
+         const res = await assignTelemetryPlayer(leagueId, gameName, driverId || '');
+         // Note: assignTelemetryPlayer currently expects strings, if we send null we might need to handle it or clear it in DB.
+         // For now, let's assume valid selection is needed.
+         if (res.success) {
+             loadData();
+         } else {
+             alert('Error: ' + res.error);
+         }
+     } catch (e: any) {
+         alert('Exception: ' + e.message);
+     }
+     setSaving(null);
+   };
+
+   const handlePromoteToRace = async () => {
+     const assignedCount = participants.filter((p: any) => p.driver_id).length;
+     if (assignedCount === 0) {
+       alert('You must assign at least one driver before finishing the session.');
+       return;
+     }
+
+     const trackName = session?.track_id ? `Track ${session.track_id}` : 'Unknown Track';
+     if (!confirm(`Are you sure you want to finalize this session as a race result? This will:\n\n✓ Create official race results\n✓ Assign ${assignedCount} driver(s)\n✓ Calculate points\n\nTrack: ${trackName}`)) {
+       return;
+     }
+
+     setPromoting(true);
+     try {
+       const res = await promoteTelemetryToRace(leagueId, sessionId, trackName);
+       if (res.success) {
+         alert('Session promoted to race result successfully!');
+         router.push(`/profile/leagues/${leagueId}`);
+       } else {
+         alert('Error: ' + res.error);
+       }
+     } catch (e: any) {
+       alert('Exception: ' + e.message);
+     } finally {
+       setPromoting(false);
+     }
+   };
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
@@ -128,13 +157,28 @@ export default function SessionAssignmentPage() {
             })}
           </tbody>
         </table>
-      </div>
+       </div>
 
-        <div className="mt-8 flex justify-end gap-small">
-            <Link href={`/profile/analysis/${sessionId}`} className="btn-secondary btn-sm" style={{ padding: '12px 24px' }}>
-                OPEN DEEP DIVE
-            </Link>
-        </div>
-    </div>
-  );
+         <div className="mt-8 flex justify-between gap-small">
+             <div className="flex gap-small">
+                 <Link href={`/profile/leagues/${leagueId}/telemetry`} className="btn-secondary btn-sm" style={{ padding: '12px 24px' }}>
+                     BACK TO HUB
+                 </Link>
+             </div>
+             <div className="flex gap-small">
+                 <Link href={`/profile/analysis/${sessionId}`} className="btn-secondary btn-sm" style={{ padding: '12px 24px' }}>
+                     OPEN DEEP DIVE
+                 </Link>
+                 <button
+                     className="btn-primary btn-sm"
+                     onClick={handlePromoteToRace}
+                     disabled={promoting}
+                     style={{ padding: '12px 24px', background: promoting ? 'rgba(255,24,1,0.3)' : 'var(--f1-red)' }}
+                 >
+                     {promoting ? '⏳ FINALIZING...' : '✓ FINISH SESSION'}
+                 </button>
+             </div>
+         </div>
+     </div>
+   );
 }

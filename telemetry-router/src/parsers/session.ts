@@ -66,10 +66,11 @@ export function parseSession(buffer: Buffer): PacketSessionData {
     const canRead = (offset: number, length: number) => buffer.length >= offset + length;
 
     const marshalZones: MarshalZone[] = [];
-    if (canRead(PACKET_HEADER_SIZE + 19, 1)) {
-        const numMarshalZones = buffer.readUInt8(PACKET_HEADER_SIZE + 19);
+    let numMarshalZones = 0;
+    if (canRead(PACKET_HEADER_SIZE + 18, 1)) {
+        numMarshalZones = buffer.readUInt8(PACKET_HEADER_SIZE + 18);
         for (let i = 0; i < numMarshalZones; i++) {
-            const offset = PACKET_HEADER_SIZE + 20 + (i * 5);
+            const offset = PACKET_HEADER_SIZE + 19 + (i * 5);
             if (canRead(offset, 5)) {
                 marshalZones.push({
                     zoneStart: buffer.readFloatLE(offset),
@@ -80,10 +81,11 @@ export function parseSession(buffer: Buffer): PacketSessionData {
     }
 
     const weatherForecastSamples: WeatherForecastSample[] = [];
-    if (canRead(PACKET_HEADER_SIZE + 130, 1)) {
-        const numWeatherForecastSamples = buffer.readUInt8(PACKET_HEADER_SIZE + 130);
+    let numWeatherForecastSamples = 0;
+    if (canRead(PACKET_HEADER_SIZE + 126, 1)) {
+        numWeatherForecastSamples = buffer.readUInt8(PACKET_HEADER_SIZE + 126);
         for (let i = 0; i < numWeatherForecastSamples; i++) {
-            const offset = PACKET_HEADER_SIZE + 131 + (i * 8);
+            const offset = PACKET_HEADER_SIZE + 127 + (i * 8);
             if (canRead(offset, 8)) {
                 weatherForecastSamples.push({
                     sessionType: buffer.readUInt8(offset),
@@ -116,33 +118,33 @@ export function parseSession(buffer: Buffer): PacketSessionData {
         isSpectating: canRead(PACKET_HEADER_SIZE + 15, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 15) : 0,
         spectatorCarIndex: canRead(PACKET_HEADER_SIZE + 16, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 16) : 0,
         sliProNativeSupport: canRead(PACKET_HEADER_SIZE + 17, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 17) : 0,
-        numMarshalZones: marshalZones.length,
+        numMarshalZones,
         marshalZones,
-        safetyCarStatus: canRead(PACKET_HEADER_SIZE + 127, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 127) : 0,
-        networkGame: canRead(PACKET_HEADER_SIZE + 128, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 128) : 0,
-        numWeatherForecastSamples: weatherForecastSamples.length,
+        safetyCarStatus: canRead(PACKET_HEADER_SIZE + 124, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 124) : 0,
+        networkGame: canRead(PACKET_HEADER_SIZE + 125, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 125) : 0,
+        numWeatherForecastSamples,
         weatherForecastSamples,
-        forecastAccuracy: canRead(PACKET_HEADER_SIZE + 583, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 583) : 0,
-        aiDifficulty: canRead(PACKET_HEADER_SIZE + 584, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 584) : 0,
-        seasonLinkIdentifier: canRead(PACKET_HEADER_SIZE + 585, 4) ? buffer.readUInt32LE(PACKET_HEADER_SIZE + 585) : 0,
-        weekendLinkIdentifier: canRead(PACKET_HEADER_SIZE + 589, 4) ? buffer.readUInt32LE(PACKET_HEADER_SIZE + 589) : 0,
-        sessionLinkIdentifier: canRead(PACKET_HEADER_SIZE + 593, 4) ? buffer.readUInt32LE(PACKET_HEADER_SIZE + 593) : 0,
-        pitStopWindowIdealLap: canRead(PACKET_HEADER_SIZE + 597, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 597) : 0,
-        pitStopWindowLatestLap: canRead(PACKET_HEADER_SIZE + 598, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 598) : 0,
-        pitStopRejoinPosition: canRead(PACKET_HEADER_SIZE + 599, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 599) : 0,
-        steeringAssist: canRead(PACKET_HEADER_SIZE + 600, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 600) : 0,
-        brakingAssist: canRead(PACKET_HEADER_SIZE + 601, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 601) : 0,
-        gearboxAssist: canRead(PACKET_HEADER_SIZE + 602, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 602) : 0,
-        pitAssist: canRead(PACKET_HEADER_SIZE + 603, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 603) : 0,
-        pitReleaseAssist: canRead(PACKET_HEADER_SIZE + 604, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 604) : 0,
-        ersAssist: canRead(PACKET_HEADER_SIZE + 605, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 605) : 0,
-        drsAssist: canRead(PACKET_HEADER_SIZE + 606, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 606) : 0,
-        dynamicRacingLine: canRead(PACKET_HEADER_SIZE + 607, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 607) : 0,
-        dynamicRacingLineType: canRead(PACKET_HEADER_SIZE + 608, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 608) : 0,
-        gameMode: canRead(PACKET_HEADER_SIZE + 609, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 609) : 0,
-        ruleSet: canRead(PACKET_HEADER_SIZE + 610, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 610) : 0,
-        timeOfDay: canRead(PACKET_HEADER_SIZE + 611, 4) ? buffer.readUInt32LE(PACKET_HEADER_SIZE + 611) : 0,
-        sessionLength: canRead(PACKET_HEADER_SIZE + 615, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 615) : 0,
+        forecastAccuracy: canRead(PACKET_HEADER_SIZE + 575, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 575) : 0,
+        aiDifficulty: canRead(PACKET_HEADER_SIZE + 576, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 576) : 0,
+        seasonLinkIdentifier: canRead(PACKET_HEADER_SIZE + 577, 4) ? buffer.readUInt32LE(PACKET_HEADER_SIZE + 577) : 0,
+        weekendLinkIdentifier: canRead(PACKET_HEADER_SIZE + 581, 4) ? buffer.readUInt32LE(PACKET_HEADER_SIZE + 581) : 0,
+        sessionLinkIdentifier: canRead(PACKET_HEADER_SIZE + 585, 4) ? buffer.readUInt32LE(PACKET_HEADER_SIZE + 585) : 0,
+        pitStopWindowIdealLap: canRead(PACKET_HEADER_SIZE + 589, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 589) : 0,
+        pitStopWindowLatestLap: canRead(PACKET_HEADER_SIZE + 590, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 590) : 0,
+        pitStopRejoinPosition: canRead(PACKET_HEADER_SIZE + 591, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 591) : 0,
+        steeringAssist: canRead(PACKET_HEADER_SIZE + 592, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 592) : 0,
+        brakingAssist: canRead(PACKET_HEADER_SIZE + 593, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 593) : 0,
+        gearboxAssist: canRead(PACKET_HEADER_SIZE + 594, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 594) : 0,
+        pitAssist: canRead(PACKET_HEADER_SIZE + 595, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 595) : 0,
+        pitReleaseAssist: canRead(PACKET_HEADER_SIZE + 596, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 596) : 0,
+        ersAssist: canRead(PACKET_HEADER_SIZE + 597, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 597) : 0,
+        drsAssist: canRead(PACKET_HEADER_SIZE + 598, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 598) : 0,
+        dynamicRacingLine: canRead(PACKET_HEADER_SIZE + 599, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 599) : 0,
+        dynamicRacingLineType: canRead(PACKET_HEADER_SIZE + 600, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 600) : 0,
+        gameMode: canRead(PACKET_HEADER_SIZE + 601, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 601) : 0,
+        ruleSet: canRead(PACKET_HEADER_SIZE + 602, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 602) : 0,
+        timeOfDay: canRead(PACKET_HEADER_SIZE + 603, 4) ? buffer.readUInt32LE(PACKET_HEADER_SIZE + 603) : 0,
+        sessionLength: canRead(PACKET_HEADER_SIZE + 607, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 607) : 0,
     };
 }
 

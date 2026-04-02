@@ -50,6 +50,8 @@ export class DirectDbSender {
                     this.log(`Session gestartet: ${this.sessionId}`);
                 } else {
                     this.sessionId = activeRes[0].id;
+                    // Update session_type if changed
+                    await query`UPDATE telemetry_sessions SET session_type = ${sessionType} WHERE id = ${this.sessionId} AND session_type != ${sessionType}`;
                 }
             }
 

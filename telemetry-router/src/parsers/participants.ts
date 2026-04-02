@@ -11,7 +11,9 @@ export interface ParticipantData {
     name: string;
     yourTelemetry: number;
     showOnlineNames: number;
+    techLevel: number;
     platform: number;
+    numColours: number;
 }
 
 export interface PacketParticipantsData {
@@ -24,8 +26,8 @@ export function parseParticipants(buffer: Buffer): PacketParticipantsData {
     const numActiveCars = buffer.readUInt8(PACKET_HEADER_SIZE);
     const participants: ParticipantData[] = [];
     
-    // F1 25 Teilnehmer-Stride: 60 Bytes
-    const participantStride = 60;
+    // F1 25 Teilnehmer-Stride: 57 Bytes (32 für name + padding?)
+    const participantStride = 57;
 
     for (let i = 0; i < 22; i++) {
         const offset = PACKET_HEADER_SIZE + 1 + i * participantStride;
@@ -39,10 +41,12 @@ export function parseParticipants(buffer: Buffer): PacketParticipantsData {
             myTeam: buffer.readUInt8(offset + 4),
             raceNumber: buffer.readUInt8(offset + 5),
             nationality: buffer.readUInt8(offset + 6),
-            name: buffer.toString('utf8', offset + 7, offset + 7 + 48).replace(/\0/g, '').trim(),
-            yourTelemetry: buffer.readUInt8(offset + 55),
-            showOnlineNames: buffer.readUInt8(offset + 56),
-            platform: buffer.readUInt8(offset + 57),
+            name: buffer.toString('utf8', offset + 7, offset + 7 + 32).replace(/\0/g, '').trim(),
+            yourTelemetry: buffer.readUInt8(offset + 39),
+            showOnlineNames: buffer.readUInt8(offset + 40),
+            techLevel: buffer.readUInt16LE(offset + 41),
+            platform: buffer.readUInt8(offset + 43),
+            numColours: buffer.readUInt8(offset + 44),
         });
     }
 

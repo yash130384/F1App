@@ -448,7 +448,7 @@ export class SessionState {
     public updateParticipant(carIdx: number, data: ParticipantData) {
         const p = this.getPlayer(carIdx);
         if (data.name?.trim().length) p.gameName = data.name;
-        p.isHuman = data.aiControlled === 0;
+        p.isHuman = data.aiControlled === 1; // F1 25: 1 = Human, 0 = AI
         p.teamId = data.teamId;
         p.participantData = data;
     }

@@ -1,4 +1,3 @@
-import { ParticipantData } from './parsers/participants';
 import { LapData } from './parsers/lapData';
 import { CarTelemetryData } from './parsers/telemetry';
 import { CarDamageData } from './parsers/carDamage';
@@ -136,4 +135,23 @@ export interface PlayerState {
     // Resultate am Ende (F1 25)
     totalRaceTime?: number;
     penaltiesCount?: number;
+}
+
+/**
+ * Repräsentiert die Teilnehmerdaten für ein Rennen.
+ */
+export interface ParticipantData {
+    aiControlled: number;
+    driverId: number;
+    networkId: number;
+    teamId: number;
+    myTeam: number;
+    raceNumber: number;
+    nationality: number;
+    name: string;
+    yourTelemetry: number;
+    showOnlineNames: number;
+    techLevel: number;
+    platform: number;
+    numColours: number;
 }
