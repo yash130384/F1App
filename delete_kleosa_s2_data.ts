@@ -3,7 +3,13 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-const sql = neon(process.env.DATABASE_URL);
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+    console.error('❌ DATABASE_URL not set in environment variables');
+    process.exit(1);
+}
+
+const sql = neon(DATABASE_URL);
 
 async function deleteKleosaS2Data() {
     try {
