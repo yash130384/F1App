@@ -1,226 +1,152 @@
-/**
- * Repräsentiert die Daten einer F1-Session (Wetter, Strecke, Modus).
- */
-export interface SessionData {
-    /** Wetter-Status (0=Sonnig, 1=Heiter, 2=Bewölkt, etc.) */
-    weather: number;
-    /** Streckentemperatur in Grad Celsius */
-    trackTemperature: number;
-    /** Lufttemperatur in Grad Celsius */
-    airTemperature: number;
-    /** Gesamtzahl der Runden im Rennen (0 bei Zeitfahren) */
-    totalLaps: number;
-    /** Länge der Strecke in Metern */
-    trackLength: number;
-    /** Roher Typ-Index der Session */
-    sessionTypeRaw: number;
-    /** Gemappter Name der Session (z.B. "Qualifying 1") */
-    sessionTypeMapped: string;
-    /** Interne Track-ID des Spiels */
-    trackId: number;
-    /** Name der Rennstrecke */
-    trackName: string;
-    /** Formel-Klasse (0=F1 Modern, 1=F1 Classic, etc.) */
-    formula: number;
-    /** Verbleibende Zeit der Session in Sekunden */
-    sessionTimeLeft: number;
-    /** Gesamtdauer der Session in Sekunden */
-    sessionDuration: number;
-    /** Boxengassen-Geschwindigkeitslimit in km/h */
-    pitSpeedLimit: number;
-    /** Ob das Spiel pausiert ist (0=Nein, 1=Ja) */
-    gamePaused: number;
-    /** Ob der aktuelle Spieler zuschaut (Spectator) */
-    isSpectating: number;
-    /** Auto-Index des beobachteten Fahrers */
-    spectatorCarIndex: number;
-    /** Unterstützung für SLI-Pro Displays */
-    sliProNativeSupport: number;
-    /** Anzahl der Streckenabschnitte (Marshal Zones) */
-    numMarshalZones: number;
-    /** Details zu den Marshall-Zonen */
-    marshalZones: { zoneStart: number, zoneFlag: number }[];
-    /** Status des Safety Cars (0=Keines, 1=Full SC, 2=VSC, 3=Formation Lap) */
-    safetyCarStatus: number;
-    /** Ob es sich um ein Online-Spiel handelt */
-    networkGame: number;
-    /** Anzahl der Wettervorhersage-Datenpunkte */
-    numWeatherForecastSamples: number;
-    /** Liste der Wettervorhersagen */
-    weatherForecastSamples: any[];
-    /** Genauigkeit der Vorhersage (0=Ungefähr, 1=Präzise) */
-    forecastAccuracy: number;
-    /** KI-Schwierigkeitsgrad (0-110) */
-    aiDifficulty: number;
-    /** Ideal-Runde für den Boxenstopp */
-    pitStopWindowIdealLap: number;
-    /** Späteste Runde für den Boxenstopp */
-    pitStopWindowLatestLap: number;
-    /** Erwartete Position nach dem Boxenstopp */
-    pitStopRejoinPosition: number;
-    /** Anzahl der SC-Phasen in dieser Session */
-    numSafetyCarPeriods: number;
-    /** Anzahl der VSC-Phasen */
-    numVirtualSafetyCarPeriods: number;
-    /** Anzahl der Rot-Phasen */
-    numRedFlagPeriods: number;
-    /** Start-Distanz von Sektor 2 */
-    sector2LapDistanceStart: number;
-    /** Start-Distanz von Sektor 3 */
-    sector3LapDistanceStart: number;
-    // ... weitere Felder werden hier direkt gemappt
-    [key: string]: any; 
+import { PACKET_HEADER_SIZE } from './header';
+
+export interface MarshalZone {
+    zoneStart: number;
+    zoneFlag: number;
 }
 
-/**
- * Mapping-Tabelle für Strecken-IDs zu Klarnamen.
- */
-const TRACK_MAP: Record<number, string> = {
-    0: 'Melbourne', 1: 'Paul Ricard', 2: 'Shanghai', 3: 'Sakhir (Bahrain)',
-    4: 'Catalunya', 5: 'Monaco', 6: 'Montreal', 7: 'Silverstone',
-    8: 'Hockenheim', 9: 'Hungaroring', 10: 'Spa', 11: 'Monza',
-    12: 'Singapore', 13: 'Suzuka', 14: 'Abu Dhabi', 15: 'Texas',
-    16: 'Brazil', 17: 'Austria', 18: 'Sochi', 19: 'Mexico',
-    20: 'Baku', 21: 'Sakhir Short', 22: 'Silverstone Short', 23: 'Texas Short',
-    24: 'Suzuka Short', 25: 'Hanoi', 26: 'Zandvoort', 27: 'Imola',
-    28: 'Portimão', 29: 'Jeddah', 30: 'Miami', 31: 'Las Vegas', 32: 'Losail (Qatar)'
-};
+export interface WeatherForecastSample {
+    sessionType: number;
+    timeOffset: number;
+    weather: number;
+    trackTemperature: number;
+    trackTemperatureChange: number;
+    airTemperature: number;
+    airTemperatureChange: number;
+    rainProbability: number;
+}
 
-/**
- * Parsed das Paket ID 1 (Session Data).
- * Enthält globale Informationen über die aktuelle Sitzung, das Wetter und die Strecke.
- * 
- * @param buffer Der rohe binäre Buffer des UDP-Pakets.
- * @returns Objekt mit detaillierten Session-Informationen.
- */
-export function parseSession(buffer: Buffer): SessionData {
-    // Session Typ Mapping (Training, Quali, Rennen)
-    const sessionTypeRaw = buffer.readUInt8(35);
-    let sessionTypeMapped = "Unknown";
-    if (sessionTypeRaw >= 1 && sessionTypeRaw <= 4) sessionTypeMapped = `Practice ${sessionTypeRaw}`;
-    else if (sessionTypeRaw === 5) sessionTypeMapped = "Qualifying 1";
-    else if (sessionTypeRaw === 6) sessionTypeMapped = "Qualifying 2";
-    else if (sessionTypeRaw === 7) sessionTypeMapped = "Qualifying 3";
-    else if (sessionTypeRaw === 8) sessionTypeMapped = "Short Qualifying";
-    else if (sessionTypeRaw === 9) sessionTypeMapped = "OSQ";
-    else if (sessionTypeRaw >= 10 && sessionTypeRaw <= 12) sessionTypeMapped = `Race ${sessionTypeRaw - 9}`;
-    else if (sessionTypeRaw === 13) sessionTypeMapped = "Time Trial";
-    else sessionTypeMapped = `Unknown_${sessionTypeRaw}`;
+export interface PacketSessionData {
+    weather: number;
+    trackTemperature: number;
+    airTemperature: number;
+    totalLaps: number;
+    trackLength: number;
+    sessionType: number;
+    trackId: number;
+    formula: number;
+    sessionTimeLeft: number;
+    sessionDuration: number;
+    pitSpeedLimit: number;
+    gamePaused: number;
+    isSpectating: number;
+    spectatorCarIndex: number;
+    sliProNativeSupport: number;
+    numMarshalZones: number;
+    marshalZones: MarshalZone[];
+    safetyCarStatus: number;
+    networkGame: number;
+    numWeatherForecastSamples: number;
+    weatherForecastSamples: WeatherForecastSample[];
+    forecastAccuracy: number;
+    aiDifficulty: number;
+    seasonLinkIdentifier: number;
+    weekendLinkIdentifier: number;
+    sessionLinkIdentifier: number;
+    pitStopWindowIdealLap: number;
+    pitStopWindowLatestLap: number;
+    pitStopRejoinPosition: number;
+    steeringAssist: number;
+    brakingAssist: number;
+    gearboxAssist: number;
+    pitAssist: number;
+    pitReleaseAssist: number;
+    ersAssist: number;
+    drsAssist: number;
+    dynamicRacingLine: number;
+    dynamicRacingLineType: number;
+    gameMode: number;
+    ruleSet: number;
+    timeOfDay: number;
+    sessionLength: number;
+}
 
-    const trackId = buffer.readInt8(36);
-    const trackName = TRACK_MAP[trackId] || `Unknown (${trackId})`;
+export function parseSession(buffer: Buffer): PacketSessionData {
+    // Hilfsfunktion für sicheres Lesen
+    const canRead = (offset: number, length: number) => buffer.length >= offset + length;
 
-    // Marshal Zonen extrahieren (Anzeige von lokalen Flaggen auf der Strecke)
-    const marshalZones = [];
-    for (let i = 0; i < 21; i++) {
-        const offset = 48 + (i * 5);
-        marshalZones.push({
-            zoneStart: buffer.readFloatLE(offset),
-            zoneFlag: buffer.readInt8(offset + 4)
-        });
+    const marshalZones: MarshalZone[] = [];
+    if (canRead(PACKET_HEADER_SIZE + 19, 1)) {
+        const numMarshalZones = buffer.readUInt8(PACKET_HEADER_SIZE + 19);
+        for (let i = 0; i < numMarshalZones; i++) {
+            const offset = PACKET_HEADER_SIZE + 20 + (i * 5);
+            if (canRead(offset, 5)) {
+                marshalZones.push({
+                    zoneStart: buffer.readFloatLE(offset),
+                    zoneFlag: buffer.readInt8(offset + 4),
+                });
+            }
+        }
     }
 
-    // Wettervorhersage-Datenpunkte (64 Samples)
-    const weatherForecastSamples = [];
-    for (let i = 0; i < 64; i++) {
-        const offset = 156 + (i * 8);
-        weatherForecastSamples.push({
-            sessionType: buffer.readUInt8(offset),
-            timeOffset: buffer.readUInt8(offset + 1),
-            weather: buffer.readUInt8(offset + 2),
-            trackTemperature: buffer.readInt8(offset + 3),
-            trackTemperatureChange: buffer.readInt8(offset + 4),
-            airTemperature: buffer.readInt8(offset + 5),
-            airTemperatureChange: buffer.readInt8(offset + 6),
-            rainPercentage: buffer.readUInt8(offset + 7)
-        });
+    const weatherForecastSamples: WeatherForecastSample[] = [];
+    if (canRead(PACKET_HEADER_SIZE + 130, 1)) {
+        const numWeatherForecastSamples = buffer.readUInt8(PACKET_HEADER_SIZE + 130);
+        for (let i = 0; i < numWeatherForecastSamples; i++) {
+            const offset = PACKET_HEADER_SIZE + 131 + (i * 8);
+            if (canRead(offset, 8)) {
+                weatherForecastSamples.push({
+                    sessionType: buffer.readUInt8(offset),
+                    timeOffset: buffer.readUInt8(offset + 1),
+                    weather: buffer.readUInt8(offset + 2),
+                    trackTemperature: buffer.readInt8(offset + 3),
+                    trackTemperatureChange: buffer.readInt8(offset + 4),
+                    airTemperature: buffer.readInt8(offset + 5),
+                    airTemperatureChange: buffer.readInt8(offset + 6),
+                    rainProbability: buffer.readUInt8(offset + 7),
+                });
+            }
+        }
     }
 
-    // Wochenendstruktur (Reihenfolge der Sessions)
-    const weekendStructure = [];
-    for (let i = 0; i < 12; i++) {
-        weekendStructure.push(buffer.readUInt8(733 + i));
-    }
-
+    // Default-Werte falls Paket zu kurz
     return {
-        weather: buffer.readUInt8(29),
-        trackTemperature: buffer.readInt8(30),
-        airTemperature: buffer.readInt8(31),
-        totalLaps: buffer.readUInt8(32),
-        trackLength: buffer.readUInt16LE(33),
-        sessionTypeRaw,
-        sessionTypeMapped,
-        trackId,
-        trackName,
-        formula: buffer.readUInt8(37),
-        sessionTimeLeft: buffer.readUInt16LE(38),
-        sessionDuration: buffer.readUInt16LE(40),
-        pitSpeedLimit: buffer.readUInt8(42),
-        gamePaused: buffer.readUInt8(43),
-        isSpectating: buffer.readUInt8(44),
-        spectatorCarIndex: buffer.readUInt8(45),
-        sliProNativeSupport: buffer.readUInt8(46),
-        numMarshalZones: buffer.readUInt8(47),
+        weather: canRead(PACKET_HEADER_SIZE, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE) : 0,
+        trackTemperature: canRead(PACKET_HEADER_SIZE + 1, 1) ? buffer.readInt8(PACKET_HEADER_SIZE + 1) : 0,
+        airTemperature: canRead(PACKET_HEADER_SIZE + 2, 1) ? buffer.readInt8(PACKET_HEADER_SIZE + 2) : 0,
+        totalLaps: canRead(PACKET_HEADER_SIZE + 3, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 3) : 0,
+        trackLength: canRead(PACKET_HEADER_SIZE + 4, 2) ? buffer.readUInt16LE(PACKET_HEADER_SIZE + 4) : 0,
+        sessionType: canRead(PACKET_HEADER_SIZE + 6, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 6) : 0,
+        trackId: canRead(PACKET_HEADER_SIZE + 7, 1) ? buffer.readInt8(PACKET_HEADER_SIZE + 7) : -1,
+        formula: canRead(PACKET_HEADER_SIZE + 8, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 8) : 0,
+        sessionTimeLeft: canRead(PACKET_HEADER_SIZE + 9, 2) ? buffer.readUInt16LE(PACKET_HEADER_SIZE + 9) : 0,
+        sessionDuration: canRead(PACKET_HEADER_SIZE + 11, 2) ? buffer.readUInt16LE(PACKET_HEADER_SIZE + 11) : 0,
+        pitSpeedLimit: canRead(PACKET_HEADER_SIZE + 13, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 13) : 0,
+        gamePaused: canRead(PACKET_HEADER_SIZE + 14, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 14) : 0,
+        isSpectating: canRead(PACKET_HEADER_SIZE + 15, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 15) : 0,
+        spectatorCarIndex: canRead(PACKET_HEADER_SIZE + 16, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 16) : 0,
+        sliProNativeSupport: canRead(PACKET_HEADER_SIZE + 17, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 17) : 0,
+        numMarshalZones: marshalZones.length,
         marshalZones,
-        safetyCarStatus: buffer.readUInt8(153),
-        networkGame: buffer.readUInt8(154),
-        numWeatherForecastSamples: buffer.readUInt8(155),
+        safetyCarStatus: canRead(PACKET_HEADER_SIZE + 127, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 127) : 0,
+        networkGame: canRead(PACKET_HEADER_SIZE + 128, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 128) : 0,
+        numWeatherForecastSamples: weatherForecastSamples.length,
         weatherForecastSamples,
-        forecastAccuracy: buffer.readUInt8(668),
-        aiDifficulty: buffer.readUInt8(669),
-        seasonLinkIdentifier: buffer.readUInt32LE(670),
-        weekendLinkIdentifier: buffer.readUInt32LE(674),
-        sessionLinkIdentifier: buffer.readUInt32LE(678),
-        pitStopWindowIdealLap: buffer.readUInt8(682),
-        pitStopWindowLatestLap: buffer.readUInt8(683),
-        pitStopRejoinPosition: buffer.readUInt8(684),
-        steeringAssist: buffer.readUInt8(685),
-        brakingAssist: buffer.readUInt8(686),
-        gearboxAssist: buffer.readUInt8(687),
-        pitAssist: buffer.readUInt8(688),
-        pitReleaseAssist: buffer.readUInt8(689),
-        ERSAssist: buffer.readUInt8(690),
-        DRSAssist: buffer.readUInt8(691),
-        dynamicRacingLine: buffer.readUInt8(692),
-        dynamicRacingLineType: buffer.readUInt8(693),
-        gameMode: buffer.readUInt8(694),
-        ruleSet: buffer.readUInt8(695),
-        timeOfDay: buffer.readUInt32LE(696),
-        sessionLength: buffer.readUInt8(700),
-        speedUnitsLeadPlayer: buffer.readUInt8(701),
-        temperatureUnitsLeadPlayer: buffer.readUInt8(702),
-        speedUnitsSecondaryPlayer: buffer.readUInt8(703),
-        temperatureUnitsSecondaryPlayer: buffer.readUInt8(704),
-        numSafetyCarPeriods: buffer.readUInt8(705),
-        numVirtualSafetyCarPeriods: buffer.readUInt8(706),
-        numRedFlagPeriods: buffer.readUInt8(707),
-        equalCarPerformance: buffer.readUInt8(708),
-        recoveryMode: buffer.readUInt8(709),
-        flashbackLimit: buffer.readUInt8(710),
-        surfaceType: buffer.readUInt8(711),
-        lowFuelMode: buffer.readUInt8(712),
-        raceStarts: buffer.readUInt8(713),
-        tyreTemperature: buffer.readUInt8(714),
-        pitLaneTyreSim: buffer.readUInt8(715),
-        carDamage: buffer.readUInt8(716),
-        carDamageRate: buffer.readUInt8(717),
-        collisions: buffer.readUInt8(718),
-        collisionsOffForFirstLapOnly: buffer.readUInt8(719),
-        mpUnsafePitRelease: buffer.readUInt8(720),
-        mpOffForGriefing: buffer.readUInt8(721),
-        cornerCuttingStringency: buffer.readUInt8(722),
-        parcFermeRules: buffer.readUInt8(723),
-        pitStopExperience: buffer.readUInt8(724),
-        safetyCar: buffer.readUInt8(725),
-        safetyCarExperience: buffer.readUInt8(726),
-        formationLap: buffer.readUInt8(727),
-        formationLapExperience: buffer.readUInt8(728),
-        redFlags: buffer.readUInt8(729),
-        affectsLicenceLevelSolo: buffer.readUInt8(730),
-        affectsLicenceLevelMP: buffer.readUInt8(731),
-        numSessionsInWeekend: buffer.readUInt8(732),
-        weekendStructure,
-        sector2LapDistanceStart: buffer.readFloatLE(745),
-        sector3LapDistanceStart: buffer.readFloatLE(749)
+        forecastAccuracy: canRead(PACKET_HEADER_SIZE + 583, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 583) : 0,
+        aiDifficulty: canRead(PACKET_HEADER_SIZE + 584, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 584) : 0,
+        seasonLinkIdentifier: canRead(PACKET_HEADER_SIZE + 585, 4) ? buffer.readUInt32LE(PACKET_HEADER_SIZE + 585) : 0,
+        weekendLinkIdentifier: canRead(PACKET_HEADER_SIZE + 589, 4) ? buffer.readUInt32LE(PACKET_HEADER_SIZE + 589) : 0,
+        sessionLinkIdentifier: canRead(PACKET_HEADER_SIZE + 593, 4) ? buffer.readUInt32LE(PACKET_HEADER_SIZE + 593) : 0,
+        pitStopWindowIdealLap: canRead(PACKET_HEADER_SIZE + 597, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 597) : 0,
+        pitStopWindowLatestLap: canRead(PACKET_HEADER_SIZE + 598, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 598) : 0,
+        pitStopRejoinPosition: canRead(PACKET_HEADER_SIZE + 599, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 599) : 0,
+        steeringAssist: canRead(PACKET_HEADER_SIZE + 600, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 600) : 0,
+        brakingAssist: canRead(PACKET_HEADER_SIZE + 601, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 601) : 0,
+        gearboxAssist: canRead(PACKET_HEADER_SIZE + 602, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 602) : 0,
+        pitAssist: canRead(PACKET_HEADER_SIZE + 603, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 603) : 0,
+        pitReleaseAssist: canRead(PACKET_HEADER_SIZE + 604, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 604) : 0,
+        ersAssist: canRead(PACKET_HEADER_SIZE + 605, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 605) : 0,
+        drsAssist: canRead(PACKET_HEADER_SIZE + 606, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 606) : 0,
+        dynamicRacingLine: canRead(PACKET_HEADER_SIZE + 607, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 607) : 0,
+        dynamicRacingLineType: canRead(PACKET_HEADER_SIZE + 608, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 608) : 0,
+        gameMode: canRead(PACKET_HEADER_SIZE + 609, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 609) : 0,
+        ruleSet: canRead(PACKET_HEADER_SIZE + 610, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 610) : 0,
+        timeOfDay: canRead(PACKET_HEADER_SIZE + 611, 4) ? buffer.readUInt32LE(PACKET_HEADER_SIZE + 611) : 0,
+        sessionLength: canRead(PACKET_HEADER_SIZE + 615, 1) ? buffer.readUInt8(PACKET_HEADER_SIZE + 615) : 0,
     };
 }
+
+export const SESSION_TYPES: Record<number, string> = {
+    0: 'UNKNOWN', 1: 'P1', 2: 'P2', 3: 'P3', 4: 'SHORT_P', 5: 'Q1', 6: 'Q2', 7: 'Q3',
+    8: 'SHORT_Q', 9: 'OSQ', 10: 'R', 11: 'R2', 12: 'R3', 13: 'TIME_TRIAL', 15: 'RACE_MODE_15'
+};

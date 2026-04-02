@@ -1,16 +1,18 @@
+export const PACKET_HEADER_SIZE = 29;
+
 export interface PacketHeader {
-    packetFormat: number;
-    gameYear: number;
-    gameMajorVersion: number;
-    gameMinorVersion: number;
-    packetVersion: number;
-    packetId: number;
-    sessionUID: bigint;
-    sessionTime: number;
-    frameIdentifier: number;
-    overallFrameIdentifier: number;
-    playerCarIndex: number;
-    secondaryPlayerCarIndex: number;
+    packetFormat: number;           // 2025
+    gameYear: number;               // 25
+    gameMajorVersion: number;       // Game major version - "X.00"
+    gameMinorVersion: number;       // Game minor version - "1.XX"
+    packetVersion: number;          // Version of this packet type, all start from 1
+    packetId: number;               // Identifier for the packet type
+    sessionUID: bigint;             // Unique identifier for the session
+    sessionTime: number;            // Session time in seconds
+    frameIdentifier: number;        // Identifier for the frame
+    overallFrameIdentifier: number; // Overall frame identifier
+    playerCarIndex: number;         // Index of player's car
+    secondaryPlayerCarIndex: number; // Index of secondary player's car
 }
 
 export function parseHeader(buffer: Buffer): PacketHeader {

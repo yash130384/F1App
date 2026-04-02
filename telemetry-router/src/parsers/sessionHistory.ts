@@ -1,4 +1,4 @@
-import { PacketHeader } from './header';
+import { PACKET_HEADER_SIZE } from './header';
 
 export interface LapHistoryData {
     lapTimeInMS: number;
@@ -8,7 +8,7 @@ export interface LapHistoryData {
     sector2TimeMinutes: number;
     sector3TimeInMS: number;
     sector3TimeMinutes: number;
-    lapValidFlags: number; // 0x01 lap, 0x02 s1, 0x04 s2, 0x08 s3
+    lapValidBitFlags: number;
 }
 
 export interface TyreStintHistoryData {
@@ -18,7 +18,6 @@ export interface TyreStintHistoryData {
 }
 
 export interface PacketSessionHistoryData {
-    header: PacketHeader;
     carIdx: number;
     numLaps: number;
     numTyreStints: number;
@@ -30,45 +29,56 @@ export interface PacketSessionHistoryData {
     tyreStintHistoryData: TyreStintHistoryData[];
 }
 
-export function parseSessionHistoryData(buffer: Buffer, header: PacketHeader): PacketSessionHistoryData {
-    let offset = 29; // Header size
-    const carIdx = buffer.readUInt8(offset++);
-    const numLaps = buffer.readUInt8(offset++);
-    const numTyreStints = buffer.readUInt8(offset++);
-    const bestLapTimeLapNum = buffer.readUInt8(offset++);
-    const bestSector1LapNum = buffer.readUInt8(offset++);
-    const bestSector2LapNum = buffer.readUInt8(offset++);
-    const bestSector3LapNum = buffer.readUInt8(offset++);
+export function parseSessionHistory(buffer: Buffer): PacketSessionHistoryData {
+    const carIdx = buffer.readUInt8(PACKET_HEADER_SIZE);
+    const numLaps = buffer.readUInt8(PACKET_HEADER_SIZE + 1);
+    const numTyreStints = buffer.readUInt8(PACKET_HEADER_SIZE + 2);
+    const bestLapTimeLapNum = buffer.readUInt8(PACKET_HEADER_SIZE + 3);
+    const bestSector1LapNum = buffer.readUInt8(PACKET_HEADER_SIZE + 4);
+    const bestSector2LapNum = buffer.readUInt8(PACKET_HEADER_SIZE + 5);
+    const bestSector3LapNum = buffer.readUInt8(PACKET_HEADER_SIZE + 6);
 
     const lapHistoryData: LapHistoryData[] = [];
+    const lapStride = 14; // F1 25 Stride (4 + 2+1 + 2+1 + 2+1 + 1)
     for (let i = 0; i < 100; i++) {
-        const lapTimeInMS = buffer.readUInt32LE(offset); offset += 4;
-        const sector1TimeInMS = buffer.readUInt16LE(offset); offset += 2;
-        const sector1TimeMinutes = buffer.readUInt8(offset++);
-        const sector2TimeInMS = buffer.readUInt16LE(offset); offset += 2;
-        const sector2TimeMinutes = buffer.readUInt8(offset++);
-        const sector3TimeInMS = buffer.readUInt16LE(offset); offset += 2;
-        const sector3TimeMinutes = buffer.readUInt8(offset++);
-        const lapValidFlags = buffer.readUInt8(offset++);
-
+        const offset = PACKET_HEADER_SIZE + 7 + (i * lapStride);
+        if (offset + lapStride > buffer.length) break;
+        
         lapHistoryData.push({
-            lapTimeInMS, sector1TimeInMS, sector1TimeMinutes,
-            sector2TimeInMS, sector2TimeMinutes, sector3TimeInMS,
-            sector3TimeMinutes, lapValidFlags
+            lapTimeInMS: buffer.readUInt32LE(offset),
+            sector1TimeInMS: buffer.readUInt16LE(offset + 4),
+            sector1TimeMinutes: buffer.readUInt8(offset + 6),
+            sector2TimeInMS: buffer.readUInt16LE(offset + 7),
+            sector2TimeMinutes: buffer.readUInt8(offset + 9),
+            sector3TimeInMS: buffer.readUInt16LE(offset + 10),
+            sector3TimeMinutes: buffer.readUInt8(offset + 12),
+            lapValidBitFlags: buffer.readUInt8(offset + 13),
         });
     }
 
     const tyreStintHistoryData: TyreStintHistoryData[] = [];
+    const stintStride = 3;
+    const stintsOffset = PACKET_HEADER_SIZE + 7 + (100 * lapStride);
     for (let i = 0; i < 8; i++) {
-        const endLap = buffer.readUInt8(offset++);
-        const tyreActualCompound = buffer.readUInt8(offset++);
-        const tyreVisualCompound = buffer.readUInt8(offset++);
-        tyreStintHistoryData.push({ endLap, tyreActualCompound, tyreVisualCompound });
+        const offset = stintsOffset + (i * stintStride);
+        if (offset + stintStride > buffer.length) break;
+
+        tyreStintHistoryData.push({
+            endLap: buffer.readUInt8(offset),
+            tyreActualCompound: buffer.readUInt8(offset + 1),
+            tyreVisualCompound: buffer.readUInt8(offset + 2),
+        });
     }
 
     return {
-        header, carIdx, numLaps, numTyreStints, bestLapTimeLapNum,
-        bestSector1LapNum, bestSector2LapNum, bestSector3LapNum,
-        lapHistoryData, tyreStintHistoryData
+        carIdx,
+        numLaps,
+        numTyreStints,
+        bestLapTimeLapNum,
+        bestSector1LapNum,
+        bestSector2LapNum,
+        bestSector3LapNum,
+        lapHistoryData,
+        tyreStintHistoryData,
     };
 }

@@ -1,3 +1,5 @@
+import { PACKET_HEADER_SIZE } from './header';
+
 export interface ParticipantData {
     aiControlled: number;
     driverId: number;
@@ -9,59 +11,43 @@ export interface ParticipantData {
     name: string;
     yourTelemetry: number;
     showOnlineNames: number;
-    techLevel: number;
     platform: number;
-    numColours: number;
-    liveryColours: { red: number, green: number, blue: number }[];
-    isHuman: boolean;
 }
 
-export function parseParticipants(buffer: Buffer): ParticipantData[] {
+export interface PacketParticipantsData {
+    numActiveCars: number;
+    participants: ParticipantData[];
+}
+
+export function parseParticipants(buffer: Buffer): PacketParticipantsData {
+    // F1 25: Header ist 29 Bytes
+    const numActiveCars = buffer.readUInt8(PACKET_HEADER_SIZE);
     const participants: ParticipantData[] = [];
-    const numActiveCars = buffer.readUInt8(29);
+    
+    // F1 25 Teilnehmer-Stride: 60 Bytes
+    const participantStride = 60;
 
-    for (let i = 0; i < numActiveCars; i++) {
-        const offset = 30 + (i * 57);
-        const aiControlled = buffer.readUInt8(offset);
-        const teamId = buffer.readUInt8(offset + 3);
-        const nationality = buffer.readUInt8(offset + 6);
-
-        let nameBuffer = buffer.subarray(offset + 7, offset + 39);
-        // Null-terminated string, find first 0x00
-        const nullIdx = nameBuffer.indexOf(0x00);
-        if (nullIdx !== -1) {
-            nameBuffer = nameBuffer.subarray(0, nullIdx);
-        }
-        const name = nameBuffer.toString('utf-8');
-
-        const liveryColours = [];
-        for (let j = 0; j < 4; j++) {
-            const colourOffset = offset + 45 + (j * 3);
-            liveryColours.push({
-                red: buffer.readUInt8(colourOffset),
-                green: buffer.readUInt8(colourOffset + 1),
-                blue: buffer.readUInt8(colourOffset + 2)
-            });
-        }
+    for (let i = 0; i < 22; i++) {
+        const offset = PACKET_HEADER_SIZE + 1 + i * participantStride;
+        if (offset + participantStride > buffer.length) break;
 
         participants.push({
-            aiControlled,
+            aiControlled: buffer.readUInt8(offset),
             driverId: buffer.readUInt8(offset + 1),
             networkId: buffer.readUInt8(offset + 2),
-            teamId,
+            teamId: buffer.readUInt8(offset + 3),
             myTeam: buffer.readUInt8(offset + 4),
             raceNumber: buffer.readUInt8(offset + 5),
-            nationality,
-            name,
-            yourTelemetry: buffer.readUInt8(offset + 39),
-            showOnlineNames: buffer.readUInt8(offset + 40),
-            techLevel: buffer.readUInt16LE(offset + 41),
-            platform: buffer.readUInt8(offset + 43),
-            numColours: buffer.readUInt8(offset + 44),
-            liveryColours,
-            isHuman: aiControlled === 0
+            nationality: buffer.readUInt8(offset + 6),
+            name: buffer.toString('utf8', offset + 7, offset + 7 + 48).replace(/\0/g, '').trim(),
+            yourTelemetry: buffer.readUInt8(offset + 55),
+            showOnlineNames: buffer.readUInt8(offset + 56),
+            platform: buffer.readUInt8(offset + 57),
         });
     }
 
-    return participants;
+    return {
+        numActiveCars,
+        participants,
+    };
 }

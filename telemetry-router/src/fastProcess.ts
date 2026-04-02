@@ -7,16 +7,19 @@ import { parseHeader } from './parsers/header';
 import { parseSession } from './parsers/session';
 import { parseParticipants } from './parsers/participants';
 import { parseLapData } from './parsers/lapData';
-import { parseTelemetry } from './parsers/telemetry';
+import { parseCarTelemetry } from './parsers/telemetry';
 import { parseCarStatus } from './parsers/carStatus';
 import { parseEventData } from './parsers/eventData';
 import { parseCarDamage } from './parsers/carDamage';
-import { parseSessionHistoryData } from './parsers/sessionHistory';
+import { parseSessionHistory } from './parsers/sessionHistory';
 import { parseMotionData } from './parsers/motionData';
-import { parseMotionExData } from './parsers/motionEx';
+import { parseMotionEx } from './parsers/motionEx';
 import { parseTyreSets } from './parsers/tyreSets';
 import Enquirer from 'enquirer';
 const { prompt } = Enquirer;
+import { ReprocessDashboard } from './reprocessDashboard';
+import { setSenderLogger } from './sender';
+import { DirectDbSender } from './directDbSender';
 
 /**
  * Der FastProcessor ermöglicht die nachträgliche Verarbeitung von .bin-Aufzeichnungen.
@@ -45,22 +48,46 @@ export async function fastProcessRecordings(config: AppConfig) {
     }
 
     // Interaktive Auswahl der zu verarbeitenden Dateien
+    const choices = ['[ ALL FILES ]', ...files];
     const response = await prompt<any>({
         type: 'multiselect',
         name: 'selectedFiles',
-        message: 'Wähle Aufzeichnungen zum Verarbeiten (Leertaste zum Wählen):',
-        choices: files
+        message: 'Wähle Aufzeichnungen zum Verarbeiten (Leertaste zum Wählen, "[ ALL FILES ]" für alles):',
+        choices: choices
     });
 
-    if (response.selectedFiles.length === 0) return;
+    if (!response || !response.selectedFiles || response.selectedFiles.length === 0) return;
 
-    for (const fileName of response.selectedFiles) {
-        const filePath = path.join(targetDir, fileName);
-        console.log(`\nVerarbeite ${fileName}...`);
-        await processFile(filePath, config);
+    let filesToProcess = response.selectedFiles;
+    if (filesToProcess.includes('[ ALL FILES ]')) {
+        filesToProcess = files;
     }
 
-    console.log('\n✅ Alle Dateien verarbeitet.');
+    // Initialisiere Dashboard
+    const dashboard = new ReprocessDashboard(filesToProcess);
+    dashboard.start();
+
+    // Direkter Datenbank-Sender (überspringt API)
+    const dbSender = new DirectDbSender(config.leagueId!);
+
+    let current = 1;
+    for (const fileName of filesToProcess) {
+        if (fileName === '[ ALL FILES ]') continue;
+        const filePath = path.join(targetDir, fileName);
+        
+        dashboard.setStatus(fileName, 'processing');
+        try {
+            await processFile(filePath, config, dashboard, dbSender);
+            dashboard.setStatus(fileName, 'done');
+            dashboard.log(`${fileName} erfolgreich verarbeitet.`, 'success');
+        } catch (e: any) {
+            dashboard.setStatus(fileName, 'error', e.message);
+            dashboard.log(`Fehler bei ${fileName}: ${e.message}`, 'error');
+        }
+        current++;
+    }
+
+    dashboard.log('Alle Dateien verarbeitet.', 'success');
 }
 
 /**
@@ -68,16 +95,17 @@ export async function fastProcessRecordings(config: AppConfig) {
  * 
  * @param filePath Absoluter Pfad zur .bin-Datei.
  * @param config Die globale Anwendungskonfiguration.
+ * @param dashboard Das UI-Dashboard zur Fortschrittsanzeige.
  */
-async function processFile(filePath: string, config: AppConfig) {
+async function processFile(filePath: string, config: AppConfig, dashboard: ReprocessDashboard, dbSender: DirectDbSender) {
+    const fileName = path.basename(filePath);
     const state = new SessionState();
     const stats = fs.statSync(filePath);
     const fd = fs.openSync(filePath, 'r');
     
     let offset = 0;
     let packetCount = 0;
-    let chunkCount = 0;
-    const CHUNK_SIZE = 1000; // Sende alle 1000 Pakete einen Stand an die API
+    const CHUNK_SIZE = 1500; // Größere Chunks für DB direkt (Neon verträgt das gut)
 
     while (offset < stats.size) {
         // Binaär-Präfix lesen: [4B Preamble "F125"][2B Length]
@@ -87,7 +115,6 @@ async function processFile(filePath: string, config: AppConfig) {
 
         const length = headerBuffer.readUInt16LE(4);
         if (length === 0 || length > 2000) {
-            console.error(`Ungültige Paketlänge bei Offset ${offset}: ${length}`);
             break;
         }
 
@@ -99,18 +126,20 @@ async function processFile(filePath: string, config: AppConfig) {
         handlePacket(packetBuffer, state);
         packetCount++;
 
-        // Regelmäßig Zwischenstände senden, um Speicher zu entlasten
+        // Regelmäßig Zwischenstände senden
         if (packetCount % CHUNK_SIZE === 0) {
-            await sendChunk(state, config);
-            chunkCount++;
-            process.stdout.write(`\rPakete: ${packetCount} | Chunks gesendet: ${chunkCount}`);
+            await sendToDb(state, dbSender, false);
+            
+            // Fortschrittsberechnung
+            const progress = (offset / stats.size) * 100;
+            dashboard.updateProgress(fileName, progress);
         }
     }
 
-    // Finale Übermittlung nach Dateiende (wichtig für Session-Promotion in der DB)
-    await sendChunk(state, config, true);
+    // Finale Übermittlung
+    await sendToDb(state, dbSender, true);
     fs.closeSync(fd);
-    console.log(`\nFertig: ${packetCount} Pakete verarbeitet.`);
+    dashboard.updateProgress(fileName, 100);
 }
 
 /**
@@ -149,11 +178,11 @@ function handlePacket(msg: Buffer, state: SessionState) {
             }
             case 4: { // Participants
                 const participantsData = parseParticipants(msg);
-                participantsData.forEach((p, i) => state.updateParticipant(i, p));
+                participantsData.participants.forEach((p, i) => state.updateParticipant(i, p));
                 break;
             }
             case 6: { // Telemetry
-                const telemetryData = parseTelemetry(msg);
+                const telemetryData = parseCarTelemetry(msg);
                 telemetryData.forEach((t, i) => state.updateTelemetry(i, t));
                 break;
             }
@@ -168,13 +197,30 @@ function handlePacket(msg: Buffer, state: SessionState) {
                 break;
             }
             case 11: { // Session History
-                const sessionHistory = parseSessionHistoryData(msg, header);
+                const sessionHistory = parseSessionHistory(msg);
                 state.updateSessionHistory(sessionHistory);
                 break;
             }
             case 13: { // MotionEx
-                const motionEx = parseMotionExData(msg);
+                const motionEx = parseMotionEx(msg);
                 state.updateMotionEx(header.playerCarIndex, motionEx);
+                break;
+            }
+            case 5: { // Car Setups
+                // Wir nutzen hier require/import falls der Parser existiert
+                try {
+                    const { parseCarSetups } = require('./parsers/carSetups');
+                    const setups = parseCarSetups(msg);
+                    setups.forEach((s: any, i: number) => state.updateCarSetup(i, s));
+                } catch(e) {}
+                break;
+            }
+            case 8: { // Final Classification
+                try {
+                    const { parseFinalClassificationData } = require('./parsers/finalClassification');
+                    const classification = parseFinalClassificationData(msg, header);
+                    state.updateFinalClassification(classification);
+                } catch(e) {}
                 break;
             }
             case 12: // Tyre Sets (F1 24/23)
@@ -195,8 +241,12 @@ function handlePacket(msg: Buffer, state: SessionState) {
  * @param state Der aktuelle SessionState.
  * @param config Die globale Konfiguration.
  * @param isFinal Ob dies die letzte Übermittlung der Datei ist.
+ * @param dashboard Optionales Dashboard für Error-Logging.
  */
-async function sendChunk(state: SessionState, config: AppConfig, isFinal = false) {
+/**
+ * Transformiert den State und sendet ihn direkt an die Datenbank via DirectDbSender.
+ */
+async function sendToDb(state: SessionState, dbSender: DirectDbSender, isFinal = false) {
     const payload = state.buildPayloadAndClear();
     
     // Validierung: Senden nur wenn die Session aktiv ist oder es das finale Paket ist
@@ -207,25 +257,9 @@ async function sendChunk(state: SessionState, config: AppConfig, isFinal = false
         payload.isSessionEnded = true;
     }
 
-    const body = {
-        leagueId: config.leagueId,
-        packet: payload,
-        force: true // Signalisiert der API, dass die Daten priorisiert verarbeitet werden sollen
-    };
-
     try {
-        const res = await fetch(config.url!, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-            timeout: 60000 // Hoher Timeout für die finale DB-Verarbeitung (Promotion)
-        });
-
-        if (!res.ok) {
-            const errText = await res.text();
-            console.error(`\n❌ API Fehler (${res.status}): ${errText.substring(0, 100)}`);
-        }
+        await dbSender.processPayload(payload);
     } catch (e: any) {
-        console.error(`\n❌ Netzwerkfehler beim Senden: ${e.message}`);
+        throw new Error(`DB-Verarbeitungsfehler: ${e.message}`);
     }
 }

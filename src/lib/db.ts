@@ -49,8 +49,15 @@ export async function query<T>(sqlStr: string, params: any[] = []): Promise<T[]>
   pSql = pSql.replace('lower(hex(randomblob(16)))', 'gen_random_uuid()');
 
   try {
-    // Falls wir Neon nutzen, verwenden wir .query() f\u00fcr herk\u00f6mmliche Platzhalter-Abfragen ($1, $2).
-    const result = await (sqlConnection as any).query(pSql, params);
+    // 30s Timeout-Puffer für Neon-Abfragen
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Datenbank-Timeout (30s)')), 30000)
+    );
+
+    const result = await Promise.race([
+        (sqlConnection as any).query(pSql, params),
+        timeoutPromise
+    ]);
     return result as T[];
   } catch (err) {
     console.error('Neon Query Fehler:', err);
@@ -77,7 +84,14 @@ export async function run(sqlStr: string, params: any[] = []): Promise<void> {
   pSql = pSql.replace(/\?/g, () => `$${counter++}`);
 
   try {
-    await (sqlConnection as any).query(pSql, params);
+    const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Datenbank-Timeout (30s)')), 30000)
+    );
+
+    await Promise.race([
+        (sqlConnection as any).query(pSql, params),
+        timeoutPromise
+    ]);
   } catch (err) {
     console.error('Neon Run Fehler:', err);
     throw err;

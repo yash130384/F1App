@@ -46,11 +46,25 @@ export default function TelemetryHubPage({ params }: { params: Promise<{ leagueI
 
   const getSessionTypeName = (type: number) => {
     switch (type) {
-      case 1: return 'Practice';
-      case 10: return 'Qualifying';
-      case 11: return 'Short Qualifying';
-      case 12: return 'One-Shot Qualifying';
-      case 13: return 'Race';
+      case 0: return 'Unknown';
+      case 1: return 'Practice 1';
+      case 2: return 'Practice 2';
+      case 3: return 'Practice 3';
+      case 4: return 'Short Practice';
+      case 5: return 'Qualifying 1';
+      case 6: return 'Qualifying 2';
+      case 7: return 'Qualifying 3';
+      case 8: return 'Short Qualifying';
+      case 9: return 'One-Shot Qualifying';
+      case 10: return 'Sprint Shootout 1';
+      case 11: return 'Sprint Shootout 2';
+      case 12: return 'Sprint Shootout 3';
+      case 13: return 'Short Sprint Shootout';
+      case 14: return 'One-Shot Sprint Shootout';
+      case 15: return 'Race';
+      case 16: return 'Race 2';
+      case 17: return 'Race 3';
+      case 18: return 'Time Trial';
       default: return `Session (${type})`;
     }
   };
@@ -84,7 +98,7 @@ export default function TelemetryHubPage({ params }: { params: Promise<{ leagueI
             ) : (
                 <div className="flex flex-col gap-3">
                     {sessions.map((s) => (
-                        <Link href={`/profile/analysis/${s.id}`} key={s.id}>
+                        <Link href={`/profile/leagues/${leagueId}/telemetry/${s.id}`} key={s.id}>
                             <div className="f1-card flex justify-between items-center p-5 hover-lift">
                                 <div className="flex items-center gap-4">
                                     <div className="text-f1" style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '4px' }}>

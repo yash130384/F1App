@@ -1,4 +1,4 @@
-import { PacketHeader } from './header';
+import { PACKET_HEADER_SIZE } from './header';
 
 export interface FinalClassificationData {
     position: number;
@@ -7,11 +7,10 @@ export interface FinalClassificationData {
     points: number;
     numPitStops: number;
     resultStatus: number;
-    resultReason: number; // Added for F1 25
     bestLapTimeInMS: number;
     totalRaceTime: number;
     penaltiesTime: number;
-    numPenalties: number; // Renamed from numWarnings
+    numPenalties: number;
     numTyreStints: number;
     tyreStintsActual: number[];
     tyreStintsVisual: number[];
@@ -19,44 +18,42 @@ export interface FinalClassificationData {
 }
 
 export interface PacketFinalClassificationData {
-    header: PacketHeader;
     numCars: number;
     classificationData: FinalClassificationData[];
 }
 
-export function parseFinalClassificationData(buffer: Buffer, header: PacketHeader): PacketFinalClassificationData {
-    let offset = 29; // Header size
-    const numCars = buffer.readUInt8(offset++);
-    
-    const classificationData: FinalClassificationData[] = [];
-    // Always 22 cars in the array regardless of active cars
-    for (let i = 0; i < 22; i++) {
-        const position = buffer.readUInt8(offset++);
-        const numLaps = buffer.readUInt8(offset++);
-        const gridPosition = buffer.readUInt8(offset++);
-        const points = buffer.readUInt8(offset++);
-        const numPitStops = buffer.readUInt8(offset++);
-        const resultStatus = buffer.readUInt8(offset++);
-        const resultReason = buffer.readUInt8(offset++); // F1 25
-        const bestLapTimeInMS = buffer.readUInt32LE(offset); offset += 4;
-        const totalRaceTime = buffer.readDoubleLE(offset); offset += 8;
-        const penaltiesTime = buffer.readUInt8(offset++);
-        const numPenalties = buffer.readUInt8(offset++); // F1 25 (was numWarnings in older versions)
-        const numTyreStints = buffer.readUInt8(offset++);
+export function parseFinalClassification(buffer: Buffer): PacketFinalClassificationData {
+    let offset = PACKET_HEADER_SIZE;
+    const numCars = buffer.readUInt8(offset);
+    offset += 1;
 
-        const tyreStintsActual: number[] = [];
-        for (let j = 0; j < 8; j++) tyreStintsActual.push(buffer.readUInt8(offset++));
-        const tyreStintsVisual: number[] = [];
-        for (let j = 0; j < 8; j++) tyreStintsVisual.push(buffer.readUInt8(offset++));
-        const tyreStintsEndLaps: number[] = [];
-        for (let j = 0; j < 8; j++) tyreStintsEndLaps.push(buffer.readUInt8(offset++));
+    const classificationData: FinalClassificationData[] = [];
+    const stride = 45; // F1 25 Stride
+
+    for (let i = 0; i < 22; i++) {
+        const base = offset + (i * stride);
+        if (base + stride > buffer.length) break;
 
         classificationData.push({
-            position, numLaps, gridPosition, points, numPitStops, resultStatus,
-            resultReason, bestLapTimeInMS, totalRaceTime, penaltiesTime, numPenalties,
-            numTyreStints, tyreStintsActual, tyreStintsVisual, tyreStintsEndLaps
+            position: buffer.readUInt8(base),
+            numLaps: buffer.readUInt8(base + 1),
+            gridPosition: buffer.readUInt8(base + 2),
+            points: buffer.readUInt8(base + 3),
+            numPitStops: buffer.readUInt8(base + 4),
+            resultStatus: buffer.readUInt8(base + 5),
+            bestLapTimeInMS: buffer.readUInt32LE(base + 6),
+            totalRaceTime: buffer.readDoubleLE(base + 10),
+            penaltiesTime: buffer.readUInt8(base + 18),
+            numPenalties: buffer.readUInt8(base + 19),
+            numTyreStints: buffer.readUInt8(base + 20),
+            tyreStintsActual: Array.from(buffer.subarray(base + 21, base + 29)),
+            tyreStintsVisual: Array.from(buffer.subarray(base + 29, base + 37)),
+            tyreStintsEndLaps: Array.from(buffer.subarray(base + 37, base + 45)),
         });
     }
 
-    return { header, numCars, classificationData };
+    return {
+        numCars,
+        classificationData,
+    };
 }

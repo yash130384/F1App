@@ -47,6 +47,8 @@ export interface LapEntry {
     sector3Ms?: number;
     carDamage?: CarDamageSnapshot;
     samples?: LapSample[];
+    pitStopTimerMs?: number;
+    pitLaneTimeMs?: number;
 }
 
 /**
@@ -61,8 +63,9 @@ export interface CarDamageSnapshot {
     sidepodDamage: number;
     gearBoxDamage: number;
     engineDamage: number;
-    engineBlown: number;
-    engineSeized: number;
+    tyresWear: number[];
+    tyresDamage: number[];
+    brakesDamage: number[];
 }
 
 /**
@@ -130,4 +133,7 @@ export interface PlayerState {
     pitStopWindowIdealLap?: number;
     pitStopWindowLatestLap?: number;
     pitStopRejoinPosition?: number;
+    // Resultate am Ende (F1 25)
+    totalRaceTime?: number;
+    penaltiesCount?: number;
 }

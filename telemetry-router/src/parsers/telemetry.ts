@@ -1,5 +1,7 @@
+import { PACKET_HEADER_SIZE } from './header';
+
 export interface CarTelemetryData {
-    speedKmh: number;
+    speed: number;
     throttle: number;
     steer: number;
     brake: number;
@@ -17,30 +19,16 @@ export interface CarTelemetryData {
     surfaceType: number[];
 }
 
-export function parseTelemetry(buffer: Buffer): CarTelemetryData[] {
-    const telemetry: CarTelemetryData[] = [];
-
-    // Header is 29 bytes.
-    // 22 cars * 60 bytes per CarTelemetryData = 1320 bytes.
+export function parseCarTelemetry(buffer: Buffer): CarTelemetryData[] {
+    const carTelemetryData: CarTelemetryData[] = [];
+    const stride = 60; // F1 25 Stride
 
     for (let i = 0; i < 22; i++) {
-        const offset = 29 + (i * 60);
-        const brakesTemperature = [];
-        const tyresSurfaceTemperature = [];
-        const tyresInnerTemperature = [];
-        const tyresPressure = [];
-        const surfaceType = [];
+        const offset = PACKET_HEADER_SIZE + (i * stride);
+        if (offset + stride > buffer.length) break;
 
-        for (let j = 0; j < 4; j++) {
-            brakesTemperature.push(buffer.readUInt16LE(offset + 22 + (j * 2)));
-            tyresSurfaceTemperature.push(buffer.readUInt8(offset + 30 + j));
-            tyresInnerTemperature.push(buffer.readUInt8(offset + 34 + j));
-            tyresPressure.push(buffer.readFloatLE(offset + 40 + (j * 4)));
-            surfaceType.push(buffer.readUInt8(offset + 56 + j));
-        }
-
-        telemetry.push({
-            speedKmh: buffer.readUInt16LE(offset),
+        carTelemetryData.push({
+            speed: buffer.readUInt16LE(offset),
             throttle: buffer.readFloatLE(offset + 2),
             steer: buffer.readFloatLE(offset + 6),
             brake: buffer.readFloatLE(offset + 10),
@@ -50,14 +38,39 @@ export function parseTelemetry(buffer: Buffer): CarTelemetryData[] {
             drs: buffer.readUInt8(offset + 18),
             revLightsPercent: buffer.readUInt8(offset + 19),
             revLightsBitValue: buffer.readUInt16LE(offset + 20),
-            brakesTemperature,
-            tyresSurfaceTemperature,
-            tyresInnerTemperature,
+            brakesTemperature: [
+                buffer.readUInt16LE(offset + 22),
+                buffer.readUInt16LE(offset + 24),
+                buffer.readUInt16LE(offset + 26),
+                buffer.readUInt16LE(offset + 28),
+            ],
+            tyresSurfaceTemperature: [
+                buffer.readUInt8(offset + 30),
+                buffer.readUInt8(offset + 31),
+                buffer.readUInt8(offset + 32),
+                buffer.readUInt8(offset + 33),
+            ],
+            tyresInnerTemperature: [
+                buffer.readUInt8(offset + 34),
+                buffer.readUInt8(offset + 35),
+                buffer.readUInt8(offset + 36),
+                buffer.readUInt8(offset + 37),
+            ],
             engineTemperature: buffer.readUInt16LE(offset + 38),
-            tyresPressure,
-            surfaceType
+            tyresPressure: [
+                buffer.readFloatLE(offset + 40),
+                buffer.readFloatLE(offset + 44),
+                buffer.readFloatLE(offset + 48),
+                buffer.readFloatLE(offset + 52),
+            ],
+            surfaceType: [
+                buffer.readUInt8(offset + 56),
+                buffer.readUInt8(offset + 57),
+                buffer.readUInt8(offset + 58),
+                buffer.readUInt8(offset + 59),
+            ],
         });
     }
 
-    return telemetry;
+    return carTelemetryData;
 }

@@ -15,18 +15,16 @@ export class PayloadMapper {
      * @param p Der aktuelle Zustand des Fahrers aus dem SessionState.
      * @returns Ein flaches Objekt mit allen relevanten Telemetrie-, Status- und Schadensdaten.
      */
-    public static mapPlayer(carIdx: number, p: PlayerState) {
-        // Runden-Buffer extrahieren und im State leeren (Vermeidung von Duplikaten bei SSE-Übertragungen)
-        // Dies stellt sicher, dass jede abgeschlossene Runde nur genau einmal gesendet wird.
-        const lapsToSend = [...p.laps];
-        p.laps = [];
-        const speedTrapsToSend = [...p.speedTraps];
-        p.speedTraps = [];
+    public static mapPlayer(carIdx: number, p: PlayerState, sessionData?: any) {
+        // EINZELDATENSATZ-LOGIK: Wir nehmen nur die erste ausstehende Runde und Speed Trap.
+        // Das stellt sicher, dass selbst bei 50 angesammelten Runden (Playback) jeder Request klein bleibt.
+        const lapsToSend = p.laps.length > 0 ? [p.laps.shift()!] : [];
+        const speedTrapsToSend = p.speedTraps.length > 0 ? [p.speedTraps.shift()!] : [];
 
         const ld = p.lapData;
-        // Berechnung der Deltas zu Vorderleuten und Führendem in Millisekunden
-        const deltaToFront = ld ? ld.deltaToCarInFrontMinutesPart * 60000 + ld.deltaToCarInFrontMSPart : 0;
-        const deltaToLeader = ld ? ld.deltaToRaceLeaderMinutesPart * 60000 + ld.deltaToRaceLeaderMSPart : 0;
+        // Berechnung der Deltas zu Vorderleuten in Millisekunden
+        const deltaToFront = ld ? ld.deltaToCarInFrontInMS : 0;
+        const deltaToLeader = 0; // In F1 25 LapData Paket nicht direkt verfügbar
 
         return {
             gameName: p.gameName,
@@ -41,11 +39,13 @@ export class PayloadMapper {
             pitStops: p.pitStops,
             warnings: p.warnings,
             penaltiesTime: p.penaltiesTime,
+            totalRaceTime: p.totalRaceTime,
+            penaltiesCount: p.penaltiesCount,
             laps: lapsToSend,
             
             // Live-Telemetrie: Dynamische Werte, die sich hochfrequent ändern
             telemetry: p.telemetryData ? {
-                speedKmh: p.telemetryData.speedKmh,
+                speedKmh: p.telemetryData.speed,
                 throttle: p.telemetryData.throttle,
                 brake: p.telemetryData.brake,
                 steer: p.telemetryData.steer,
@@ -77,11 +77,17 @@ export class PayloadMapper {
                 maxGears: p.carStatusData.maxGears,
                 drsAllowed: p.carStatusData.drsAllowed,
                 drsActivationDistance: p.carStatusData.drsActivationDistance,
+                // Assists (Per Participant from Packet 7)
+                tractionControl: p.carStatusData.tractionControl,
+                antiLockBrakes: p.carStatusData.antiLockBrakes,
+                // Global Assists (from Session Data, usually same for all or Lead Player)
+                steeringAssist: sessionData?.steeringAssist,
+                brakingAssist: sessionData?.brakingAssist,
+                gearboxAssist: sessionData?.gearboxAssist,
             } : undefined,
 
             // Mechanischer Zustand und Schäden
             damage: p.carDamageData ? {
-                tyreBlisters: p.carDamageData.tyreBlisters,
                 tyresWear: p.carDamageData.tyresWear,
                 tyresDamage: p.carDamageData.tyresDamage,
                 brakesDamage: p.carDamageData.brakesDamage,
@@ -110,8 +116,8 @@ export class PayloadMapper {
                 currentLapNum: ld.currentLapNum,
                 currentLapTimeInMS: ld.currentLapTimeInMS,
                 lastLapTimeInMS: ld.lastLapTimeInMS,
-                sector1Ms: ld.sector1TimeMinutesPart * 60000 + ld.sector1TimeMSPart,
-                sector2Ms: ld.sector2TimeMinutesPart * 60000 + ld.sector2TimeMSPart,
+                sector1Ms: ld.sector1TimeMinutes * 60000 + ld.sector1TimeInMS,
+                sector2Ms: ld.sector2TimeMinutes * 60000 + ld.sector2TimeInMS,
                 pitStatus: ld.pitStatus,
                 driverStatus: ld.driverStatus,
                 resultStatus: ld.resultStatus,
@@ -125,7 +131,7 @@ export class PayloadMapper {
             setup: p.carSetupData,
 
             // Speed Traps der aktuellen Übertragung (wird danach geleert)
-            speedTraps: [...p.speedTraps],
+            speedTraps: speedTrapsToSend,
 
             // Zusätzliche Strategie-Fenster (ideal für Boxenstopp-Planung)
             sessionStatus: p.carStatusData ? {

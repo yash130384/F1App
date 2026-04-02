@@ -1308,7 +1308,8 @@ export async function getRaceAnalysis(sessionId: string) {
     try {
 
         const participants = await query<any>(`
-            SELECT tp.id, tp.game_name, tp.driver_id, tp.car_index, d.name as driver_name, d.color as driver_color, tp.position
+            SELECT tp.id, tp.id as participant_id, tp.game_name, tp.driver_id, tp.car_index, d.name as driver_name, d.color as driver_color, tp.position,
+                   tp.total_race_time, tp.penalties_count, tp.steering_assist, tp.braking_assist, tp.gearbox_assist, tp.traction_control, tp.anti_lock_brakes
             FROM telemetry_participants tp
             LEFT JOIN drivers d ON d.id = tp.driver_id
             WHERE tp.session_id = ? AND (tp.is_human = true OR tp.driver_id IS NOT NULL)
@@ -1317,10 +1318,23 @@ export async function getRaceAnalysis(sessionId: string) {
 
         // BATCH-LOADING: Laps für alle Teilnehmer in einer Query holen
         const allLaps = await query<any>(`
-            SELECT participant_id, lap_number, tyre_compound, is_pit_lap 
+            SELECT id, participant_id, lap_number, lap_time_ms, tyre_compound, is_pit_lap, pit_stop_timer_ms, pit_lane_time_ms, car_damage_json
             FROM telemetry_laps 
             WHERE participant_id IN (SELECT id FROM telemetry_participants WHERE session_id = ?)
             ORDER BY participant_id ASC, lap_number ASC
+        `, [sessionId]);
+
+        const stints = await query<any>(`
+            SELECT participant_id, stint_number, tyre_compound, visual_compound, start_lap, end_lap, tyre_age_at_start
+            FROM telemetry_stints 
+            WHERE participant_id IN (SELECT id FROM telemetry_participants WHERE session_id = ?)
+            ORDER BY participant_id ASC, stint_number ASC
+        `, [sessionId]);
+
+        const tyreSets = await query<any>(`
+            SELECT participant_id, actual_tyre_compound, visual_tyre_compound, wear, life_span, usable_life, fitted
+            FROM telemetry_tyre_sets
+            WHERE participant_id IN (SELECT id FROM telemetry_participants WHERE session_id = ?)
         `, [sessionId]);
 
         const lapsByParticipant = new Map<string, any[]>();

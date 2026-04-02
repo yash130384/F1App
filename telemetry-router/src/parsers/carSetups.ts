@@ -30,7 +30,7 @@ export function parseCarSetups(buffer: Buffer): CarSetupData[] {
     const setups: CarSetupData[] = [];
 
     for (let i = 0; i < 22; i++) {
-        const offset = 29 + (i * CAR_SETUP_SIZE);
+        const offset = 28 + (i * CAR_SETUP_SIZE);
         if (offset + CAR_SETUP_SIZE > buffer.length) break;
 
         setups.push({

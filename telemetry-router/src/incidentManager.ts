@@ -62,6 +62,13 @@ export class IncidentManager {
     }
 
     /**
+     * Prüft, ob noch ungesendete Ereignisse im Buffer liegen.
+     */
+    public hasPendingEvents(): boolean {
+        return this.safetyCarEvents.length > 0;
+    }
+
+    /**
      * Gibt das gesamte chronologische Protokoll der Session zurück.
      * 
      * @returns Array aller geloggten Vorfälle.

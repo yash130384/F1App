@@ -148,6 +148,14 @@ export const telemetryParticipants = pgTable('telemetry_participants', {
   tyreAgeLaps: integer('tyre_age_laps'),
   enginePowerICE: real('engine_power_ice'),
   enginePowerMGUK: real('engine_power_mguk'),
+  // Finale Resultate & Assists
+  totalRaceTime: real('total_race_time'),
+  penaltiesCount: integer('penalties_count'),
+  steeringAssist: boolean('steering_assist'),
+  brakingAssist: integer('braking_assist'),
+  gearboxAssist: integer('gearbox_assist'),
+  tractionControl: integer('traction_control'),
+  antiLockBrakes: boolean('anti_lock_brakes'),
 }, (table) => ({
   sessionGameNameUniq: uniqueIndex('telemetry_participants_session_game_name_uniq').on(table.sessionId, table.gameName),
   sessionIdx: index('telemetry_participants_session_id_idx').on(table.sessionId),
@@ -168,6 +176,8 @@ export const telemetryLaps = pgTable('telemetry_laps', {
   sector2Ms: integer('sector2_ms'),
   sector3Ms: integer('sector3_ms'),
   carDamageJson: text('car_damage_json'),
+  pitStopTimerMs: integer('pit_stop_timer_ms'),
+  pitLaneTimeMs: integer('pit_lane_time_ms'),
 }, (table) => ({
   participantIdx: index('telemetry_laps_participant_id_idx').on(table.participantId),
   lapNumberIdx: index('telemetry_laps_lap_number_idx').on(table.lapNumber),
@@ -285,3 +295,20 @@ export const telemetryTrackMetadata = pgTable('telemetry_track_metadata', {
 }, (table) => ({
   trackIdx: index('telemetry_track_metadata_track_id_idx').on(table.trackId),
 }));
+
+/**
+ * Reifensätze (F1 25)
+ */
+export const telemetryTyreSets = pgTable('telemetry_tyre_sets', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  participantId: uuid('participant_id').references(() => telemetryParticipants.id, { onDelete: 'cascade' }).notNull(),
+  actualTyreCompound: integer('actual_tyre_compound'),
+  visualTyreCompound: integer('visual_tyre_compound'),
+  wear: integer('wear'),
+  lifeSpan: integer('life_span'),
+  usableLife: integer('usable_life'),
+  fitted: boolean('fitted'),
+}, (table) => ({
+  participantIdx: index('telemetry_tyre_sets_participant_id_idx').on(table.participantId),
+}));
+

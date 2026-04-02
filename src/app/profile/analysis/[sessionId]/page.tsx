@@ -82,11 +82,14 @@ function SessionAnalysisContent() {
     );
 
     // Prepare driver list for components
-    const driverList = analysisData?.participants?.map((p: any) => ({
-        id: p.participant_id,
-        name: p.driver_name || `Driver ${p.participant_id.substring(0,4)}`,
-        color: p.driver_color || '#fff'
-    })) || [];
+    const driverList = analysisData?.participants?.map((p: any) => {
+        const pid = p.participant_id || p.id || '';
+        return {
+            id: pid,
+            name: p.driver_name || `Driver ${String(pid).substring(0, 4)}`,
+            color: p.driver_color || '#fff'
+        };
+    }) || [];
 
     return (
         <div className="animate-in fade-in duration-1000">

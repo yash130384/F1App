@@ -1,73 +1,79 @@
+import { PACKET_HEADER_SIZE } from './header';
+
 export interface EventData {
     eventStringCode: string;
-    // Only populated for SCAR events
-    safetyCarType?: number;  // 0=none,1=full SC,2=virtual SC,3=formation lap SC
-    eventType?: number;      // 0=deployed,1=returning,2=returned,3=resume race
-    // Penalty
     vehicleIdx?: number;
+    lapNum?: number;
+    time?: number;
     penaltyType?: number;
     infringementType?: number;
     otherVehicleIdx?: number;
-    time?: number;
-    lapNum?: number;
-    // Collision
-    vehicle1Idx?: number;
-    vehicle2Idx?: number;
-    // Overtake
-    overtakingVehicleIdx?: number;
-    beingOvertakenVehicleIdx?: number;
-    // Retirement
-    retirementReason?: number;
-    // Speed Trap
+    placesGained?: number;
     speed?: number;
     isOverallFastestInSession?: number;
     isDriverFastestInSession?: number;
     fastestVehicleIdxInSession?: number;
-    fastestSpeedInSession?: number;
+    flightByNight?: number;
+    flashbackFrameIdentifier?: number;
+    flashbackSessionTime?: number;
+    numLights?: number;
+    retirementReason?: number;
+    vehicle1Idx?: number; // For Collision
+    vehicle2Idx?: number; // For Collision
 }
 
 export function parseEventData(buffer: Buffer): EventData {
-    const eventStringCode = buffer.toString('utf8', 29, 33);
-    const event: EventData = { eventStringCode };
+    const eventStringCode = buffer.toString('utf8', PACKET_HEADER_SIZE, PACKET_HEADER_SIZE + 4);
+    const result: EventData = { eventStringCode };
 
-    // Safety Car event
-    if (eventStringCode === 'SCAR' && buffer.length >= 35) {
-        event.safetyCarType = buffer.readUInt8(33);
-        event.eventType = buffer.readUInt8(34);
-    } 
-    // Penalty event
-    else if (eventStringCode === 'PENA') {
-        event.penaltyType = buffer.readUInt8(33);
-        event.infringementType = buffer.readUInt8(34);
-        event.vehicleIdx = buffer.readUInt8(35);
-        event.otherVehicleIdx = buffer.readUInt8(36);
-        event.time = buffer.readUInt8(37);
-        event.lapNum = buffer.readUInt8(38);
-    }
-    // Collision event
-    else if (eventStringCode === 'COLL') {
-        event.vehicle1Idx = buffer.readUInt8(33);
-        event.vehicle2Idx = buffer.readUInt8(34);
-    }
-    // Overtake event
-    else if (eventStringCode === 'OVTK') {
-        event.overtakingVehicleIdx = buffer.readUInt8(33);
-        event.beingOvertakenVehicleIdx = buffer.readUInt8(34);
-    }
-    // Retirement event
-    else if (eventStringCode === 'RTMT') {
-        event.vehicleIdx = buffer.readUInt8(33);
-        event.retirementReason = buffer.readUInt8(34);
-    }
-    // Speed Trap event
-    else if (eventStringCode === 'SPTP') {
-        event.vehicleIdx = buffer.readUInt8(33);
-        event.speed = buffer.readFloatLE(34);
-        event.isOverallFastestInSession = buffer.readUInt8(38);
-        event.isDriverFastestInSession = buffer.readUInt8(39);
-        event.fastestVehicleIdxInSession = buffer.readUInt8(40);
-        event.fastestSpeedInSession = buffer.readFloatLE(41);
+    const offset = PACKET_HEADER_SIZE + 4;
+
+    switch (eventStringCode) {
+        case 'FTLP': // Fastest Lap
+            result.vehicleIdx = buffer.readUInt8(offset);
+            result.time = buffer.readFloatLE(offset + 1);
+            break;
+        case 'RTMT': // Retirement
+            result.vehicleIdx = buffer.readUInt8(offset);
+            // Retirement reason (F1 25 hat hier evtl. ein Byte mehr)
+            if (buffer.length > offset + 1) {
+                result.retirementReason = buffer.readUInt8(offset + 1);
+            }
+            break;
+        case 'TMPT': // Team Mate Pitted
+            result.vehicleIdx = buffer.readUInt8(offset);
+            break;
+        case 'RCWN': // Race Winner
+            result.vehicleIdx = buffer.readUInt8(offset);
+            break;
+        case 'PENA': // Penalty
+            result.penaltyType = buffer.readUInt8(offset);
+            result.infringementType = buffer.readUInt8(offset + 1);
+            result.vehicleIdx = buffer.readUInt8(offset + 2);
+            result.otherVehicleIdx = buffer.readUInt8(offset + 3);
+            result.time = buffer.readUInt8(offset + 4);
+            result.lapNum = buffer.readUInt8(offset + 5);
+            result.placesGained = buffer.readUInt8(offset + 6);
+            break;
+        case 'SPTP': // Speed Trap
+            result.vehicleIdx = buffer.readUInt8(offset);
+            result.speed = buffer.readFloatLE(offset + 1);
+            result.isOverallFastestInSession = buffer.readUInt8(offset + 5);
+            result.isDriverFastestInSession = buffer.readUInt8(offset + 6);
+            result.fastestVehicleIdxInSession = buffer.readUInt8(offset + 7);
+            break;
+        case 'FLBK': // Flashback
+            result.flashbackFrameIdentifier = buffer.readUInt32LE(offset);
+            result.flashbackSessionTime = buffer.readFloatLE(offset + 4);
+            break;
+        case 'STGS': // Start Lights
+            result.numLights = buffer.readUInt8(offset);
+            break;
+        case 'COLL': // Collision
+            result.vehicle1Idx = buffer.readUInt8(offset);
+            result.vehicle2Idx = buffer.readUInt8(offset + 1);
+            break;
     }
 
-    return event;
+    return result;
 }

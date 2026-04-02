@@ -252,9 +252,8 @@ export class SessionState {
 
         if (p.isHuman && data.lastLapTimeInMS > 0) {
             // Berechnung der Sektorzeiten aus den Paket-Daten
-            const s1Ms = data.sector1TimeMinutesPart * 60000 + data.sector1TimeMSPart;
-            const s2Ms = data.sector2TimeMinutesPart * 60000 + data.sector2TimeMSPart;
-            // Sektor 3 ist die Differenz zur Gesamtzeit
+            const s1Ms = data.sector1TimeMinutes * 60000 + data.sector1TimeInMS;
+            const s2Ms = data.sector2TimeMinutes * 60000 + data.sector2TimeInMS;
             const s3Ms = s1Ms > 0 && s2Ms > 0 ? Math.max(0, data.lastLapTimeInMS - s1Ms - s2Ms) : 0;
 
             // Logik für die persönliche Bestzeit (PB)
@@ -274,8 +273,10 @@ export class SessionState {
                 sector2Ms: s2Ms > 0 ? s2Ms : undefined,
                 sector3Ms: s3Ms > 0 ? s3Ms : undefined,
                 carDamage: this.createDamageSnapshot(p),
-                // Samples nur an die Runde hängen, wenn es eine Bestzeit war (Entlastung der DB)
-                samples: (!data.currentLapInvalid && data.lastLapTimeInMS === p.fastestLapMs) ? p.bestLapSamples : undefined
+                pitStopTimerMs: data.pitStopTimerInMS > 0 ? data.pitStopTimerInMS : undefined,
+                pitLaneTimeMs: data.pitLaneTimeInLaneInMS > 0 ? data.pitLaneTimeInLaneInMS : undefined,
+                // Alle Runden eines Menschen erhalten jetzt Samples, damit der Sender am Ende die Top 2 filtern kann
+                samples: [...p.currentLapSamples]
             });
 
             // Sample-Buffer für die nächste Runde leeren
@@ -298,8 +299,9 @@ export class SessionState {
             sidepodDamage: d.sidepodDamage,
             gearBoxDamage: d.gearBoxDamage,
             engineDamage: d.engineDamage,
-            engineBlown: d.engineBlown,
-            engineSeized: d.engineSeized,
+            tyresWear: [...d.tyresWear],
+            tyresDamage: [...d.tyresDamage],
+            brakesDamage: [...d.brakesDamage],
         };
     }
 
@@ -312,6 +314,9 @@ export class SessionState {
         if (!p.isHuman) return; // Nur menschliche Spieler aufzeichnen
         if (!p.telemetryData || !p.motionData) return;
 
+        // 60Hz Modus: Wir zeichnen jedes empfangene Paket auf (User-Anforderung)
+
+
         const t = p.telemetryData;
         const m = p.motionData;
         const s = p.carStatusData;
@@ -321,7 +326,7 @@ export class SessionState {
 
         p.currentLapSamples.push({
             d: lap.lapDistance,
-            s: t.speedKmh,
+            s: t.speed,
             t: t.throttle,
             b: t.brake,
             st: t.steer,
@@ -392,7 +397,7 @@ export class SessionState {
                 stateLap = {
                     lapNumber: lapNumber,
                     lapTimeMs: hLap.lapTimeInMS,
-                    isValid: (hLap.lapValidFlags & 0x01) !== 0,
+                    isValid: (hLap.lapValidBitFlags & 0x01) !== 0,
                     sector1Ms: s1Ms > 0 ? s1Ms : undefined,
                     sector2Ms: s2Ms > 0 ? s2Ms : undefined,
                     sector3Ms: s3Ms > 0 ? s3Ms : undefined
@@ -415,7 +420,7 @@ export class SessionState {
     public buildPayloadAndClear() {
         const participantsList = Array.from(this.players.entries())
             .filter(([_, p]) => p.gameName && !p.gameName.startsWith('Unknown_'))
-            .map(([_, p]) => PayloadMapper.mapPlayer(_, p));
+            .map(([_, p]) => PayloadMapper.mapPlayer(_, p, this.sessionData));
 
         const safetyCarEvents = this.incidentManager.fetchAndClearEvents();
         const lapPositions = [...this.lapPositions];
@@ -443,7 +448,7 @@ export class SessionState {
     public updateParticipant(carIdx: number, data: ParticipantData) {
         const p = this.getPlayer(carIdx);
         if (data.name?.trim().length) p.gameName = data.name;
-        p.isHuman = data.isHuman;
+        p.isHuman = data.aiControlled === 0;
         p.teamId = data.teamId;
         p.participantData = data;
     }
@@ -452,7 +457,7 @@ export class SessionState {
     public updateTelemetry(carIdx: number, data: CarTelemetryData) {
         this.incrementPackets();
         const p = this.getPlayer(carIdx);
-        if (data.speedKmh > p.topSpeedKmh) p.topSpeedKmh = data.speedKmh;
+        if (data.speed > p.topSpeedKmh) p.topSpeedKmh = data.speed;
         p.telemetryData = data;
     }
 
@@ -499,6 +504,14 @@ export class SessionState {
     public updateFinalClassification(data: PacketFinalClassificationData) {
         this.incrementPackets();
         this.finalClassification = data.classificationData;
+        
+        // Übertrage finale Daten in die PlayerStates
+        data.classificationData.forEach((c, i) => {
+            const p = this.getPlayer(i);
+            p.totalRaceTime = c.totalRaceTime;
+            p.penaltiesCount = c.numPenalties;
+        });
+
         this.isSessionEnded = true;
     }
 
@@ -512,5 +525,16 @@ export class SessionState {
             packetCount: this.packetCount,
             lastPacketTime: this.lastPacketTime
         };
+    }
+
+    /**
+     * Prüft ob noch ungesendete historisierte Daten (Runden) vorliegen.
+     * Ermöglicht das "Draining" in kleinen Chunks bei großen Replays.
+     */
+    public hasPendingData(): boolean {
+        for (const [, p] of this.players) {
+            if (p.laps.length > 0 || p.speedTraps.length > 0) return true;
+        }
+        return this.lapPositions.length > 0 || this.incidentManager.hasPendingEvents();
     }
 }

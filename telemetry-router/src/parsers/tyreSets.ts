@@ -1,3 +1,5 @@
+import { PACKET_HEADER_SIZE } from './header';
+
 export interface TyreSetData {
     actualTyreCompound: number;
     visualTyreCompound: number;
@@ -17,18 +19,16 @@ export interface PacketTyreSetsData {
 }
 
 export function parseTyreSets(buffer: Buffer): PacketTyreSetsData {
-    const headerSize = 29;
-    const carIdx = buffer.readUInt8(headerSize);
+    const carIdx = buffer.readUInt8(PACKET_HEADER_SIZE);
     const tyreSetData: TyreSetData[] = [];
 
-    // F1 24 (ID 12) = 231 Bytes, F1 25 (ID 20) = ?
-    // Wir bestimmen den Multiplikator anhand der Buffer-Länge
-    const setSize = buffer.length >= 251 ? 11 : 10; 
+    // F1 25 TyreSetData size is 10 bytes
+    const setSize = 10; 
 
     // cs_maxNumTyreSets is 20
     for (let i = 0; i < 20; i++) {
-        const offset = (headerSize + 1) + (i * setSize);
-        if (offset + 10 > buffer.length) break;
+        const offset = PACKET_HEADER_SIZE + 1 + (i * setSize);
+        if (offset + setSize > buffer.length) break;
 
         tyreSetData.push({
             actualTyreCompound: buffer.readUInt8(offset),
@@ -43,8 +43,7 @@ export function parseTyreSets(buffer: Buffer): PacketTyreSetsData {
         });
     }
 
-    // fittedIdx ist das letzte Byte
-    const fittedIdxOffset = (headerSize + 1) + (20 * setSize);
+    const fittedIdxOffset = PACKET_HEADER_SIZE + 1 + (20 * setSize);
     const fittedIdx = (fittedIdxOffset < buffer.length) ? buffer.readUInt8(fittedIdxOffset) : 0;
 
     return {

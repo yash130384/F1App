@@ -1,4 +1,4 @@
-import { PacketHeader } from './header';
+import { PACKET_HEADER_SIZE } from './header';
 
 export interface MotionExData {
     suspensionPosition: number[];
@@ -19,103 +19,44 @@ export interface MotionExData {
     angularAccelerationX: number;
     angularAccelerationY: number;
     angularAccelerationZ: number;
-    frontWheelsAngle: number;
-    wheelVertForce: number[];
     frontAeroHeight: number;
     rearAeroHeight: number;
-    frontRollAngle: number;
-    rearRollAngle: number;
-    chassisYaw: number;
-    chassisPitch: number;
-    wheelCamber: number[];
-    wheelCamberGain: number[];
 }
 
-export function parseMotionExData(buffer: Buffer): MotionExData {
-    let offset = 29; // Header
+export function parseMotionEx(buffer: Buffer): MotionExData {
+    let offset = PACKET_HEADER_SIZE;
 
-    const suspensionPosition = [
-        buffer.readFloatLE(offset), buffer.readFloatLE(offset + 4),
-        buffer.readFloatLE(offset + 8), buffer.readFloatLE(offset + 12)
-    ]; offset += 16;
-
-    const suspensionVelocity = [
-        buffer.readFloatLE(offset), buffer.readFloatLE(offset + 4),
-        buffer.readFloatLE(offset + 8), buffer.readFloatLE(offset + 12)
-    ]; offset += 16;
-
-    const suspensionAcceleration = [
-        buffer.readFloatLE(offset), buffer.readFloatLE(offset + 4),
-        buffer.readFloatLE(offset + 8), buffer.readFloatLE(offset + 12)
-    ]; offset += 16;
-
-    const wheelSpeed = [
-        buffer.readFloatLE(offset), buffer.readFloatLE(offset + 4),
-        buffer.readFloatLE(offset + 8), buffer.readFloatLE(offset + 12)
-    ]; offset += 16;
-
-    const wheelSlipRatio = [
-        buffer.readFloatLE(offset), buffer.readFloatLE(offset + 4),
-        buffer.readFloatLE(offset + 8), buffer.readFloatLE(offset + 12)
-    ]; offset += 16;
-
-    const wheelSlipAngle = [
-        buffer.readFloatLE(offset), buffer.readFloatLE(offset + 4),
-        buffer.readFloatLE(offset + 8), buffer.readFloatLE(offset + 12)
-    ]; offset += 16;
-
-    const wheelLatForce = [
-        buffer.readFloatLE(offset), buffer.readFloatLE(offset + 4),
-        buffer.readFloatLE(offset + 8), buffer.readFloatLE(offset + 12)
-    ]; offset += 16;
-
-    const wheelLongForce = [
-        buffer.readFloatLE(offset), buffer.readFloatLE(offset + 4),
-        buffer.readFloatLE(offset + 8), buffer.readFloatLE(offset + 12)
-    ]; offset += 16;
-
-    const heightOfCOGAboveGround = buffer.readFloatLE(offset); offset += 4;
-    const localVelocityX = buffer.readFloatLE(offset); offset += 4;
-    const localVelocityY = buffer.readFloatLE(offset); offset += 4;
-    const localVelocityZ = buffer.readFloatLE(offset); offset += 4;
-    const angularVelocityX = buffer.readFloatLE(offset); offset += 4;
-    const angularVelocityY = buffer.readFloatLE(offset); offset += 4;
-    const angularVelocityZ = buffer.readFloatLE(offset); offset += 4;
-    const angularAccelerationX = buffer.readFloatLE(offset); offset += 4;
-    const angularAccelerationY = buffer.readFloatLE(offset); offset += 4;
-    const angularAccelerationZ = buffer.readFloatLE(offset); offset += 4;
-    const frontWheelsAngle = buffer.readFloatLE(offset); offset += 4;
-
-    const wheelVertForce = [
-        buffer.readFloatLE(offset), buffer.readFloatLE(offset + 4),
-        buffer.readFloatLE(offset + 8), buffer.readFloatLE(offset + 12)
-    ]; offset += 16;
-
-    const frontAeroHeight = buffer.readFloatLE(offset); offset += 4;
-    const rearAeroHeight = buffer.readFloatLE(offset); offset += 4;
-    const frontRollAngle = buffer.readFloatLE(offset); offset += 4;
-    const rearRollAngle = buffer.readFloatLE(offset); offset += 4;
-    const chassisYaw = buffer.readFloatLE(offset); offset += 4;
-    const chassisPitch = buffer.readFloatLE(offset); offset += 4;
-
-    const wheelCamber = [
-        buffer.readFloatLE(offset), buffer.readFloatLE(offset + 4),
-        buffer.readFloatLE(offset + 8), buffer.readFloatLE(offset + 12)
-    ]; offset += 16;
-
-    const wheelCamberGain = [
-        buffer.readFloatLE(offset), buffer.readFloatLE(offset + 4),
-        buffer.readFloatLE(offset + 8), buffer.readFloatLE(offset + 12)
-    ]; offset += 16;
+    const readFloatArray = (len: number) => {
+        const arr = [];
+        for (let i = 0; i < len; i++) {
+            if (offset + 4 <= buffer.length) {
+                arr.push(buffer.readFloatLE(offset));
+                offset += 4;
+            }
+        }
+        return arr;
+    };
 
     return {
-        suspensionPosition, suspensionVelocity, suspensionAcceleration,
-        wheelSpeed, wheelSlipRatio, wheelSlipAngle, wheelLatForce, wheelLongForce,
-        heightOfCOGAboveGround, localVelocityX, localVelocityY, localVelocityZ,
-        angularVelocityX, angularVelocityY, angularVelocityZ,
-        angularAccelerationX, angularAccelerationY, angularAccelerationZ,
-        frontWheelsAngle, wheelVertForce, frontAeroHeight, rearAeroHeight,
-        frontRollAngle, rearRollAngle, chassisYaw, chassisPitch,
-        wheelCamber, wheelCamberGain
+        suspensionPosition: readFloatArray(4),
+        suspensionVelocity: readFloatArray(4),
+        suspensionAcceleration: readFloatArray(4),
+        wheelSpeed: readFloatArray(4),
+        wheelSlipRatio: readFloatArray(4),
+        wheelSlipAngle: readFloatArray(4),
+        wheelLatForce: readFloatArray(4),
+        wheelLongForce: readFloatArray(4),
+        heightOfCOGAboveGround: buffer.readFloatLE(offset),
+        localVelocityX: buffer.readFloatLE(offset + 4),
+        localVelocityY: buffer.readFloatLE(offset + 8),
+        localVelocityZ: buffer.readFloatLE(offset + 12),
+        angularVelocityX: buffer.readFloatLE(offset + 16),
+        angularVelocityY: buffer.readFloatLE(offset + 20),
+        angularVelocityZ: buffer.readFloatLE(offset + 24),
+        angularAccelerationX: buffer.readFloatLE(offset + 28),
+        angularAccelerationY: buffer.readFloatLE(offset + 32),
+        angularAccelerationZ: buffer.readFloatLE(offset + 36),
+        frontAeroHeight: buffer.readFloatLE(offset + 40),
+        rearAeroHeight: buffer.readFloatLE(offset + 44),
     };
 }

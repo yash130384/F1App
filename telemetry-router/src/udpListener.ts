@@ -2,22 +2,22 @@ import dgram from 'dgram';
 import fs from 'fs';
 import path from 'path';
 import { AppConfig } from './types/config';
-import { parseHeader } from './parsers/header';
+import { parseHeader, PACKET_HEADER_SIZE } from './parsers/header';
 import { parseSession } from './parsers/session';
 import { parseParticipants } from './parsers/participants';
 import { parseLapData } from './parsers/lapData';
-import { parseTelemetry } from './parsers/telemetry';
+import { parseCarTelemetry } from './parsers/telemetry';
 import { parseCarStatus } from './parsers/carStatus';
 import { parseEventData } from './parsers/eventData';
 import { parseCarDamage } from './parsers/carDamage';
 import { parseMotionData } from './parsers/motionData';
-import { parseSessionHistoryData } from './parsers/sessionHistory';
-import { parseFinalClassificationData } from './parsers/finalClassification';
-import { parseMotionExData } from './parsers/motionEx';
+import { parseSessionHistory } from './parsers/sessionHistory';
+import { parseFinalClassification } from './parsers/finalClassification';
+import { parseMotionEx } from './parsers/motionEx';
 import { parseTyreSets } from './parsers/tyreSets';
 import { parseCarSetups } from './parsers/carSetups';
 import { SessionState } from './state';
-import { startSender } from './sender';
+import { startSender, triggerImmediateSend, setSessionUID } from './sender';
 import { renderDashboard } from './dashboard';
 
 export interface StatusUpdate {
@@ -26,230 +26,131 @@ export interface StatusUpdate {
     sessionType?: string;
 }
 
-/**
- * Startet den UDP-Listener, der auf Pakete vom Spiel (F1 25) wartet.
- * Diese Funktion verwaltet den Socket, die lokale Aufzeichnung (.bin) und delegiert
- * die Paketverarbeitung an den SessionState.
- * 
- * @param config Die Anwendungskonfiguration inkl. Port und Sendeintervall.
- * @param onStatusUpdate Callback-Funktion für Statusänderungen (z.B. für Tray-Icon).
- */
 export function startUdpListener(config: AppConfig, onStatusUpdate?: (status: StatusUpdate) => void) {
     if (!config.port) {
-        console.error('Kritischer Fehler: Kein UDP-Port in der Konfiguration angegeben.');
+        console.error('Kritischer Fehler: Kein UDP-Port angegeben.');
         return;
     }
 
     const server = dgram.createSocket('udp4');
     const state = new SessionState();
-
-    // Verzeichnis für lokale Aufzeichnungen sicherstellen
     const recordingsDir = path.join(process.cwd(), 'recordings');
-    if (!fs.existsSync(recordingsDir)) {
-        fs.mkdirSync(recordingsDir);
-    }
+    if (!fs.existsSync(recordingsDir)) fs.mkdirSync(recordingsDir);
 
     let recordingStream: fs.WriteStream | null = null;
     let currentSessionUID: bigint = BigInt(0);
-    let tempRecordingFilename: string | null = null;
-    let finalRecordingFilename: string | null = null;
-    let startTimeStr: string = '';
 
-    // Startet die HTTP-Übermittlungsschleife im Hintergrund
     startSender(config, state);
 
-    // Timeout Check: Wenn 5 Minuten kein Paket ankam (bei aktiver Session), Aufzeichnung stoppen + Session beenden
-    setInterval(() => {
-        if (state.isActive && !state.isSessionEnded) {
-            const idleTime = Date.now() - state.lastPacketTime;
-            if (idleTime > 5 * 60 * 1000) { // 5 Minuten
-                console.log('⏰ 5-Minuten-Timeout erreicht. Beende Aufzeichnung.');
-                state.handleSessionEnd();
-                if (recordingStream) {
-                    recordingStream.end();
-                    recordingStream = null;
-                }
-            }
-        }
-    }, 10000); // Check alle 10 Sekunden
-
-    // Fehlerbehandlung für den UDP-Socket
-    server.on('error', (err) => {
-        console.error(`UDP-Serverfehler (Socket): \n${err.stack}`);
-        if (recordingStream) {
-            recordingStream.end();
-        }
-        server.close();
-    });
-
-    // Hauptschleife für eingehende UDP-Pakete
-    server.on('message', (msg, rinfo) => {
-        // Jedes gültige F1-Paket hat mindestens einen 29-Byte Header
-        if (msg.length < 29) return;
+    server.on('message', async (msg) => {
+        if (msg.length < PACKET_HEADER_SIZE) return;
 
         try {
             const header = parseHeader(msg);
 
-            // --- LOKALE AUFZEICHNUNG (BACKUP) ---
+            // Neue Session erkennen
             if (header.sessionUID !== currentSessionUID) {
                 if (recordingStream) {
                     recordingStream.end();
                     recordingStream = null;
                 }
                 
-                currentSessionUID = header.sessionUID;
-                tempRecordingFilename = null;
-                finalRecordingFilename = null;
+                if (currentSessionUID !== BigInt(0)) {
+                    await triggerImmediateSend();
+                }
                 
-                // Alten State bereinigen, damit Driver/Session Daten nicht in die neue Session übernommen werden
+                currentSessionUID = header.sessionUID;
+                setSessionUID(currentSessionUID.toString());
                 state.reset();
                 
-                if (currentSessionUID !== BigInt(0)) {
-                    startTimeStr = new Date().toISOString().replace(/[:.]/g, '-');
-                    tempRecordingFilename = path.join(recordingsDir, `_temp_session_${currentSessionUID}_${startTimeStr}.bin`);
-                    recordingStream = fs.createWriteStream(tempRecordingFilename, { flags: 'a' });
-                    console.log(`🎥 Telemetrie-Recording gestartet [UID: ${currentSessionUID}]`);
-                }
+                const timeStr = new Date().toISOString().replace(/[:.]/g, '-');
+                const filename = path.join(recordingsDir, `session_${currentSessionUID}_${timeStr}.bin`);
+                recordingStream = fs.createWriteStream(filename, { flags: 'a' });
+                console.log(`\n🎥 Neue Session: ${currentSessionUID}`);
             }
 
-            // Paket in die lokale Datei schreiben
-            if (recordingStream && currentSessionUID !== BigInt(0)) {
-                const fileHeader = Buffer.alloc(6);
-                fileHeader.writeUInt32LE(0, 0); 
-                fileHeader.writeUInt16LE(msg.length, 4); 
-                recordingStream.write(fileHeader);
+            // In .bin Recording schreiben (6-byte header format)
+            if (recordingStream) {
+                const fHeader = Buffer.alloc(6);
+                fHeader.writeUInt32LE(0, 0); 
+                fHeader.writeUInt16LE(msg.length, 4); 
+                recordingStream.write(fHeader);
                 recordingStream.write(msg);
-
-                // Datei umbenennen auf sprechenden Namen
-                if (tempRecordingFilename && !finalRecordingFilename && state.trackName !== 'Unknown' && state.sessionType !== 'Unknown') {
-                    const humans = state.getHumanCount();
-                    if (humans > 0 || state.packetCount > 1000) {
-                        const anzahl = humans > 0 ? humans : 0;
-                        const validOrt = state.trackName.replace(/[^a-z0-9]/gi, ''); 
-                        const validSession = state.sessionType.replace(/[^a-z0-9 ]/gi, '').trim().replace(/ /g, '');
-                        // Art_Ort_Datum_Uhrzeit(ohne Sekunden).bin
-                        const now = new Date();
-                        const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-                        const timeStr = now.toISOString().split('T')[1].substring(0, 5).replace(':', '-'); // HH-MM
-                        finalRecordingFilename = path.join(recordingsDir, `${validSession}_${validOrt}_${dateStr}_${timeStr}.bin`);
-                        
-                        try {
-                            fs.renameSync(tempRecordingFilename, finalRecordingFilename);
-                            tempRecordingFilename = null;
-                            const newStream = fs.createWriteStream(finalRecordingFilename, { flags: 'a' });
-                            recordingStream.end();
-                            recordingStream = newStream;
-                            console.log(`✅ Session identifiziert: ${state.trackName} - ${state.sessionType}`);
-                        } catch (err: any) {
-                            console.error(`Fehler beim Umbenennen: ${err.message}`);
-                        }
-                    }
-                }
             }
-            // --- ENDE AUFZEICHNUNGS-LOGIK ---
 
-            // PAKET-VERTEILER basierend auf PacketId
+            // Pakete verarbeiten
             switch (header.packetId) {
-                case 0: { // Motion-Daten: Weltkoordinaten, G-Kräfte, Aufhängung
-                    const motionArray = parseMotionData(msg);
-                    motionArray.forEach((m, i) => state.updateMotion(i, m));
+                case 0: // Motion
+                    const motion = parseMotionData(msg);
+                    motion.forEach((m, i) => state.updateMotion(i, m));
                     break;
-                }
-                case 1: { // Session-Daten: Strecke, Wetter, Session-Typ (Training, Quali, Rennen)
-                    const sessionData = parseSession(msg);
-                    state.updateSession(sessionData);
-                    
-                    // Status-Update für Tray senden, wenn sich Daten geändert haben
-                    if (onStatusUpdate && state.trackName !== 'Unknown') {
-                        onStatusUpdate({
-                            isRecording: true,
-                            trackName: state.trackName,
-                            sessionType: state.sessionType
-                        });
+                case 1: // Session
+                    const session = parseSession(msg);
+                    state.updateSession(session);
+                    break;
+                case 2: // Lap Data
+                    const laps = parseLapData(msg);
+                    laps.forEach((l, i) => state.updateLapData(i, l));
+                    break;
+                case 3: // Event
+                    const event = parseEventData(msg);
+                    state.handleEvent(event);
+                    if (event.eventStringCode === 'SEND') {
+                        await triggerImmediateSend();
                     }
                     break;
-                }
-                case 2: { // Rundendaten: Aktuelle Runde, Sektorzeiten, Pit-Status
-                    const lapDataArray = parseLapData(msg);
-                    lapDataArray.forEach((lap, i) => state.updateLapData(i, lap));
+                case 4: // Participants
+                    const parts = parseParticipants(msg);
+                    parts.participants.forEach((p, i) => state.updateParticipant(i, p));
                     break;
-                }
-                case 3: { // Event-Daten: Strafen, Unfälle, Safety-Car, Session-Ende
-                    const eventData = parseEventData(msg);
-                    if (eventData.eventStringCode === 'SEND') {
-                        console.log('🏁 SESSION BEENDET (SEND-Event empfangen).');
-                        state.handleSessionEnd();
-                    } else if (eventData.eventStringCode === 'SCAR') {
-                        state.addSafetyCarEvent(eventData.safetyCarType ?? 0, eventData.eventType ?? 0);
-                    } else {
-                        state.handleEvent(eventData);
-                    }
+                case 6: // Telemetry
+                    const tele = parseCarTelemetry(msg);
+                    tele.forEach((t, i) => state.updateTelemetry(i, t));
                     break;
-                }
-                case 4: { // Teilnehmer-Daten: Fahrernamen, Teams, KI vs. Mensch
-                    const participantsData = parseParticipants(msg);
-                    participantsData.forEach((p, i) => state.updateParticipant(i, p));
+                case 7: // Status
+                    const status = parseCarStatus(msg);
+                    status.forEach((s, i) => state.updateCarStatus(i, s));
                     break;
-                }
-                case 6: { // Fahrzeug-Telemetrie: Geschwindigkeit, Gas, Bremse, Temperaturen
-                    const telemetryData = parseTelemetry(msg);
-                    telemetryData.forEach((t, i) => state.updateTelemetry(i, t));
+                case 10: // Damage
+                    const damage = parseCarDamage(msg);
+                    damage.forEach((d, i) => state.updateCarDamage(i, d));
                     break;
-                }
-                case 5: { // Car Setups: Flügel-Einstellungen, Differential, Reifendruck
+                case 11: // History
+                    const history = parseSessionHistory(msg);
+                    state.updateSessionHistory(history);
+                    break;
+                case 5: // Setups
                     const setups = parseCarSetups(msg);
                     setups.forEach((s, i) => state.updateCarSetup(i, s));
                     break;
-                }
-                case 7: { // Fahrzeug-Status: ERS, Benzin, FIA Flaggen, Reifenmischung
-                    const carStatusArray = parseCarStatus(msg);
-                    carStatusArray.forEach((cs, i) => {
-                        state.updateCarStatus(i, cs);
-                        // Tracken der globalen Flagge basierend auf dem Spieler-Auto
-                        if (i === header.playerCarIndex || (i === 0 && !state.trackFlags)) {
-                            state.trackFlags = cs.vehicleFIAFlags;
-                        }
-                    });
+                case 12: // MotionEx
+                    const mex = parseMotionEx(msg);
+                    state.updateMotionEx(header.playerCarIndex, mex);
                     break;
-                }
-                case 8: { // Final Classification: Endergebnis am Ende einer Session
-                    const classification = parseFinalClassificationData(msg, header);
-                    state.updateFinalClassification(classification);
+                case 13: // Tyre Sets
+                    const tyres = parseTyreSets(msg);
+                    state.updateTyreSets(tyres.carIdx, tyres.tyreSetData);
                     break;
-                }
-                case 10: { // Fahrzeug-Schäden: Flügel, Unterboden, Motor-Verschleiß
-                    const carDamageArray = parseCarDamage(msg);
-                    carDamageArray.forEach((cd, i) => state.updateCarDamage(i, cd));
+                case 8: // Final Classification
+                    const fc = parseFinalClassification(msg);
+                    state.updateFinalClassification(fc);
+                    await triggerImmediateSend();
                     break;
-                }
-                case 11: { // Session History: Historische Sektorzeiten aller Runden
-                    const sessionHistory = parseSessionHistoryData(msg, header);
-                    state.updateSessionHistory(sessionHistory);
-                    break;
-                }
-                case 13: { // Motion Ex: Erweiterte Daten nur für das Spieler-Fahrzeug
-                    const motionEx = parseMotionExData(msg);
-                    state.updateMotionEx(header.playerCarIndex, motionEx);
-                    break;
-                }
-                case 12:   // Tyre Sets (F1 24/23)
-                case 20: { // Tyre Sets (F1 25)
-                    const tyreData = parseTyreSets(msg);
-                    state.updateTyreSets(tyreData.carIdx, tyreData.tyreSetData);
-                    break;
-                }
             }
-        } catch (e: any) {
-            const headerInfo = msg.length >= 29 ? `ID ${(msg[24])} (${msg.length} Bytes)` : `Unbekannt (${msg.length} Bytes)`;
-            console.error(`❌ Kritischer Fehler beim Verarbeiten von Paket ${headerInfo}: ${e.message}`);
+
+            if (state.packetCount % 500 === 0) {
+                renderDashboard(state.getDashboardState());
+            }
+
+        } catch (e) {
+            // Ignorieren
         }
     });
 
     server.on('listening', () => {
         const address = server.address();
-        console.log(`📡 UDP-Server lauscht auf ${address.address}:${address.port}`);
+        console.log(`👂 UDP Listener aktiv auf Port ${address.port}`);
     });
 
-    // Startet das Binden an den konfigurierten Port
     server.bind(config.port);
 }
