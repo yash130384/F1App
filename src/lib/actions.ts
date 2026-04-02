@@ -1059,8 +1059,21 @@ export async function getTelemetrySessionDetails(leagueId: string, sessionId: st
         if (sessions.length === 0) throw new Error('Session not found.');
 
         const participants = await query<any>(
-            `SELECT tp.*, 
-            (SELECT MIN(lap_time_ms) FROM telemetry_laps tl WHERE tl.participant_id = tp.id AND tl.is_valid = true) as fastest_lap_ms
+            `SELECT 
+                tp.id,
+                tp.session_id,
+                tp.game_name as gameName,
+                tp.driver_id,
+                tp.position,
+                tp.is_human,
+                tp.lap_distance,
+                tp.top_speed,
+                tp.pit_stops,
+                tp.warnings,
+                tp.penalties_time,
+                tp.car_index,
+                tp.start_position,
+                (SELECT MIN(lap_time_ms) FROM telemetry_laps tl WHERE tl.participant_id = tp.id AND tl.is_valid = true) as fastest_lap_ms
             FROM telemetry_participants tp 
             WHERE tp.session_id = ? 
             ORDER BY tp.position ASC`,
