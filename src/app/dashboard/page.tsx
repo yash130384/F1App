@@ -433,8 +433,8 @@ export default function Dashboard() {
                                     </h2>
                                     {leagueStats && (
                                         <div className="text-right hide-mobile">
-                                            <div className="stat-value" style={{ fontSize: '1.5rem' }}>{leagueStats.totalRaces}<span style={{ opacity: 0.3 }}>/</span>{leagueStats.plannedTotalRaces || '?'}</div>
-                                            <div className="stat-label">Rounds Completed</div>
+                                            <div className="stat-value" style={{ fontSize: '1.5rem' }}>{leagueStats.totalRaces}</div>
+                                            <div className="stat-label">Races Completed</div>
                                         </div>
                                     )}
                                 </div>

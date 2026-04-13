@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useState, useEffect } from 'react';
-import { getAdminLeagueDrivers, saveRaceResults, getRaceResults } from '@/lib/actions';
+import { getAdminLeagueDrivers, saveRaceResults, getRaceResults, getLeagueRaces } from '@/lib/actions';
 import { calculatePoints, formatPoints } from '@/lib/scoring';
 import { F1_TRACKS_2025 } from '@/lib/constants';
 
@@ -17,6 +17,7 @@ export default function ManualResults({
     const { raceId } = React.use(searchParams);
     const [drivers, setDrivers] = useState<any[]>([]);
     const [track, setTrack] = useState('');
+    const [activeRaceId, setActiveRaceId] = useState<string | undefined>(undefined);
     const [results, setResults] = useState<Record<string, { position: number; qualiPosition: number; fastestLap: boolean; cleanDriver: boolean; isDnf: boolean }>>({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -36,10 +37,24 @@ export default function ManualResults({
                     initialResults[d.id] = { position: 20, qualiPosition: 0, fastestLap: false, cleanDriver: false, isDnf: false };
                 });
 
-                // If editing a race, load its data
-                if (raceId) {
-                    const raceRes = await getRaceResults(raceId);
-                    if (raceRes.success && raceRes.results) {
+                let currentRaceId = raceId;
+                let preSelectedTrack = '';
+                
+                if (!currentRaceId) {
+                    const racesRes = await getLeagueRaces(leagueId);
+                    if (racesRes.success && racesRes.races) {
+                        const nextScheduled = racesRes.races.find((r: any) => !r.is_finished);
+                        if (nextScheduled) {
+                            currentRaceId = nextScheduled.id;
+                            preSelectedTrack = nextScheduled.track;
+                        }
+                    }
+                }
+
+                if (currentRaceId) {
+                    setActiveRaceId(currentRaceId);
+                    const raceRes = await getRaceResults(currentRaceId);
+                    if (raceRes.success && raceRes.results && raceRes.results.length > 0) {
                         setTrack(raceRes.track || '');
                         raceRes.results.forEach((r: any) => {
                             initialResults[r.driver_id] = {
@@ -50,6 +65,8 @@ export default function ManualResults({
                                 isDnf: !!r.is_dnf
                             };
                         });
+                    } else if (preSelectedTrack) {
+                        setTrack(preSelectedTrack);
                     }
                 }
                 
@@ -89,7 +106,7 @@ export default function ManualResults({
             is_dnf: results[d.id].isDnf
         }));
 
-        const res = await saveRaceResults(leagueId, track, formattedResults, raceId);
+        const res = await saveRaceResults(leagueId, track, formattedResults, activeRaceId);
 
         if (res.success) {
             alert('Race Results Submitted!');
@@ -98,6 +115,109 @@ export default function ManualResults({
             setError(res.error || 'Failed to save results.');
             setLoading(false);
         }
+    };
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const csvText = event.target?.result as string;
+            parseCSVAndApply(csvText);
+        };
+        reader.readAsText(file);
+    };
+
+    const parseTime = (timeStr: string) => {
+        if (!timeStr || timeStr === '-' || timeStr === '') return Infinity;
+        const parts = timeStr.split(':');
+        if (parts.length === 2) {
+            const min = parseInt(parts[0]);
+            const secParts = parts[1].replace(',', '.').split('.');
+            if (secParts.length === 2) {
+                const sec = parseInt(secParts[0]);
+                const ms = parseInt(secParts[1]);
+                return min * 60 + sec + ms / 1000;
+            }
+        }
+        return Infinity;
+    };
+
+    const parseCSVAndApply = (csvText: string) => {
+        const lines = csvText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        let driverResults: any[] = [];
+        let parsingSection = 0;
+
+        for (let line of lines) {
+            if (line.includes('"Pos."') && line.includes('"Fahrer"')) {
+                parsingSection = 1;
+                continue;
+            }
+            if (line.includes('"Zeit"') && line.includes('"Vorfall"')) {
+                parsingSection = 2;
+                continue;
+            }
+
+            if (parsingSection === 1) {
+                const cols = line.match(/(?:"([^"]*)")|(?:'([^']*)')|([^,]+)/g)?.map(c => c.replace(/^"|"$/g, '').trim());
+                if (!cols || cols.length < 9) continue;
+                
+                const posStr = cols[0];
+                const rawName = cols[1];
+                const qualiPos = cols[3];
+                const bestTimeStr = cols[5];
+                const totalTimeStr = cols[6];
+                
+                const isDnf = totalTimeStr === 'DNF' || totalTimeStr === 'DSQ';
+                const position = parseInt(posStr) || 20;
+                const qPos = parseInt(qualiPos) || 0;
+                
+                driverResults.push({
+                    name: rawName,
+                    position,
+                    qualiPosition: qPos,
+                    bestTimeStr,
+                    isDnf
+                });
+            }
+        }
+
+        let bestTimeMin = Infinity;
+        let flDriverName: string | null = null;
+        driverResults.forEach(r => {
+            const t = parseTime(r.bestTimeStr);
+            if (t < bestTimeMin) {
+                bestTimeMin = t;
+                flDriverName = r.name;
+            }
+        });
+
+        const findCSVResult = (driverName: string) => {
+            const normalizedTarget = driverName.toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim();
+            // Prefix exact match (sometimes last name is upper cased, or extra spaces)
+            let match = driverResults.find(r => r.name.toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim() === normalizedTarget);
+            if (match) return match;
+            return driverResults.find(r => r.name.toLowerCase().replace(/[\s\u00A0]+/g, ' ').includes(normalizedTarget) || normalizedTarget.includes(r.name.toLowerCase().replace(/[\s\u00A0]+/g, ' ').trim()));
+        };
+
+        setResults(prev => {
+            const newResults = { ...prev };
+            drivers.forEach(d => {
+                const csvR = findCSVResult(d.name);
+                if (csvR) {
+                    newResults[d.id] = {
+                        ...newResults[d.id],
+                        position: csvR.position,
+                        qualiPosition: csvR.qualiPosition,
+                        fastestLap: flDriverName === csvR.name,
+                        isDnf: csvR.isDnf
+                    };
+                }
+            });
+            return newResults;
+        });
+        alert('CSV Daten wurden importiert. Du kannst die Ergebnisse nun überprüfen.');
     };
 
     if (loading && drivers.length === 0) {
@@ -128,17 +248,28 @@ export default function ManualResults({
                     <h1 className="text-f1 text-gradient" style={{ fontSize: '2.8rem', letterSpacing: '-2px' }}>MANUAL ENTRY</h1>
                     <p style={{ color: 'var(--silver)', fontSize: '0.9rem' }}>Record positions and bonuses for all drivers.</p>
                 </div>
-                <div className="input-group" style={{ minWidth: '300px' }}>
-                    <label style={{ color: 'var(--f1-red)' }}>RACE LOCATION / TRACK</label>
-                    <select
-                        value={track}
-                        onChange={e => setTrack(e.target.value)}
-                        style={{ padding: '0.8rem', border: '1px solid var(--f1-red)', background: 'rgba(255, 24, 1, 0.05)', borderRadius: '4px', color: 'white', width: '100%' }}
-                        disabled={loading}
-                    >
-                        <option value="">-- Select Track --</option>
-                        {F1_TRACKS_2025.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
+                <div className="flex flex-col md:flex-row gap-4" style={{ minWidth: '300px' }}>
+                    <div className="input-group">
+                        <label style={{ color: 'var(--f1-red)' }}>RACE LOCATION / TRACK</label>
+                        <select
+                            value={track}
+                            onChange={e => setTrack(e.target.value)}
+                            style={{ padding: '0.8rem', border: '1px solid var(--f1-red)', background: 'rgba(255, 24, 1, 0.05)', borderRadius: '4px', color: 'white', width: '100%' }}
+                            disabled={loading || !!activeRaceId}
+                        >
+                            <option value="">-- Select Track --</option>
+                            {F1_TRACKS_2025.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                    </div>
+                    <div className="input-group">
+                        <label style={{ color: 'var(--f1-cyan)' }}>CSV UPLOAD (OPTIONAL)</label>
+                        <input 
+                            type="file" 
+                            accept=".csv"
+                            onChange={handleFileUpload}
+                            style={{ padding: '0.7rem', border: '1px solid var(--f1-cyan)', background: 'rgba(0, 245, 255, 0.05)', borderRadius: '4px', color: 'white', width: '100%', cursor: 'pointer' }}
+                        />
+                    </div>
                 </div>
             </header>
 

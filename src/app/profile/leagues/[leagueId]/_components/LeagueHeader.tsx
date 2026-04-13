@@ -30,9 +30,6 @@ export default function LeagueHeader({ name, leagueId, isJoinLocked, isTeamsLock
         <Link href={`/profile/leagues/${leagueId}/results`}>
           <button className="btn-primary">ENTER RESULTS</button>
         </Link>
-        <Link href={`/profile/leagues/${leagueId}/settings`}>
-          <button className={`btn-secondary ${styles.settingsBtn}`}>SETTINGS</button>
-        </Link>
       </div>
     </header>
   );

@@ -230,6 +230,19 @@ export default function ScoringConfigPage({ params }: { params: Promise<{ league
                     </div>
 
                     <div className="input-group">
+                        <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--f1-red)', display: 'block', marginBottom: '0.5rem' }}>DROPPED RESULTS</label>
+                        <input 
+                            type="number" 
+                            className="input" 
+                            style={{ width: '100%', background: 'rgba(0,0,0,0.5)' }}
+                            value={config.dropResultsCount || 0}
+                            min="0"
+                            onChange={(e) => setConfig({ ...config, dropResultsCount: parseInt(e.target.value) || 0 })}
+                        />
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.4rem', display: 'block' }}>Number of worst race results to automatically drop from standings.</span>
+                    </div>
+
+                    <div className="input-group">
                         <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--f1-red)', display: 'block', marginBottom: '0.5rem' }}>TEAM COMPETITION</label>
                         <div className="flex items-center gap-2" style={{ marginTop: '0.5rem' }}>
                             <input 
