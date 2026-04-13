@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getDashboardData, getAllLeagues, getRaceDetails, deleteRace, getActiveTelemetrySession } from '@/lib/actions';
+import { getDashboardData, getDashboardLeagues, getAllLeagues, getRaceDetails, deleteRace, getActiveTelemetrySession } from '@/lib/actions';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 import RaceCountdown, { RevealCountdown } from './RaceCountdown';
 import LiveTrackMap from './LiveTrackMap';
@@ -229,14 +229,15 @@ export default function Dashboard() {
     const [fetchingLeagues, setFetchingLeagues] = useState(true);
     const [fetchingRace, setFetchingRace] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [showAllLeagues, setShowAllLeagues] = useState(false);
 
     const router = useRouter();
 
-    // Fetch all leagues on mount
+    // Fetch dashboard leagues on mount
     useEffect(() => {
         async function loadInitialLeagues() {
             setFetchingLeagues(true);
-            const res = await getAllLeagues();
+            const res = await getDashboardLeagues();
             if (res.success) {
                 setLeaguesList(res.leagues || []);
             } else {
@@ -246,6 +247,8 @@ export default function Dashboard() {
         }
         loadInitialLeagues();
     }, []);
+
+    const displayedLeagues = showAllLeagues ? leaguesList : leaguesList.filter(l => !l.is_completed);
 
     const selectLeague = async (name: string) => {
         setSelectedLeagueName(name);
@@ -346,24 +349,37 @@ export default function Dashboard() {
 
             {!selectedLeagueName ? (
                 <section>
-                    <h2 className="h2" style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Select a League</h2>
+                    <div className="flex justify-between items-center mb-4" style={{ marginBottom: '1.5rem' }}>
+                        <h2 className="h2" style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', margin: 0 }}>Select a League</h2>
+                        {leaguesList.some(l => l.is_completed) && (
+                            <button 
+                                className="btn-secondary btn-sm" 
+                                onClick={() => setShowAllLeagues(!showAllLeagues)}
+                                style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
+                            >
+                                {showAllLeagues ? 'SHOW ACTIVE ONLY' : 'SHOW ALL'}
+                            </button>
+                        )}
+                    </div>
                     {fetchingLeagues ? (
                         <p style={{ color: 'var(--text-secondary)' }}>Loading championship data...</p>
                     ) : (
                         <div className="grid-responsive">
-                            {leaguesList.map(l => (
+                            {displayedLeagues.map(l => (
                                 <div
                                     key={l.id}
                                     className="f1-card"
-                                    style={{ cursor: 'pointer', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}
+                                    style={{ cursor: 'pointer', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', opacity: l.is_completed ? 0.6 : 1 }}
                                     onClick={() => selectLeague(l.name)}
                                 >
-                                    <span className="text-f1-bold" style={{ fontSize: '0.7rem', color: 'var(--f1-red)' }}>CHAMPIONSHIP</span>
-                                    <h3 className="h3" style={{ fontSize: '1.5rem' }}>{l.name}</h3>
+                                    <span className="text-f1-bold" style={{ fontSize: '0.7rem', color: l.is_completed ? 'var(--text-muted)' : 'var(--f1-red)' }}>
+                                        {l.is_completed ? 'COMPLETED CHAMPIONSHIP' : 'CHAMPIONSHIP'}
+                                    </span>
+                                    <h3 className="h3" style={{ fontSize: '1.5rem', color: 'white' }}>{l.name}</h3>
                                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'right', marginTop: 'auto' }}>Open Dashboard &rarr;</div>
                                 </div>
                             ))}
-                            {leaguesList.length === 0 && (
+                            {displayedLeagues.length === 0 && (
                                 <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem', gridColumn: '1 / -1' }}>
                                     <p style={{ color: 'var(--text-secondary)' }}>No leagues found. Go to <Link href="/profile/leagues" style={{ color: 'var(--f1-red)', fontWeight: 'bold', textDecoration: 'underline' }}>League Management</Link> to create one!</p>
                                 </div>

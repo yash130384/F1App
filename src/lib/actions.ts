@@ -23,6 +23,21 @@ async function verifyLeagueOwner(leagueId: string) {
     if (res.length === 0 || String(res[0].owner_id) !== String(session.user.id)) throw new Error('Unauthorized. Not the owner.');
 }
 
+export async function getAdminLeagues() {
+    try {
+        const session = await getServerSession(authOptions) as any;
+        if (!session?.user?.id) return { success: false, leagues: [] };
+        
+        const leagues = await query<any>(
+            `SELECT id, name FROM leagues WHERE owner_id = ? ORDER BY name ASC`,
+            [session.user.id]
+        );
+        return { success: true, leagues };
+    } catch (e: any) {
+        return { success: false, leagues: [], error: e.message };
+    }
+}
+
 import { calculatePoints, DEFAULT_CONFIG, PointsConfig } from './scoring';
 
 /**
@@ -435,10 +450,38 @@ export async function getDashboardData(leagueName: string) {
  */
 export async function getAllLeagues() {
     try {
-        const leagues = await query<any>(`SELECT id, name FROM leagues ORDER BY name ASC`);
+        const leagues = await query<any>(`SELECT id, name, is_completed FROM leagues ORDER BY name ASC`);
         return { success: true, leagues };
     } catch (error: any) {
         console.error('Fetch All Leagues Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Fetches leagues relevant to the current user dashboard.
+ * If logged in, returns leagues the user is active in (owns or is a driver).
+ * Fallback to all leagues if not logged in.
+ */
+export async function getDashboardLeagues() {
+    try {
+        const session = await getServerSession(authOptions) as any;
+        let leagues;
+        if (session && session.user && session.user.id) {
+            const userId = session.user.id;
+            leagues = await query<any>(`
+                SELECT DISTINCT l.id, l.name, l.is_completed 
+                FROM leagues l
+                LEFT JOIN drivers d ON d.league_id = l.id
+                WHERE l.owner_id = ? OR d.user_id = ?
+                ORDER BY l.is_completed ASC, l.name ASC
+            `, [userId, userId]);
+        } else {
+            leagues = await query<any>(`SELECT id, name, is_completed FROM leagues ORDER BY is_completed ASC, name ASC`);
+        }
+        return { success: true, leagues, loggedIn: !!(session && session.user) };
+    } catch (error: any) {
+        console.error('Fetch Dashboard Leagues Error:', error);
         return { success: false, error: error.message };
     }
 }
@@ -1845,9 +1888,13 @@ export async function deleteLeagueTeam(leagueId: string, teamId: string) {
 /**
  * Updates specific league settings.
  */
-export async function updateLeagueSettings(leagueId: string, settings: { teams_locked?: boolean, join_locked?: boolean, name?: string }) {
+export async function updateLeagueSettings(leagueId: string, settings: { teams_locked?: boolean, join_locked?: boolean, name?: string, is_completed?: boolean }) {
     try {
         await verifyLeagueOwner(leagueId);
+
+        if (settings.hasOwnProperty('is_completed')) {
+            await run(`UPDATE leagues SET is_completed = ? WHERE id = ?`, [settings.is_completed, leagueId]);
+        }
         
         if (settings.hasOwnProperty('teams_locked')) {
             // First time this might fail if column doesn't exist. I'll wrap it.

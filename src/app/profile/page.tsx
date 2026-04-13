@@ -177,9 +177,6 @@ export default function ProfilePage() {
                     <Link href="/create-league" className={`${styles.btnAction} ${styles.btnSecondary}`} style={{ borderColor: 'var(--f1-red)', color: 'var(--f1-red)' }}>
                         ESTABLISH LEAGUE
                     </Link>
-                    <Link href="/profile/analysis" className={`${styles.btnAction} ${styles.btnSecondary}`}>
-                        MY TELEMETRY
-                    </Link>
                     <button onClick={() => signOut()} className={styles.btnAction}>
                         LOGOUT
                     </button>

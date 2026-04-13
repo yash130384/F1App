@@ -6,11 +6,12 @@ import styles from '../LeagueDashboard.module.css';
 import Link from 'next/link';
 
 export default function LeagueSettings({ params }: { params: Promise<{ leagueId: string }> }) {
-    const { leagueId } = React.use(params);
+    const [leagueId] = React.useState(React.use(params).leagueId);
     const [league, setLeague] = useState<any>(null);
     const [name, setName] = useState('');
     const [teamsLocked, setTeamsLocked] = useState(false);
     const [joinLocked, setJoinLocked] = useState(false);
+    const [isCompleted, setIsCompleted] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -24,6 +25,7 @@ export default function LeagueSettings({ params }: { params: Promise<{ leagueId:
                 setName(res.league.name);
                 setTeamsLocked(!!res.league.teams_locked);
                 setJoinLocked(!!res.league.join_locked);
+                setIsCompleted(!!res.league.is_completed);
             } else {
                 setError(res.error);
             }
@@ -41,7 +43,8 @@ export default function LeagueSettings({ params }: { params: Promise<{ leagueId:
         const res = await updateLeagueSettings(leagueId, {
             name,
             teams_locked: teamsLocked,
-            join_locked: joinLocked
+            join_locked: joinLocked,
+            is_completed: isCompleted
         });
 
         if (res.success) {
@@ -112,6 +115,24 @@ export default function LeagueSettings({ params }: { params: Promise<{ leagueId:
                                 type="checkbox" 
                                 checked={joinLocked} 
                                 onChange={(e) => setJoinLocked(e.target.checked)}
+                                style={{ width: '20px', height: '20px', accentColor: 'var(--f1-red)' }}
+                            />
+                        </label>
+                    </div>
+                </section>
+
+                <section>
+                    <h3 className="text-f1 mb-4" style={{ color: 'var(--f1-red)', fontSize: '0.9rem', letterSpacing: '2px' }}>LEAGUE STATUS</h3>
+                    <div className="flex flex-col gap-4">
+                        <label className="flex items-center justify-between p-4 bg-carbon-800/30 rounded border border-glass">
+                            <div className="flex flex-col">
+                                <span className="font-bold">MARK AS COMPLETED</span>
+                                <span className="text-xs text-silver">Marks the league as finished. No further races or standings updates will occur.</span>
+                            </div>
+                            <input 
+                                type="checkbox" 
+                                checked={isCompleted} 
+                                onChange={(e) => setIsCompleted(e.target.checked)}
                                 style={{ width: '20px', height: '20px', accentColor: 'var(--f1-red)' }}
                             />
                         </label>

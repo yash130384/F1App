@@ -9,6 +9,7 @@ export const leagues = pgTable('leagues', {
   createdAt: timestamp('created_at').defaultNow(),
   name: text('name').unique().notNull(),
   ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'cascade' }),
+  isCompleted: boolean('is_completed').default(false),
 });
 
 /**
