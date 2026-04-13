@@ -59,6 +59,14 @@ export default function ScoringConfigPage({ params }: { params: Promise<{ league
     });
   };
 
+  const isPresetActive = (presetKey: keyof typeof PRESETS) => {
+    if (!config) return false;
+    const p = PRESETS[presetKey];
+    return JSON.stringify(config.points) === JSON.stringify(p.points) &&
+           JSON.stringify(config.qualiPoints) === JSON.stringify(p.qualiPoints) &&
+           config.fastestLapBonus === p.fastestLapBonus;
+  };
+
   const handlePointChange = (pos: number, val: number, type: 'points' | 'qualiPoints') => {
     if (!config) return;
     setConfig({
@@ -126,15 +134,24 @@ export default function ScoringConfigPage({ params }: { params: Promise<{ league
 
             {activeTab === 'presets' && (
                 <div className="flex flex-col gap-4">
-                    {Object.entries(PRESETS).map(([key, p]) => (
-                        <div key={key} className="f1-card flex justify-between items-center p-6" style={{ borderLeft: '4px solid var(--f1-red)' }}>
-                            <div>
-                                <h3 className="text-f1" style={{ fontSize: '1.2rem', marginBottom: '4px' }}>{p.name}</h3>
-                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>P1: {(p.points as any)[1]}pts ... P10: {(p.points as any)[10] || 0}pts | Bonus: {p.fastestLapBonus} FL</p>
+                    {Object.entries(PRESETS).map(([key, p]) => {
+                        const isActive = isPresetActive(key as any);
+                        return (
+                            <div key={key} className="f1-card flex justify-between items-center p-6" style={{ borderLeft: isActive ? '4px solid var(--f1-cyan)' : '4px solid var(--f1-red)' }}>
+                                <div>
+                                    <h3 className="text-f1" style={{ fontSize: '1.2rem', marginBottom: '4px', color: isActive ? 'var(--f1-cyan)' : 'white' }}>{p.name}</h3>
+                                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>P1: {(p.points as any)[1]}pts ... P10: {(p.points as any)[10] || 0}pts | Bonus: {p.fastestLapBonus} FL</p>
+                                </div>
+                                <button 
+                                    className={isActive ? "btn-secondary btn-sm" : "btn-primary btn-sm"} 
+                                    onClick={() => handleApplyPreset(key as any)}
+                                    disabled={isActive}
+                                >
+                                    {isActive ? 'ACTIVE PRESET' : 'APPLY'}
+                                </button>
                             </div>
-                            <button className="btn-primary btn-sm" onClick={() => handleApplyPreset(key as any)}>APPLY</button>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 

@@ -74,9 +74,9 @@ export async function PUT(req: Request) {
         }
 
         if (!teamId || teamId.trim() === '') {
-            await run("UPDATE drivers SET team_id = NULL WHERE id = ?", [driverId]);
+            await run("UPDATE drivers SET team_id = NULL, team = NULL WHERE id = ?", [driverId]);
         } else {
-            await run("UPDATE drivers SET team_id = ? WHERE id = ?", [teamId, driverId]);
+            await run("UPDATE drivers SET team_id = ?, team = NULL WHERE id = ?", [teamId, driverId]);
         }
 
         return NextResponse.json({ success: true });

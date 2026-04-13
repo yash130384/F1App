@@ -252,16 +252,18 @@ export async function getDashboardData(leagueName: string) {
 
         const standings = await query<any>(`
             SELECT d.*, u.avatar_url,
+                COALESCE(t.name, d.team) as team,
                 COUNT(CASE WHEN rr.position = 1 AND r.is_finished = true THEN 1 END) as wins,
                 COUNT(CASE WHEN rr.position <= 3 AND rr.position > 0 AND r.is_finished = true THEN 1 END) as podiums,
                 COUNT(CASE WHEN rr.fastest_lap = true AND r.is_finished = true THEN 1 END) as fastest_laps,
                 COUNT(CASE WHEN rr.clean_driver = true AND r.is_finished = true THEN 1 END) as clean_races
             FROM drivers d 
+            LEFT JOIN teams t ON d.team_id = t.id
             LEFT JOIN users u ON d.user_id = u.id
             LEFT JOIN race_results rr ON d.id = rr.driver_id
             LEFT JOIN races r ON rr.race_id = r.id
             WHERE d.league_id = ? 
-            GROUP BY d.id, u.id
+            GROUP BY d.id, u.id, t.name
             ORDER BY d.total_points DESC, wins DESC, podiums DESC
         `, [leagueId]);
 
@@ -704,13 +706,13 @@ export async function updatePointsConfig(leagueId: string, config: PointsConfig)
                     drop_results_count = ?,
                     team_competition = ?
                  WHERE league_id = ?`,
-                [JSON.stringify(config.points), JSON.stringify(config.qualiPoints || {}), config.fastestLapBonus, config.cleanDriverBonus, config.totalRaces || 0, JSON.stringify(config.trackPool || []), config.dropResultsCount || 0, config.teamCompetition ? 1 : 0, leagueId]
+                [JSON.stringify(config.points), JSON.stringify(config.qualiPoints || {}), config.fastestLapBonus, config.cleanDriverBonus, config.totalRaces || 0, JSON.stringify(config.trackPool || []), config.dropResultsCount || 0, !!config.teamCompetition, leagueId]
             );
         } else {
             await run(
                 `INSERT INTO points_config (league_id, points_json, quali_points_json, fastest_lap_bonus, clean_driver_bonus, total_races, track_pool, drop_results_count, team_competition)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [leagueId, JSON.stringify(config.points), JSON.stringify(config.qualiPoints || {}), config.fastestLapBonus, config.cleanDriverBonus, config.totalRaces || 0, JSON.stringify(config.trackPool || []), config.dropResultsCount || 0, config.teamCompetition ? 1 : 0]
+                [leagueId, JSON.stringify(config.points), JSON.stringify(config.qualiPoints || {}), config.fastestLapBonus, config.cleanDriverBonus, config.totalRaces || 0, JSON.stringify(config.trackPool || []), config.dropResultsCount || 0, !!config.teamCompetition]
             );
         }
 
@@ -1775,7 +1777,10 @@ export async function getAdminLeagueDrivers(leagueId: string) {
         await verifyLeagueOwner(leagueId);
 
         const drivers = await query<any>(
-            'SELECT id, name, team, color, game_name, team_id FROM drivers WHERE league_id = ?',
+            `SELECT d.id, d.name, COALESCE(t.name, d.team) as team, d.color, d.game_name, d.team_id 
+             FROM drivers d
+             LEFT JOIN teams t ON d.team_id = t.id
+             WHERE d.league_id = ?`,
             [leagueId]
         );
         return { success: true, drivers };
@@ -1967,6 +1972,30 @@ export async function joinLeagueById(leagueId: string, driverName: string, team:
         return await joinLeague(leagueName, driverName, team, color, gameName);
     } catch (error: any) {
         console.error('Join League By ID Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Updates the track pool for a league.
+ */
+export async function updateTrackPool(leagueId: string, trackPool: string[]) {
+    try {
+        await verifyLeagueOwner(leagueId);
+        
+        // Ensure config exists
+        const existingConfig = await query<any>(`SELECT league_id FROM points_config WHERE league_id = ?`, [leagueId]);
+        if (existingConfig.length > 0) {
+            await run(`UPDATE points_config SET track_pool = ? WHERE league_id = ?`, [JSON.stringify(trackPool), leagueId]);
+        } else {
+            const { DEFAULT_CONFIG } = require('./scoring');
+            await run(
+                `INSERT INTO points_config (league_id, points_json, track_pool) VALUES (?, ?, ?)`,
+                [leagueId, JSON.stringify(DEFAULT_CONFIG.points), JSON.stringify(trackPool)]
+            );
+        }
+        return { success: true };
+    } catch (error: any) {
         return { success: false, error: error.message };
     }
 }

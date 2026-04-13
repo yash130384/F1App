@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getLeagueRaces, deleteRace, scheduleRace } from '@/lib/actions';
+import { getLeagueRaces, deleteRace, scheduleRace, getPointsConfig, updateTrackPool } from '@/lib/actions';
 import { LoadingState, ErrorState } from '../_components/StatusScreens';
 import { F1_TRACKS_2025 } from '@/lib/constants';
 import Link from 'next/link';
@@ -12,10 +12,17 @@ export default function RaceManagementPage({ params }: { params: Promise<{ leagu
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Track Pool state
+  const [trackPool, setTrackPool] = useState<string[]>([]);
+  const [showPoolManager, setShowPoolManager] = useState(false);
+
   // Scheduling state
   const [showForm, setShowForm] = useState(false);
   const [track, setTrack] = useState(F1_TRACKS_2025[0]);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => {
+    const tzOffset = new Date().getTimezoneOffset() * 60000;
+    return new Date(Date.now() - tzOffset).toISOString().slice(0, 16);
+  });
   const [isRandom, setIsRandom] = useState(false);
   const [revealHours, setRevealHours] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -26,11 +33,17 @@ export default function RaceManagementPage({ params }: { params: Promise<{ leagu
 
   async function loadRaces() {
     setLoading(true);
-    const res = await getLeagueRaces(leagueId);
+    const [res, pointsRes] = await Promise.all([
+        getLeagueRaces(leagueId),
+        getPointsConfig(leagueId)
+    ]);
     if (res.success) {
       setRaces(res.races || []);
     } else {
       setError(res.error || 'Failed to load races');
+    }
+    if (pointsRes.success) {
+        setTrackPool(pointsRes.config?.trackPool || []);
     }
     setLoading(false);
   }
@@ -82,7 +95,10 @@ export default function RaceManagementPage({ params }: { params: Promise<{ leagu
                 <p style={{ color: 'var(--text-secondary)' }}>Verwalte alle Events und Ergebnisse deiner Liga.</p>
             </div>
             <div className="flex gap-4">
-                <button className={`btn-secondary ${showForm ? 'active' : ''}`} onClick={() => setShowForm(!showForm)}>
+                <button className={`btn-secondary ${showPoolManager ? 'active' : ''}`} onClick={() => { setShowPoolManager(!showPoolManager); setShowForm(false); }}>
+                    {showPoolManager ? 'ABBRECHEN' : 'RENNPOOL VERWALTEN'}
+                </button>
+                <button className={`btn-secondary ${showForm ? 'active' : ''}`} onClick={() => { setShowForm(!showForm); setShowPoolManager(false); }}>
                     {showForm ? 'ABBRECHEN' : 'RENNEN PLANEN'}
                 </button>
                 <Link href={`/profile/leagues/${leagueId}/results`}>
@@ -91,6 +107,39 @@ export default function RaceManagementPage({ params }: { params: Promise<{ leagu
             </div>
         </div>
       </header>
+
+      {showPoolManager && (
+          <div className="f1-card p-8 mb-12 animate-fade-in" style={{ border: '2px solid var(--f1-cyan)' }}>
+              <div style={{ position: 'absolute', top: 0, right: 0, padding: '1rem', opacity: 0.1, fontSize: '4rem', fontWeight: 900, pointerEvents: 'none' }}>POOL</div>
+              <h2 className="text-f1 mb-6 text-cyan" style={{ color: 'var(--f1-cyan)' }}>RENNPOOL VERWALTEN</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 max-h-96 overflow-y-auto">
+                  {F1_TRACKS_2025.map((t) => (
+                      <label key={t} className="flex items-center gap-3 p-3 bg-carbon-900 border border-glass rounded cursor-pointer hover:bg-carbon-800 text-white">
+                          <input 
+                              type="checkbox" 
+                              checked={trackPool.includes(t)}
+                              onChange={(e) => {
+                                  if (e.target.checked) setTrackPool([...trackPool, t]);
+                                  else setTrackPool(trackPool.filter(x => x !== t));
+                              }}
+                              style={{ accentColor: 'var(--f1-cyan)' }}
+                          />
+                          <span className="text-sm">{t}</span>
+                      </label>
+                  ))}
+              </div>
+              <div className="flex justify-end gap-4">
+                  <button onClick={async () => {
+                      setSubmitting(true);
+                      await updateTrackPool(leagueId, trackPool);
+                      setShowPoolManager(false);
+                      setSubmitting(false);
+                  }} disabled={submitting} className="btn-primary" style={{ background: 'var(--f1-cyan)', color: 'black' }}>
+                      {submitting ? 'SPEICHERN...' : 'POOL SPEICHERN'}
+                  </button>
+              </div>
+          </div>
+      )}
 
       {showForm && (
           <form onSubmit={handleSchedule} className="f1-card p-8 mb-12 animate-fade-in" style={{ border: '2px solid var(--f1-red)' }}>
@@ -103,20 +152,20 @@ export default function RaceManagementPage({ params }: { params: Promise<{ leagu
                         value={track} 
                         onChange={(e) => setTrack(e.target.value)}
                         disabled={isRandom}
-                        className="w-full bg-carbon-900/50 border border-glass p-3 rounded"
-                        style={{ border: isRandom ? '1px solid var(--glass-border)' : '1px solid var(--f1-red)', color: isRandom ? 'gray' : 'white' }}
+                        className="w-full bg-slate-100 border border-glass p-3 rounded"
+                        style={{ border: isRandom ? '1px solid var(--glass-border)' : '1px solid var(--f1-red)', color: 'black' }}
                     >
-                        {F1_TRACKS_2025.map(t => <option key={t} value={t}>{t}</option>)}
+                        {isRandom ? <option value="RANDOM">Zufällige Strecke aus Pool</option> : F1_TRACKS_2025.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                 </div>
                 <div>
-                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 900, color: 'var(--silver)', marginBottom: '0.5rem' }}>RENNTAG (DATUM)</label>
+                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 900, color: 'var(--silver)', marginBottom: '0.5rem' }}>RENNTAG & UHRZEIT</label>
                     <input 
-                        type="date" 
+                        type="datetime-local" 
                         value={date} 
                         onChange={(e) => setDate(e.target.value)}
-                        className="w-full bg-carbon-900/50 border border-glass p-3 rounded text-white"
-                        style={{ border: '1px solid var(--glass-border)' }}
+                        className="w-full bg-slate-100 border border-glass p-3 rounded"
+                        style={{ border: '1px solid var(--glass-border)', color: 'black' }}
                     />
                 </div>
               </div>
@@ -183,7 +232,7 @@ export default function RaceManagementPage({ params }: { params: Promise<{ leagu
                         <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--silver)' }}>
                             <span className="flex items-center gap-1">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM16 2v4M8 2v4M3 10h18"/></svg>
-                                {race.scheduled_date ? new Date(race.scheduled_date).toLocaleDateString() : 'Kein Datum'}
+                                {race.scheduled_date ? new Date(race.scheduled_date).toLocaleString() : 'Kein Datum'}
                             </span>
                             {race.reveal_hours_before > 0 && (
                                 <span className="flex items-center gap-1" style={{ color: '#ffb700' }}>
