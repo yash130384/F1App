@@ -207,38 +207,40 @@ export default function ScoringConfigPage({ params }: { params: Promise<{ league
                 <h3 className="text-f1" style={{ fontSize: '1.1rem', marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>CONFIGURATION</h3>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <div className="input-group">
-                        <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--f1-red)', display: 'block', marginBottom: '0.5rem' }}>FASTEST LAP BONUS</label>
+                    <div className="input-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--f1-red)', margin: 0 }}>FASTEST LAP BONUS</label>
                         <input 
                             type="number" 
                             className="input" 
-                            style={{ width: '100%', background: 'rgba(0,0,0,0.5)' }}
+                            style={{ width: '80px', background: 'white', color: 'black', textAlign: 'center', fontWeight: 'bold' }}
                             value={config.fastestLapBonus}
                             onChange={(e) => setConfig({ ...config, fastestLapBonus: parseInt(e.target.value) || 0 })}
                         />
                     </div>
 
-                    <div className="input-group">
-                        <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--f1-red)', display: 'block', marginBottom: '0.5rem' }}>CLEAN DRIVER BONUS</label>
+                    <div className="input-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--f1-red)', margin: 0 }}>CLEAN DRIVER BONUS</label>
                         <input 
                             type="number" 
                             className="input" 
-                            style={{ width: '100%', background: 'rgba(0,0,0,0.5)' }}
+                            style={{ width: '80px', background: 'white', color: 'black', textAlign: 'center', fontWeight: 'bold' }}
                             value={config.cleanDriverBonus}
                             onChange={(e) => setConfig({ ...config, cleanDriverBonus: parseInt(e.target.value) || 0 })}
                         />
                     </div>
 
                     <div className="input-group">
-                        <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--f1-red)', display: 'block', marginBottom: '0.5rem' }}>DROPPED RESULTS</label>
-                        <input 
-                            type="number" 
-                            className="input" 
-                            style={{ width: '100%', background: 'rgba(0,0,0,0.5)' }}
-                            value={config.dropResultsCount || 0}
-                            min="0"
-                            onChange={(e) => setConfig({ ...config, dropResultsCount: parseInt(e.target.value) || 0 })}
-                        />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--f1-red)', margin: 0 }}>DROPPED RESULTS</label>
+                            <input 
+                                type="number" 
+                                className="input" 
+                                style={{ width: '80px', background: 'white', color: 'black', textAlign: 'center', fontWeight: 'bold' }}
+                                value={config.dropResultsCount || 0}
+                                min="0"
+                                onChange={(e) => setConfig({ ...config, dropResultsCount: parseInt(e.target.value) || 0 })}
+                            />
+                        </div>
                         <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.4rem', display: 'block' }}>Number of worst race results to automatically drop from standings.</span>
                     </div>
 
