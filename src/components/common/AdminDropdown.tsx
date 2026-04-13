@@ -38,29 +38,34 @@ export default function AdminDropdown() {
                 top: '100%',
                 display: isHovered ? 'flex' : 'none',
                 flexDirection: 'column',
-                backgroundColor: 'var(--surface-mid)',
-                border: '1px solid var(--surface-highest)',
-                borderRadius: '4px',
                 minWidth: '200px',
                 zIndex: 50,
-                overflow: 'hidden',
-                boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-                marginTop: '10px'
+                paddingTop: '10px' // Invisible bridge for hover gap
             }}>
-                <div style={{ padding: '0.5rem 1rem', fontSize: '0.7rem', color: 'var(--text-secondary)', borderBottom: '1px solid var(--surface-highest)', background: 'var(--surface-lowest)', fontWeight: 'bold', fontFamily: 'var(--font-display)' }}>
-                    ADMINISTRATION
+                <div style={{
+                    backgroundColor: 'var(--surface-mid)',
+                    border: '1px solid var(--surface-highest)',
+                    borderRadius: '4px',
+                    overflow: 'hidden',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    flexDirection: 'column'
+                }}>
+                    <div style={{ padding: '0.5rem 1rem', fontSize: '0.7rem', color: 'var(--text-secondary)', borderBottom: '1px solid var(--surface-highest)', background: 'var(--surface-lowest)', fontWeight: 'bold', fontFamily: 'var(--font-display)' }}>
+                        ADMINISTRATION
+                    </div>
+                    {adminLeagues.map((l: any) => (
+                        <Link 
+                            key={l.id} 
+                            href={`/profile/leagues/${l.id}`}
+                            style={{ padding: '0.75rem 1rem', fontSize: '0.85rem', color: 'var(--text-primary)', textDecoration: 'none', borderBottom: '1px solid var(--surface-highest)', transition: 'background 0.2s', display: 'block' }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-highest)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                            {l.name}
+                        </Link>
+                    ))}
                 </div>
-                {adminLeagues.map((l: any) => (
-                    <Link 
-                        key={l.id} 
-                        href={`/profile/leagues/${l.id}`}
-                        style={{ padding: '0.75rem 1rem', fontSize: '0.85rem', color: 'var(--text-primary)', textDecoration: 'none', borderBottom: '1px solid var(--surface-highest)', transition: 'background 0.2s', display: 'block' }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-highest)'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                    >
-                        {l.name}
-                    </Link>
-                ))}
             </div>
         </div>
     );
