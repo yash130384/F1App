@@ -43,7 +43,8 @@ export const DEFAULT_CONFIG: PointsConfig = {
 /**
  * Calculates total points for a driver in a single race using a specific config.
  */
-export function calculatePoints(result: RaceResult, config: PointsConfig = DEFAULT_CONFIG): number {
+export function calculatePoints(result: RaceResult | undefined, config: PointsConfig = DEFAULT_CONFIG): number {
+    if (!result) return 0;
     if (result.isDnf) return 0;
 
     const positionPoints = config.points[result.position] || 0;

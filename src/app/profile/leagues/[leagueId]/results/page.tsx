@@ -289,7 +289,7 @@ export default function ManualResults({
                                 <input
                                     type="number"
                                     min="1" max="20"
-                                    value={results[driver.id]?.position}
+                                    value={results[driver.id]?.position ?? 20}
                                     onChange={e => updateResult(driver.id, 'position', parseInt(e.target.value))}
                                     style={{ width: '60px', padding: '0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white', textAlign: 'center', fontWeight: 'bold' }}
                                 />
@@ -300,7 +300,7 @@ export default function ManualResults({
                                 <input
                                     type="number"
                                     min="0" max="20"
-                                    value={results[driver.id]?.qualiPosition}
+                                    value={results[driver.id]?.qualiPosition ?? 0}
                                     onChange={e => updateResult(driver.id, 'qualiPosition', parseInt(e.target.value))}
                                     style={{ width: '60px', padding: '0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white', textAlign: 'center', fontWeight: 'bold' }}
                                 />
@@ -309,7 +309,7 @@ export default function ManualResults({
                             <label className="checkbox-container">
                                 <input
                                     type="checkbox"
-                                    checked={results[driver.id]?.fastestLap}
+                                    checked={results[driver.id]?.fastestLap ?? false}
                                     onChange={e => updateResult(driver.id, 'fastestLap', e.target.checked)}
                                 />
                                 <span className="checkmark fastest"></span>
@@ -319,7 +319,7 @@ export default function ManualResults({
                             <label className="checkbox-container">
                                 <input
                                     type="checkbox"
-                                    checked={results[driver.id]?.cleanDriver}
+                                    checked={results[driver.id]?.cleanDriver ?? false}
                                     onChange={e => updateResult(driver.id, 'cleanDriver', e.target.checked)}
                                 />
                                 <span className="checkmark clean"></span>
@@ -329,7 +329,7 @@ export default function ManualResults({
                             <label className="checkbox-container">
                                 <input
                                     type="checkbox"
-                                    checked={results[driver.id]?.isDnf}
+                                    checked={results[driver.id]?.isDnf ?? false}
                                     onChange={e => updateResult(driver.id, 'isDnf', e.target.checked)}
                                 />
                                 <span className="checkmark dnf"></span>
