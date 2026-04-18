@@ -45,16 +45,16 @@ function SessionAnalysisContent() {
             const [analysisRes, lapsRes, setupsRes, trapsRes, perfRes] = await Promise.all([
                 getRaceAnalysis(sessionId),
                 getSessionLaps(sessionId),
-                getCarSetups(sessionId),
+                getCarSetups(sessionId, myPid || ''),
                 getSpeedTraps(sessionId),
                 getPerformanceScores(sessionId)
             ]);
 
             if (analysisRes.success) setAnalysisData(analysisRes);
-            if (lapsRes.success) setSessionLaps(lapsRes.laps || []);
-            if (setupsRes.success) setCarSetups(setupsRes.setups || []);
-            if (trapsRes.success) setSpeedTraps(trapsRes.traps || []);
-            if (perfRes.success) setPerformanceScores(perfRes.scores);
+             if (lapsRes.success) setSessionLaps(lapsRes.laps || []);
+             if (setupsRes.success) setCarSetups(setupsRes.setups || []);
+             if (trapsRes.success) setSpeedTraps(trapsRes.speedTraps || []);
+             if (perfRes.success) setPerformanceScores(perfRes.scores);
         }
         setLoading(false);
     }

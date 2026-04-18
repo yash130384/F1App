@@ -256,7 +256,7 @@ export default function Dashboard() {
         setLoading(true);
         setError(null);
 
-        const res = await getDashboardData(name);
+        const res = await getDashboardData(null as any, name);
 
         if (res.success) {
             setLeague(res.league);
@@ -295,7 +295,7 @@ export default function Dashboard() {
         const res = await getRaceDetails(raceId);
         if (res.success) {
             setSelectedRace(res.race);
-            setRaceResults(res.results || []);
+            setRaceResults((res as any).results || []);
             setRaceGraphData([]);
             setRaceGraphDrivers([]);
         } else {

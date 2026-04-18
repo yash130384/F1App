@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
@@ -13,6 +13,7 @@ import {
     getOpenLeagues, 
     joinLeagueById 
 } from "@/lib/actions";
+import { TelemetryNav } from "@/components/common/TelemetryNav";
 
 export default function ProfilePage() {
     const { data: session, status, update } = useSession();
@@ -24,6 +25,9 @@ export default function ProfilePage() {
     const [globalColor, setGlobalColor] = useState("#ffffff");
     const [avatarUrl, setAvatarUrl] = useState("");
     const [driverLeagues, setDriverLeagues] = useState<any[]>([]);
+    
+    // Telemetry Link State
+    const [showTelemetryLink, setShowTelemetryLink] = useState(false);
 
     // Password & Email States
     const [oldPassword, setOldPassword] = useState("");
@@ -48,6 +52,9 @@ export default function ProfilePage() {
             fetchDriverLeagues();
             fetchOpenLeagues();
             
+            // Check if user has telemetry history to show the link in Profile too
+            checkTelemetryPresence();
+
             // Auto-Fix Permissions for TRunKX/Kleosa
             if (typeof fixLeaguePermissions === 'function') {
                 fixLeaguePermissions().then((res: any) => {
@@ -59,6 +66,19 @@ export default function ProfilePage() {
             }
         }
     }, [status, session, router]);
+
+    const checkTelemetryPresence = async () => {
+        try {
+            // Check if the user has any telemetry sessions associated with their gameName
+            const res = await fetch(`/api/profile/telemetry-check?gameName=${(session?.user as any)?.steamName}`);
+            if (res.ok) {
+                const data = await res.json();
+                setShowTelemetryLink(data.hasHistory);
+            }
+        } catch (e) {
+            console.error("Failed to check telemetry presence");
+        }
+    };
 
     const fetchDriverLeagues = async () => {
         try {
@@ -173,7 +193,16 @@ export default function ProfilePage() {
         <div className={styles.profileContainer}>
             <div className={styles.header}>
                 <h1 className={styles.headerTitle}>DRIVER NETWORK</h1>
-                <div style={{display: 'flex', gap: '1rem'}}>
+                <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
+                    {showTelemetryLink && (
+                        <Link 
+                            href="/telemetryupload" 
+                            className={styles.btnAction} 
+                            style={{ borderColor: 'var(--f1-red)', color: 'var(--f1-red)', fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
+                        >
+                            UPLOAD TELEMETRY
+                        </Link>
+                    )}
                     <Link href="/create-league" className={`${styles.btnAction} ${styles.btnSecondary}`} style={{ borderColor: 'var(--f1-red)', color: 'var(--f1-red)' }}>
                         ESTABLISH LEAGUE
                     </Link>
@@ -191,7 +220,7 @@ export default function ProfilePage() {
                     <div className={styles.avatarSection}>
                         <DriverAvatar 
                             src={avatarUrl} 
-                            name={session.user.name || "Driver"} 
+                            name={session.user.name ?? undefined} 
                             size={120} 
                             borderColor={globalColor}
                         />
@@ -247,7 +276,7 @@ export default function ProfilePage() {
                         </button>
                     </div>
                 </div>
-
+                
                 {/* Globale Einstellungen */}
                 <div className={styles.card}>
                     <h2 className={styles.cardTitle}>Visuals & Ingame</h2>
@@ -272,7 +301,7 @@ export default function ProfilePage() {
                             onChange={e => setSteamName(e.target.value)} 
                         />
                     </div>
-
+                    
                     <div className={styles.inputGroup}>
                         <label>Driver Accent Color (Global)</label>
                         <input 
@@ -282,7 +311,7 @@ export default function ProfilePage() {
                             onChange={e => setGlobalColor(e.target.value)} 
                         />
                     </div>
-
+                    
                     <button 
                         className={styles.btnAction} 
                         style={{marginTop: '1.5rem'}} 
@@ -291,7 +320,7 @@ export default function ProfilePage() {
                     >
                         {isSaving ? "SYNCING..." : "SAVE VISUALS"}
                     </button>
-
+                    
                     <div style={{marginTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem'}}>
                         <h3 style={{fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--f1-red)'}}>RECRUITMENT</h3>
                         <label style={{fontSize: '0.75rem', opacity: 0.6, display: 'block', marginBottom: '0.5rem'}}>JOIN OPEN LEAGUE</label>

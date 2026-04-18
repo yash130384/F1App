@@ -24,7 +24,7 @@ const sqliteConnection = USE_SQLITE ? new Database('league.db') : null;
 export const dbSqlite = sqliteConnection ? drizzleSqlite(sqliteConnection, { schema }) : null;
 
 // Aktiver DB-Client (für Drizzle Abfragen)
-export const db = USE_SQLITE ? dbSqlite! : dbNeon!;
+export const db: any = USE_SQLITE ? dbSqlite! : dbNeon!;
 
 /**
  * Abwärtskompatible query-Funktion für bestehende API-Aufrufe.

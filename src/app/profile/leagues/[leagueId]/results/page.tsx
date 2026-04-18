@@ -27,7 +27,7 @@ export default function ManualResults({
             setLoading(true);
             try {
                 const driversRes = await getAdminLeagueDrivers(leagueId);
-                if (!driversRes.success) throw new Error(driversRes.error);
+                if (!driversRes.success) throw new Error(driversRes.error || 'Failed to load drivers');
                 
                 setDrivers(driversRes.drivers || []);
                 
