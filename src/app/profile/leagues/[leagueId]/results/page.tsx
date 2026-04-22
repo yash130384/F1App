@@ -258,7 +258,7 @@ export default function ManualResults({
                             disabled={loading || !!activeRaceId}
                         >
                             <option value="">-- Select Track --</option>
-                            {F1_TRACKS_2025.map(t => <option key={t} value={t}>{t}</option>)}
+                            {Object.values(F1_TRACKS_2025).map(t => <option key={t} value={t}>{t}</option>)}
                         </select>
                     </div>
                     <div className="input-group">

@@ -130,7 +130,7 @@ function SessionCard({ s, leagueId, races, onLink, linking, onDelete }: {
             }}
           >
             <option value="">— Strecke wählen —</option>
-            {F1_TRACKS_2025.map((name, idx) => (
+            {Object.entries(F1_TRACKS_2025).map(([idx, name]) => (
               <option key={idx} value={idx}>{name}</option>
             ))}
           </select>

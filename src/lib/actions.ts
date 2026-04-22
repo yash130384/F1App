@@ -264,16 +264,16 @@ export async function getDashboardData(leagueIdOrSessionId: string, maybeLeagueI
     .leftJoin(teams, eq(drivers.teamId, teams.id))
     .where(eq(drivers.leagueId, actualLeagueId));
 
-  const standings = standingsRes.map(row => {
+  const standings = standingsRes.map((row: any) => {
     const driverId = row.driver.id;
-    const driverResults = allResults.filter(r => r.raceResults.driverId === driverId);
+    const driverResults = allResults.filter((r: any) => r.raceResults.driverId === driverId);
     
     let totalPoints = 0;
     let wins = 0;
     let podiums = 0;
     let fastestLaps = 0;
 
-    driverResults.forEach(res => {
+    driverResults.forEach((res: any) => {
         const p = res.raceResults.position;
         if (p === 1) wins++;
         if (p >= 1 && p <= 3) podiums++;
@@ -296,15 +296,15 @@ export async function getDashboardData(leagueIdOrSessionId: string, maybeLeagueI
       fastest_laps: fastestLaps,
       team: row.team?.name || row.driver.team || 'Independent'
     };
-  }).sort((a, b) => b.total_points - a.total_points);
+  }).sort((a: any, b: any) => b.total_points - a.total_points);
   
   const teamData = await db.select().from(teams).where(eq(teams.leagueId, actualLeagueId));
-  const teamStandings = teamData.map(team => {
-    const teamDrivers = standings.filter(d => d.teamId === team.id);
-    const totalPoints = teamDrivers.reduce((sum, d) => sum + (d.total_points || 0), 0);
-    const wins = teamDrivers.reduce((sum, d) => sum + (d.wins || 0), 0);
+  const teamStandings = teamData.map((team: any) => {
+    const teamDrivers = standings.filter((d: any) => d.teamId === team.id);
+    const totalPoints = teamDrivers.reduce((sum: number, d: any) => sum + (d.total_points || 0), 0);
+    const wins = teamDrivers.reduce((sum: number, d: any) => sum + (d.wins || 0), 0);
     return { ...team, total_points: totalPoints, wins };
-  }).sort((a, b) => b.total_points - a.total_points);
+  }).sort((a: any, b: any) => b.total_points - a.total_points);
 
   return { 
     success: true, 
@@ -316,7 +316,7 @@ export async function getDashboardData(leagueIdOrSessionId: string, maybeLeagueI
     graphData: [],
     teamGraphData: [],
     stats: {
-        totalRaces: racesRes.filter(r => r.isFinished).length
+        totalRaces: racesRes.filter((r: any) => r.isFinished).length
     },
     error: null 
   };

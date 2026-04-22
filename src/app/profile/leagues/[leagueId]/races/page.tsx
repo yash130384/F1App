@@ -18,7 +18,7 @@ export default function RaceManagementPage({ params }: { params: Promise<{ leagu
 
   // Scheduling state
   const [showForm, setShowForm] = useState(false);
-  const [track, setTrack] = useState(F1_TRACKS_2025[0]);
+  const [track, setTrack] = useState(Object.values(F1_TRACKS_2025)[0]);
   const [date, setDate] = useState(() => {
     const tzOffset = new Date().getTimezoneOffset() * 60000;
     return new Date(Date.now() - tzOffset).toISOString().slice(0, 16);
@@ -111,7 +111,7 @@ export default function RaceManagementPage({ params }: { params: Promise<{ leagu
               <div style={{ position: 'absolute', top: 0, right: 0, padding: '1rem', opacity: 0.1, fontSize: '4rem', fontWeight: 900, pointerEvents: 'none' }}>POOL</div >
               <h2 className="text-f1 mb-6 text-cyan" style={{ color: 'var(--f1-cyan)' }}>RENNPOOL VERWALTEN</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 max-h-96 overflow-y-auto">
-                  {F1_TRACKS_2025.map((t) => (
+                  {Object.values(F1_TRACKS_2025).map((t) => (
                       <label key={t} className="flex items-center gap-3 p-3 bg-carbon-900 border border-glass rounded cursor-pointer hover:bg-carbon-800 text-white">
                           <input 
                                type="checkbox" 
@@ -153,7 +153,7 @@ export default function RaceManagementPage({ params }: { params: Promise<{ leagu
                          className="w-full bg-slate-100 border border-glass p-3 rounded"
                          style={{ border: isRandom ? '1px solid var(--glass-border)' : '1px solid var(--f1-red)', color: 'black' }}
                      >
-                         {isRandom ? <option value="RANDOM">Zufällige Strecke aus Pool</option> : F1_TRACKS_2025.map(t => <option key={t} value={t}>{t}</option>)}
+                          {isRandom ? <option value="RANDOM">Zufällige Strecke aus Pool</option> : Object.values(F1_TRACKS_2025).map(t => <option key={t} value={t}>{t}</option>)}
                      </select>
                  </div >
                  <div>
