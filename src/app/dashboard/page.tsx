@@ -165,7 +165,7 @@ function RaceResultsTable({ raceResults, handleDriverClick, compact = false }: R
                                         src={res.avatarUrl} 
                                         name={res.driverName} 
                                         size={28} 
-                                        borderColor={res.driverColor || standings.find((d) => d.id === res.driverId)?.color}
+                                        borderColor={res.driverColor}
                                     />
                                     <span className="text-f1-bold" style={{ fontSize: compact ? '0.875rem' : '1rem' }}>
                                         {res.driverName}
