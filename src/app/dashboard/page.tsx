@@ -162,29 +162,29 @@ function RaceResultsTable({ raceResults, handleDriverClick, compact = false }: R
                             <td>
                                 <div className="flex items-center gap-small">
                                     <DriverAvatar 
-                                        src={res.avatar_url} 
-                                        name={res.driver_name} 
+                                        src={res.avatarUrl} 
+                                        name={res.driverName} 
                                         size={28} 
-                                        borderColor={res.driver_color}
+                                        borderColor={res.driverColor || standings.find((d) => d.id === res.driverId)?.color}
                                     />
                                     <span className="text-f1-bold" style={{ fontSize: compact ? '0.875rem' : '1rem' }}>
-                                        {res.driver_name}
+                                        {res.driverName}
                                     </span>
                                     <div className="flex gap-small">
-                                        {res.fastest_lap && <span title="Fastest Lap" style={{ background: '#9c27b0', color: 'white', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>FL</span>}
+                                        {res.fastestLap && <span title="Fastest Lap" style={{ background: '#9c27b0', color: 'white', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>FL</span>}
                                         {res.clean_driver && <span title="Clean Driver" style={{ background: 'var(--f1-cyan)', color: 'black', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>CD</span>}
-                                        {res.is_dnf && <span style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>DNF</span>}
+                                        {res.isDnf && <span style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>DNF</span>}
                                     </div>
                                 </div>
                             </td>
                             {!compact && (
                                 <td className="hide-mobile" style={{ color: 'var(--text-secondary)' }}>
-                                    {res.quali_position > 0 ? `P${res.quali_position}` : '-'}
+                                    {res.qualiPosition > 0 ? `P${res.qualiPosition}` : '-'}
                                 </td>
                             )}
-                            <td className="text-right text-mono" style={{ fontWeight: 900, color: res.is_dropped ? 'var(--text-muted)' : 'var(--f1-red)' }}>
-                                <span style={{ textDecoration: res.is_dropped ? 'line-through' : 'none', fontSize: '1.2rem' }}>
-                                    {res.points_earned}
+                            <td className="text-right text-mono" style={{ fontWeight: 900, color: res.isDropped ? 'var(--text-muted)' : 'var(--f1-red)' }}>
+                                <span style={{ textDecoration: res.isDropped ? 'line-through' : 'none', fontSize: '1.2rem' }}>
+                                    {res.pointsEarned}
                                 </span>
                                 <span style={{ fontSize: '0.7rem', opacity: 0.5, marginLeft: '4px', fontWeight: 400 }}>PTS</span>
                             </td>
@@ -304,9 +304,9 @@ export default function Dashboard() {
         setFetchingRace(false);
     };
 
-    // Fahrer-Klick → zur Renndetailseite navigieren
+    // Fahrer-Klick → zur Renndetailseite navigieren (nur wenn Telemetrie existiert)
     const handleDriverClick = (driverRes: any) => {
-        if (selectedRace?.id) {
+        if (selectedRace?.id && (selectedRace as any).telemetrySessionId) {
             router.push(`/race/${selectedRace.id}`);
         }
     };
@@ -644,7 +644,7 @@ export default function Dashboard() {
                                                 return (
                                                     <div
                                                         key={race.id}
-                                                        onClick={() => !isHidden && router.push(`/race/${race.id}?league=${encodeURIComponent(selectedLeagueName || '')}`)}
+                                                        onClick={() => !isHidden && selectRace(race.id)}
                                                         className={`f1-card animate-fade-in ${isHidden ? 'opacity-50' : ''}`}
                                                         style={{ 
                                                             cursor: isHidden ? 'not-allowed' : 'pointer',
@@ -660,7 +660,7 @@ export default function Dashboard() {
                                                                     {isHidden ? '?? LOCKED TRACK' : (race.track || 'Unknown Grand Prix')}
                                                                 </div>
                                                             </div>
-                                                            {!isHidden && <div style={{ color: 'var(--f1-red)', fontSize: '1.2rem', opacity: 0.5 }}>&rarr;</div>}
+                                                            {!isHidden && <div style={{ color: 'var(--f1-red)', fontSize: '1.2rem', opacity: 0.5 }}>●</div>}
                                                             {isHidden && <div style={{ fontSize: '1.2rem', opacity: 0.3 }}>🔒</div>}
                                                         </div>
                                                     </div>
@@ -674,9 +674,14 @@ export default function Dashboard() {
                                 <section>
                                     {selectedRace ? (
                                         <div className="animate-fade-in flex flex-col gap-medium" key={selectedRace.id}>
-                                            <h2 className="text-f1-bold" style={{ fontSize: '0.8rem', color: 'var(--f1-red)', letterSpacing: '2px' }}>
-                                                RACE RESULTS: {selectedRace.track}
-                                            </h2>
+                                            <div className="flex justify-between items-center">
+                                                <h2 className="text-f1-bold" style={{ fontSize: '0.8rem', color: 'var(--f1-red)', letterSpacing: '2px' }}>
+                                                    RACE RESULTS: {selectedRace.track}
+                                                </h2>
+                                                <div className="text-mono" style={{ fontSize: '0.65rem', color: (selectedRace as any).telemetrySessionId ? 'var(--f1-cyan)' : 'var(--text-secondary)' }}>
+                                                    {(selectedRace as any).telemetrySessionId ? 'TELEMETRY AVAILABLE (CLICK DRIVER)' : 'MANUAL RESULTS (NO TELEMETRY)'}
+                                                </div>
+                                            </div>
                                             <div className="f1-card" style={{ padding: 0 }}>
                                                 {fetchingRace ? (
                                                     <div style={{ padding: '4rem', textAlign: 'center' }}>
@@ -698,7 +703,8 @@ export default function Dashboard() {
                                                                     <tr
                                                                         key={idx}
                                                                         onClick={() => handleDriverClick(res)}
-                                                                        style={{ cursor: 'pointer' }}
+                                                                        className={(selectedRace as any).telemetrySessionId ? "hover:bg-white/5 transition-colors" : ""}
+                                                                        style={{ cursor: (selectedRace as any).telemetrySessionId ? 'pointer' : 'default' }}
                                                                     >
                                                                         <td className="pos-number text-mono">
                                                                              {res.position}
@@ -706,25 +712,25 @@ export default function Dashboard() {
                                                                         <td>
                                                                             <div className="flex items-center gap-small">
                                                                                 <DriverAvatar 
-                                                                                    src={res.avatar_url} 
-                                                                                    name={res.driver_name} 
+                                                                                    src={res.avatarUrl} 
+                                                                                    name={res.driverName} 
                                                                                     size={28} 
-                                                                                    borderColor={standings.find((d: any) => d.id === res.driver_id)?.color}
+                                                                                    borderColor={standings.find((d: any) => d.id === res.driverId)?.color}
                                                                                 />
-                                                                                <span className="text-f1-bold">{res.driver_name}</span>
+                                                                                <span className="text-f1-bold">{res.driverName}</span>
                                                                                 <div className="flex gap-small">
-                                                                                    {res.is_dnf && <span style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>DNF</span>}
-                                                                                    {res.fastest_lap && !res.is_dnf && <span style={{ background: '#9c27b0', color: 'white', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>FL</span>}
-                                                                                    {res.is_dropped && <span style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>DROPPED</span>}
+                                                                                    {res.isDnf && <span style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>DNF</span>}
+                                                                                    {res.fastestLap && !res.isDnf && <span style={{ background: '#9c27b0', color: 'white', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>FL</span>}
+                                                                                    {res.isDropped && <span style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>DROPPED</span>}
                                                                                 </div>
                                                                             </div>
                                                                         </td>
                                                                         <td className="hide-mobile" style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                                                                            {res.quali_position > 0 ? `P${res.quali_position}` : '-'}
+                                                                            {res.qualiPosition > 0 ? `P${res.qualiPosition}` : '-'}
                                                                         </td>
                                                                         <td className="text-right text-mono" style={{ whiteSpace: 'nowrap' }}>
-                                                                            <span style={{ fontWeight: 900, fontSize: '1.1rem', color: res.is_dropped ? 'var(--text-muted)' : 'var(--f1-red)', textDecoration: res.is_dropped ? 'line-through' : 'none' }}>
-                                                                                {res.points_earned}
+                                                                            <span style={{ fontWeight: 900, fontSize: '1.1rem', color: res.isDropped ? 'var(--text-muted)' : 'var(--f1-red)', textDecoration: res.isDropped ? 'line-through' : 'none' }}>
+                                                                                {res.pointsEarned}
                                                                             </span>
                                                                             <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginLeft: '3px' }}>PTS</span>
                                                                         </td>

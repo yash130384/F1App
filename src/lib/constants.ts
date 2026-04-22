@@ -1,33 +1,36 @@
+export const F1_TRACKS_2025: Record<number, string> = {
+    0: "Melbourne",
+    2: "Shanghai",
+    3: "Sakhir (Bahrain)",
+    4: "Catalunya",
+    5: "Monaco",
+    6: "Montreal",
+    7: "Silverstone",
+    9: "Hungaroring",
+    10: "Spa",
+    11: "Monza",
+    12: "Singapore",
+    13: "Suzuka",
+    14: "Abu Dhabi",
+    15: "Texas",
+    16: "Brazil",
+    17: "Austria",
+    19: "Mexico",
+    20: "Baku (Azerbaijan)",
+    26: "Zandvoort",
+    27: "Imola",
+    29: "Jeddah",
+    30: "Miami",
+    31: "Las Vegas",
+    32: "Losail",
+    39: "Silverstone (Reverse)",
+    40: "Austria (Reverse)",
+    41: "Zandvoort (Reverse)"
+};
+
 export function getTrackNameById(id: number): string {
-    if (id >= 0 && id < F1_TRACKS_2025.length) {
+    if (id in F1_TRACKS_2025) {
         return F1_TRACKS_2025[id];
     }
     return `Track ID ${id}`;
 }
-
-export const F1_TRACKS_2025 = [
-    "Albert Park Circuit (Australia)",
-    "Shanghai International Circuit (China)",
-    "Suzuka International Racing Course (Japan)",
-    "Bahrain International Circuit (Bahrain)",
-    "Jeddah Corniche Circuit (Saudi Arabia)",
-    "Miami International Autodrome (USA)",
-    "Autodromo Enzo e Dino Ferrari (Imola)",
-    "Circuit de Monaco (Monaco)",
-    "Circuit de Barcelona-Catalunya (Spain)",
-    "Circuit Gilles Villeneuve (Canada)",
-    "Red Bull Ring (Austria)",
-    "Silverstone Circuit (Great Britain)",
-    "Circuit de Spa-Francorchamps (Belgium)",
-    "Hungaroring (Hungary)",
-    "Zandvoort (Netherlands)",
-    "Autodromo Nazionale Monza (Italy)",
-    "Baku City Circuit (Azerbaijan)",
-    "Marina Bay Street Circuit (Singapore)",
-    "Circuit of the Americas (USA)",
-    "Autodromo Hermanos Rodriguez (Mexico)",
-    "Interlagos (Brazil)",
-    "Las Vegas Strip Circuit (USA)",
-    "Lusail International Circuit (Qatar)",
-    "Yas Marina Circuit (Abu Dhabi)"
-];

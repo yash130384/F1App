@@ -71,8 +71,6 @@ export interface ParticipantData {
   m_showOnlineNames: number;
   m_techLevel: number;
   m_platform: number;
-  m_numColours: number;
-  m_liveryColours: Array<{red: number, green: number, blue: number}>;
 }
 
 export interface PacketParticipantsData {

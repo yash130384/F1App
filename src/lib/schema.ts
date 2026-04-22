@@ -10,6 +10,8 @@ export const leagues = pgTable('leagues', {
   name: text('name').unique().notNull(),
   ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'cascade' }),
   isCompleted: boolean('is_completed').default(false),
+  teamsLocked: integer('teams_locked').default(0),
+  joinLocked: integer('join_locked').default(0),
 });
 
 /**
@@ -120,6 +122,7 @@ export const telemetrySessions = pgTable('telemetry_sessions', {
   trackFlags: integer('track_flags').default(0),
   pitEntry: real('pit_entry'),
   pitExit: real('pit_exit'),
+  blobUrl: text('blob_url'),
 }, (table) => ({
   leagueIdx: index('telemetry_sessions_league_id_idx').on(table.leagueId),
   raceIdx: index('telemetry_sessions_race_id_idx').on(table.raceId),

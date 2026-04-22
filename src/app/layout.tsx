@@ -1,6 +1,4 @@
-'use client';
-
-import { useSession } from 'next-auth/react';
+import './globals.css';
 import Link from 'next/link';
 import { TelemetryNav } from '@/components/common/TelemetryNav';
 import AdminDropdown from "@/components/common/AdminDropdown";
