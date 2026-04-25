@@ -24,15 +24,55 @@ import { eq, or, and, desc, isNull, isNotNull, inArray } from 'drizzle-orm';
 
 import { auth } from '@/lib/auth';
 import { telemetryService } from '@/lib/telemetry/telemetry-service';
+import bcrypt from 'bcryptjs';
 
 // --- AUTH & USER ACTIONS ---
 
-export async function updateUserPassword(currentOrNewPassword: string, newPassword?: string) {
-  return { success: true, error: null };
+export async function updateUserPassword(oldPassword: string, newPassword: string) {
+  try {
+    const session = await auth();
+    if (!session?.user) return { success: false, error: 'NOT_AUTHENTICATED' };
+    const userId = (session.user as any).id;
+
+    // Get current user to check old password
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) return { success: false, error: 'USER_NOT_FOUND' };
+
+    // Verify old password
+    const isMatch = await bcrypt.compare(oldPassword, user.passwordHash || '');
+    if (!isMatch) return { success: false, error: 'Das aktuelle Passwort ist nicht korrekt.' };
+
+    // Hash new password
+    const newHash = await bcrypt.hash(newPassword, 12);
+
+    await db.update(users).set({ passwordHash: newHash }).where(eq(users.id, userId));
+    
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('updateUserPassword error:', err);
+    return { success: false, error: err.message };
+  }
 }
 
-export async function updateUserEmail(emailOrUserId: string, newEmail?: string) {
-  return { success: true, error: null };
+export async function updateUserEmail(newEmail: string) {
+  try {
+    const session = await auth();
+    if (!session?.user) return { success: false, error: 'NOT_AUTHENTICATED' };
+    const userId = (session.user as any).id;
+
+    // Check if email already taken
+    const [existing] = await db.select().from(users).where(eq(users.email, newEmail));
+    if (existing && existing.id !== userId) {
+      return { success: false, error: 'Diese E-Mail-Adresse wird bereits verwendet.' };
+    }
+
+    await db.update(users).set({ email: newEmail }).where(eq(users.id, userId));
+    
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('updateUserEmail error:', err);
+    return { success: false, error: err.message };
+  }
 }
 
 export async function getUserLeagues() {
@@ -496,7 +536,20 @@ export async function linkTelemetryToRace(sessionId: string, raceId: string) {
 }
 
 export async function assignTelemetryPlayer(leagueId: string, gameName: string, driverId: string) {
-  return { success: true, error: null };
+  try {
+    await ensureAdmin(leagueId);
+    
+    await db.update(drivers)
+      .set({ gameName: gameName || null })
+      .where(and(eq(drivers.id, driverId), eq(drivers.leagueId, leagueId)));
+    
+    revalidatePath(`/profile/leagues/${leagueId}/telemetry`);
+    
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('assignTelemetryPlayer error:', err);
+    return { success: false, error: err.message };
+  }
 }
 
 export async function getDashboardData(leagueIdOrSessionId: string, maybeLeagueId?: string) {
