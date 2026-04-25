@@ -127,11 +127,80 @@ export async function createLeague(name: string, ownerId?: string) {
 }
 
 export async function joinLeagueById(leagueId: string, driverName: string, teamName: string, color: string) {
-  return { success: true, error: null };
+  try {
+    const session = await auth();
+    if (!session?.user) return { success: false, error: 'Not authenticated' };
+    const userId = (session.user as any).id;
+
+    // Check if league exists
+    const [league] = await db.select().from(leagues).where(eq(leagues.id, leagueId));
+    if (!league) return { success: false, error: 'League not found' };
+
+    // Check if already a driver
+    const [existing] = await db.select().from(drivers).where(and(eq(drivers.leagueId, leagueId), eq(drivers.userId, userId)));
+    if (existing) return { success: false, error: 'You are already a driver in this league' };
+
+    // Optional: find teamId if teamName is provided
+    let teamId: string | undefined;
+    if (teamName) {
+      const [team] = await db.select().from(teams).where(and(eq(teams.leagueId, leagueId), eq(teams.name, teamName)));
+      if (team) teamId = team.id;
+    }
+
+    await db.insert(drivers).values({
+      leagueId,
+      userId,
+      name: driverName,
+      team: teamName,
+      teamId: teamId as any,
+      color: color || '#ffffff'
+    });
+
+    revalidatePath('/', 'layout');
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('joinLeagueById error:', err);
+    return { success: false, error: err.message };
+  }
 }
 
 export async function joinLeague(leagueName: string, driverName: string, teamName: string, color: string, gameName?: string) {
-  return { success: true, error: null };
+  try {
+    const session = await auth();
+    if (!session?.user) return { success: false, error: 'Not authenticated' };
+    const userId = (session.user as any).id;
+
+    // Find league by name
+    const [league] = await db.select().from(leagues).where(eq(leagues.name, leagueName));
+    if (!league) return { success: false, error: 'League not found' };
+
+    // Check if already a driver
+    const [existing] = await db.select().from(drivers).where(and(eq(drivers.leagueId, league.id), eq(drivers.userId, userId)));
+    if (existing) return { success: false, error: 'You are already a driver in this league' };
+
+    // Optional: find teamId if teamName is provided
+    let teamId: string | undefined;
+    if (teamName) {
+      const [team] = await db.select().from(teams).where(and(eq(teams.leagueId, league.id), eq(teams.name, teamName)));
+      if (team) teamId = team.id;
+    }
+
+    await db.insert(drivers).values({
+      leagueId: league.id,
+      userId,
+      name: driverName,
+      team: teamName,
+      teamId: teamId as any,
+      gameName: gameName || null,
+      color: color || '#ffffff'
+    });
+
+    revalidatePath('/', 'layout');
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('joinLeague error:', err);
+    return { success: false, error: err.message };
+  }
 }
 
 export async function fixLeaguePermissions(leagueId?: string) {
