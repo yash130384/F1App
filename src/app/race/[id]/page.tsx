@@ -61,12 +61,12 @@ function RaceDetailContent() {
     }
 
     function handleDriverClick(driverRes: any) {
-        if (!driverRes.driver_id) return;
-        router.push(`/race/${raceId}/driver/${driverRes.driver_id}?league=${encodeURIComponent(leagueName || '')}`);
+        if (!driverRes.driverId) return;
+        router.push(`/race/${raceId}/driver/${driverRes.driverId}?league=${encodeURIComponent(leagueName || '')}`);
     }
 
-    const leagueUrl = race?.league_id ? `/dashboard?league=${race.league_id}` : '/dashboard';
-    const backLabel = race?.league_name || leagueName || 'Dashboard';
+    const leagueUrl = race?.leagueId ? `/dashboard?league=${race.leagueId}` : '/dashboard';
+    const backLabel = race?.leagueName || leagueName || 'Dashboard';
 
     if (loading) {
         return (
@@ -95,9 +95,9 @@ function RaceDetailContent() {
                                 {race.track}
                             </h1>
                             <div className="text-f1-bold" style={{ fontSize: '0.7rem', color: 'var(--f1-red)', letterSpacing: '4px' }}>
-                                {race.race_date ? new Date(race.race_date).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' }) : 'SESSION RECORDED'}
+                                {race.raceDate ? new Date(race.raceDate).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' }) : 'SESSION RECORDED'}
                                 <span className="mx-4 opacity-20">|</span>
-                                <span className="text-white/40">{race.league_name}</span>
+                                <span className="text-white/40">{race.leagueName}</span>
                             </div>
                         </div>
                     </div>
@@ -126,25 +126,25 @@ function RaceDetailContent() {
                                             <td>
                                                 <div className="flex items-center gap-small">
                                                     <DriverAvatar 
-                                                        src={res.avatar_url} 
-                                                        name={res.driver_name} 
+                                                        src={res.avatarUrl} 
+                                                        name={res.driverName} 
                                                         size={32} 
-                                                        borderColor={res.driver_color}
+                                                        borderColor={res.driverColor}
                                                     />
                                                     <div className="flex flex-col">
-                                                        <span className="text-f1-bold italic uppercase">{res.driver_name}</span>
+                                                        <span className="text-f1-bold italic uppercase">{res.driverName}</span>
                                                         <div className="flex gap-2">
-                                                            {res.is_dnf && <span className="bg-f1-red text-white text-[8px] px-1.5 py-0.5 rounded font-black">DNF</span>}
-                                                            {res.fastest_lap && !res.is_dnf && <span className="bg-purple-600 text-white text-[8px] px-1.5 py-0.5 rounded font-black">FL</span>}
+                                                            {res.isDnf && <span className="bg-f1-red text-white text-[8px] px-1.5 py-0.5 rounded font-black">DNF</span>}
+                                                            {res.fastestLap && !res.isDnf && <span className="bg-purple-600 text-white text-[8px] px-1.5 py-0.5 rounded font-black">FL</span>}
                                                         </div>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td className="hide-mobile text-center font-mono opacity-40 text-sm">
-                                                {res.quali_position > 0 ? `P${res.quali_position}` : '-'}
+                                                {res.qualiPosition > 0 ? `P${res.qualiPosition}` : '-'}
                                             </td>
                                             <td className="text-right">
-                                                <span className="text-f1-bold text-xl italic text-f1-red">{res.points_earned}</span>
+                                                <span className="text-f1-bold text-xl italic text-f1-red">{res.pointsEarned}</span>
                                                 <span className="text-[10px] ml-1 opacity-20 font-black">PTS</span>
                                             </td>
                                         </tr>
@@ -165,7 +165,7 @@ function RaceDetailContent() {
                                     <LapPositionChart 
                                         participants={analysisData?.participants || []}
                                         history={analysisData?.positionHistory || []}
-                                        totalLaps={graphData.length > 0 ? graphData[graphData.length -1].lap_number : 50}
+                                        totalLaps={graphData.length > 0 ? graphData[graphData.length -1].lapNumber : 50}
                                     />
                                 </div>
                             </div>
@@ -176,7 +176,7 @@ function RaceDetailContent() {
                                 <div className="max-h-[300px] overflow-y-auto">
                                     <TyreStrategyChart 
                                         participants={analysisData?.participants || []} 
-                                        totalLaps={graphData.length > 0 ? graphData[graphData.length - 1].lap_number : 50} 
+                                        totalLaps={graphData.length > 0 ? graphData[graphData.length - 1].lapNumber : 50} 
                                     />
                                 </div>
                             </div>

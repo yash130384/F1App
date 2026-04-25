@@ -6,10 +6,10 @@ interface RaceCountdownProps {
     race: {
         id: string;
         track: string;
-        scheduled_date: string;
-        is_random?: boolean;
-        is_hidden?: boolean;
-        reveal_hours_before?: number;
+        scheduledDate: string;
+        isRandom?: boolean;
+        isHidden?: boolean;
+        revealHoursBefore?: number;
     } | null;
 }
 
@@ -23,9 +23,9 @@ export default function RaceCountdown({ race }: RaceCountdownProps) {
     const [isStarted, setIsStarted] = useState(false);
 
     useEffect(() => {
-        if (!race || !race.scheduled_date) return;
+        if (!race || !race.scheduledDate) return;
 
-        const targetDate = new Date(race.scheduled_date).getTime();
+        const targetDate = new Date(race.scheduledDate).getTime();
 
         const updateCountdown = () => {
             const now = new Date().getTime();
@@ -65,11 +65,11 @@ export default function RaceCountdown({ race }: RaceCountdownProps) {
                     <div style={{ fontSize: '0.7rem', color: 'var(--f1-red)', fontWeight: 900, letterSpacing: '2px', marginBottom: '0.5rem' }}>NEXT RACE</div>
                     <div className="text-f1" style={{ fontSize: '2rem', lineHeight: 1.1, display: 'flex', alignItems: 'center', gap: '10px' }}>
                         {race.track}
-                        {race.is_hidden && <span title="Hidden Random Track" style={{ fontSize: '1.2rem', filter: 'grayscale(0)' }}>🎲</span>}
+                        {race.isHidden && <span title="Hidden Random Track" style={{ fontSize: '1.2rem', filter: 'grayscale(0)' }}>🎲</span>}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--silver)', marginTop: '0.5rem' }}>
-                        {new Date(race.scheduled_date).toLocaleString()}
-                        {race.is_hidden && race.reveal_hours_before && (
+                        {new Date(race.scheduledDate).toLocaleString()}
+                        {race.isHidden && race.revealHoursBefore && (
                             <span style={{ marginLeft: '1rem', color: 'var(--f1-red)', fontWeight: 'bold' }}>
                                 REVEAL PENDING
                             </span>
@@ -117,9 +117,9 @@ export function RevealCountdown({ race }: RaceCountdownProps) {
     const [timeLeft, setTimeLeft] = useState<{ hours: number, minutes: number, seconds: number } | null>(null);
 
     useEffect(() => {
-        if (!race || !race.scheduled_date || !race.reveal_hours_before) return;
+        if (!race || !race.scheduledDate || !race.revealHoursBefore) return;
 
-        const targetDate = new Date(new Date(race.scheduled_date).getTime() - (race.reveal_hours_before * 60 * 60 * 1000)).getTime();
+        const targetDate = new Date(new Date(race.scheduledDate).getTime() - (race.revealHoursBefore * 60 * 60 * 1000)).getTime();
 
         const updateCountdown = () => {
             const now = new Date().getTime();
@@ -141,7 +141,7 @@ export function RevealCountdown({ race }: RaceCountdownProps) {
         return () => clearInterval(interval);
     }, [race]);
 
-    if (!race || !race.is_hidden || !timeLeft) return null;
+    if (!race || !race.isHidden || !timeLeft) return null;
 
     return (
         <div className="animate-fade-in" style={{ 

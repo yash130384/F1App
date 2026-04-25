@@ -214,35 +214,35 @@ export default function RaceManagementPage({ params }: { params: Promise<{ leagu
        ) : (
          <div className="flex flex-col gap-4">
              {races.map((race) => (
-                 <div key={race.id} className="f1-card flex justify-between items-center p-6" style={{ borderLeft: race.is_finished ? '4px solid var(--f1-red)' : '4px solid var(--f1-cyan)' }}>
+                 <div key={race.id} className="f1-card flex justify-between items-center p-6" style={{ borderLeft: race.isFinished ? '4px solid var(--f1-red)' : '4px solid var(--f1-cyan)' }}>
                      <div className="flex flex-col gap-1">
                          <div className="flex items-center gap-3">
                              <span className="text-f1" style={{ fontSize: '1.2rem' }}>{race.track}</span>
                              <span style={{ 
                                  fontSize: '0.6rem', padding: '2px 8px', borderRadius: '4px', 
-                                 background: race.is_finished ? 'rgba(255,24,1,0.2)' : 'rgba(0,245,255,0.1)', 
-                                 color: race.is_finished ? 'var(--f1-red)' : 'var(--f1-cyan)', border: '1px solid currentColor', fontWeight: 900 
+                                 background: race.isFinished ? 'rgba(255,24,1,0.2)' : 'rgba(0,245,255,0.1)', 
+                                 color: race.isFinished ? 'var(--f1-red)' : 'var(--f1-cyan)', border: '1px solid currentColor', fontWeight: 900 
                              }}>
-                                 {race.is_finished ? 'FINISHED' : 'SCHEDULED'}
+                                 {race.isFinished ? 'FINISHED' : 'SCHEDULED'}
                              </span>
-                             {race.is_random ? <span style={{ fontSize: '0.6rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(255,183,0,0.1)', color: '#ffb700', border: '1px solid #ffb700', fontWeight: 900 }}>RANDOM</span> : null}
+                             {race.isRandom ? <span style={{ fontSize: '0.6rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(255,183,0,0.1)', color: '#ffb700', border: '1px solid #ffb700', fontWeight: 900 }}>RANDOM</span> : null}
                          </div>
                          <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--silver)' }}>
                              <span className="flex items-center gap-1">
                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM16 2v4M8 2v4M3 10h18"/></svg>
-                                 {race.scheduled_date ? new Date(race.scheduled_date).toLocaleString() : 'Kein Datum'}
+                                 {race.scheduledDate ? new Date(race.scheduledDate).toLocaleString() : 'Kein Datum'}
                              </span>
-                             {race.reveal_hours_before > 0 && (
+                             {race.revealHoursBefore > 0 && (
                                  <span className="flex items-center gap-1" style={{ color: '#ffb700' }}>
                                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                     Reveal: {race.reveal_hours_before}h
+                                     Reveal: {race.revealHoursBefore}h
                                  </span>
                              )}
                          </div>
                      </div>
  
                      <div className="flex items-center gap-3">
-                         {race.is_finished ? (
+                         {race.isFinished ? (
                              <Link href={`/profile/leagues/${leagueId}/results?raceId=${race.id}`}>
                                  <button className="btn-secondary btn-sm" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>RESULTS</button>
                              </Link>

@@ -42,7 +42,7 @@ export default function ManualResults({
                 }
 
                 if (racesRes.success && racesRes.races) {
-                    setFinishedTracks(racesRes.races.filter((r: any) => r.is_finished).map((r: any) => r.track));
+                    setFinishedTracks(racesRes.races.filter((r: any) => r.isFinished).map((r: any) => r.track));
                 }
 
                 // Set initial empty state
@@ -56,7 +56,7 @@ export default function ManualResults({
                 
                 if (!currentRaceId) {
                     if (racesRes.success && racesRes.races) {
-                        const nextScheduled = racesRes.races.find((r: any) => !r.is_finished);
+                        const nextScheduled = racesRes.races.find((r: any) => !r.isFinished);
                         if (nextScheduled) {
                             currentRaceId = nextScheduled.id;
                             preSelectedTrack = nextScheduled.track ?? '';
@@ -70,12 +70,12 @@ export default function ManualResults({
                     if (raceRes.success && raceRes.results && raceRes.results.length > 0) {
                         setTrack(raceRes.track || '');
                         raceRes.results.forEach((r: any) => {
-                            initialResults[r.driver_id] = {
+                            initialResults[r.driverId] = {
                                 position: r.position,
-                                qualiPosition: r.quali_position || 0,
-                                fastestLap: !!r.fastest_lap,
-                                cleanDriver: !!r.clean_driver,
-                                isDnf: !!r.is_dnf
+                                qualiPosition: r.qualiPosition || 0,
+                                fastestLap: !!r.fastestLap,
+                                cleanDriver: !!r.cleanDriver,
+                                isDnf: !!r.isDnf
                             };
                         });
                     } else if (preSelectedTrack) {
