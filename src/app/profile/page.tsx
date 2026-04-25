@@ -13,6 +13,7 @@ import {
     getOpenLeagues, 
     joinLeagueById 
 } from "@/lib/actions";
+import { useExperimental } from "@/hooks/useExperimental";
 import { TelemetryNav } from "@/components/common/TelemetryNav";
 
 export default function ProfilePage() {
@@ -40,6 +41,16 @@ export default function ProfilePage() {
     const [openLeagues, setOpenLeagues] = useState<any[]>([]);
     const [selectedLeagueId, setSelectedLeagueId] = useState("");
     const [joinInProgess, setJoinInProgress] = useState(false);
+
+    // Experimental Features (for TRunKX only)
+    const experimentalEnabled = useExperimental();
+
+    const toggleExperimental = () => {
+        const next = !experimentalEnabled;
+        localStorage.setItem('f1_experimental_enabled', String(next));
+        // Force a reload or update components that depend on this
+        window.dispatchEvent(new Event('storage'));
+    };
 
     useEffect(() => {
         if (status === "unauthenticated") {
@@ -194,7 +205,7 @@ export default function ProfilePage() {
             <div className={styles.header}>
                 <h1 className={styles.headerTitle}>DRIVER NETWORK</h1>
                 <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
-                    {showTelemetryLink && (
+                    {experimentalEnabled && showTelemetryLink && (
                         <Link 
                             href="/telemetryupload" 
                             className={styles.btnAction} 
@@ -349,6 +360,30 @@ export default function ProfilePage() {
                             Only showing leagues set to 'Public' or 'Open Selection'.
                         </p>
                     </div>
+
+                    {session?.user?.name === "TRunKX" && (
+                        <div style={{marginTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem'}}>
+                            <h3 style={{fontSize: '0.9rem', marginBottom: '1rem', color: '#ffb700'}}>DEVELOPER SETTINGS</h3>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                    <div style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Experimental Modules</div>
+                                    <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>Telemetry Upload & Sessions</div>
+                                </div>
+                                <button 
+                                    onClick={toggleExperimental}
+                                    className={styles.btnAction}
+                                    style={{ 
+                                        borderColor: experimentalEnabled ? '#ffb700' : 'rgba(255,255,255,0.2)', 
+                                        color: experimentalEnabled ? '#ffb700' : 'white',
+                                        fontSize: '0.7rem',
+                                        padding: '0.4rem 0.8rem'
+                                    }}
+                                >
+                                    {experimentalEnabled ? "DEACTIVATE" : "ACTIVATE"}
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
                 
                 {/* Ligen & Teams */}

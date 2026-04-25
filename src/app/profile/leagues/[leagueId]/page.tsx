@@ -12,6 +12,7 @@ import RecentSessions from './_components/RecentSessions';
 import QuickActions from './_components/QuickActions';
 import TelemetryHub from './_components/TelemetryHub';
 import { LoadingState, ErrorState } from './_components/StatusScreens';
+import { useExperimental } from '@/hooks/useExperimental';
 
 /**
  * Das Haupt-Dashboard für eine spezifische F1-Liga.
@@ -23,6 +24,8 @@ export default function LeagueDashboard({ params }: { params: Promise<{ leagueId
     const [drivers, setDrivers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const experimental = useExperimental();
 
     useEffect(() => {
         async function loadData() {
@@ -85,7 +88,7 @@ export default function LeagueDashboard({ params }: { params: Promise<{ leagueId
                 {/* Sidebar: Einstellungen und Telemetrie-Status */}
                 <div className="flex flex-col gap-6">
                     <QuickActions leagueId={leagueId} />
-                    <TelemetryHub />
+                    {experimental && <TelemetryHub />}
                 </div>
             </div>
         </div>
