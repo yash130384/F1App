@@ -129,7 +129,7 @@ export default function RaceManagementPage({ params }: { params: Promise<{ leagu
                <div className="flex justify-end gap-4">
                    <button onClick={async () => {
                        setSubmitting(true);
-                       await updateTrackPool(trackPool);
+                       await updateTrackPool(leagueId, trackPool);
                        setShowPoolManager(false);
                        setSubmitting(false);
                    }} disabled={submitting} className="btn-primary" style={{ background: 'var(--f1-cyan)', color: 'black' }}>

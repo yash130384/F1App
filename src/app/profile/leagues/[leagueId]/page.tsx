@@ -58,8 +58,8 @@ export default function LeagueDashboard({ params }: { params: Promise<{ leagueId
             <LeagueHeader 
                 name={league?.name} 
                 leagueId={leagueId} 
-                isJoinLocked={!!league?.join_locked}
-                isTeamsLocked={!!league?.teams_locked}
+                isJoinLocked={!!league?.joinLocked}
+                isTeamsLocked={!!league?.teamsLocked}
             />
 
             <div className={styles.mainGrid}>

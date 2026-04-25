@@ -20,14 +20,14 @@ export default function LeagueSettings({ params }: { params: Promise<{ leagueId:
     useEffect(() => {
         async function load() {
             const res = await getLeagueById(leagueId);
-            if (res.success) {
+            if (res.success && res.league) {
                 setLeague(res.league);
                 setName(res.league.name);
-                setTeamsLocked(!!res.league.teams_locked);
-                setJoinLocked(!!res.league.join_locked);
-                setIsCompleted(!!res.league.is_completed);
+                setTeamsLocked(!!res.league.teamsLocked);
+                setJoinLocked(!!res.league.joinLocked);
+                setIsCompleted(!!res.league.isCompleted);
             } else {
-                setError(res.error);
+                setError(res.error || 'League not found');
             }
             setLoading(false);
         }
@@ -42,9 +42,9 @@ export default function LeagueSettings({ params }: { params: Promise<{ leagueId:
 
         const res = await updateLeagueSettings(leagueId, {
             name,
-            teams_locked: teamsLocked,
-            join_locked: joinLocked,
-            is_completed: isCompleted
+            teamsLocked: teamsLocked,
+            joinLocked: joinLocked,
+            isCompleted: isCompleted
         });
 
         if (res.success) {

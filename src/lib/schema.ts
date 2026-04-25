@@ -69,6 +69,7 @@ export const races = pgTable('races', {
   isFinished: boolean('is_finished').default(true),
   scheduledDate: timestamp('scheduled_date'),
   isRandom: boolean('is_random').default(false),
+  isHidden: boolean('is_hidden').default(false),
   revealHoursBefore: integer('reveal_hours_before').default(0),
 });
 

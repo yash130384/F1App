@@ -12,7 +12,8 @@ dotenv.config();
  */
 
 // Neon Client (PG)
-const sqlConnection = neon(process.env.DATABASE_URL!);
+const dbUrl = process.env.DATABASE_URL || 'postgres://placeholder_for_build:placeholder@localhost/db';
+const sqlConnection = neon(dbUrl);
 export const db = drizzle(sqlConnection, { schema });
 
 /**

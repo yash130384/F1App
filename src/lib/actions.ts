@@ -94,7 +94,19 @@ export async function getLeagueById(leagueId: string) {
 }
 
 export async function updateLeagueSettings(leagueId: string, settings: any) {
-  return { success: true, error: null };
+  try {
+    await db.update(leagues)
+      .set({
+        name: settings.name,
+        teamsLocked: settings.teamsLocked !== undefined ? (settings.teamsLocked ? 1 : 0) : undefined,
+        joinLocked: settings.joinLocked !== undefined ? (settings.joinLocked ? 1 : 0) : undefined,
+        isCompleted: settings.isCompleted
+      })
+      .where(eq(leagues.id, leagueId));
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
 }
 
 // --- RACE & TRACK ACTIONS ---
@@ -122,8 +134,15 @@ export async function scheduleRace(leagueId: string, raceData: { track: string; 
   return { success: true, error: null };
 }
 
-export async function updateTrackPool(trackIds: string[]) {
-  return { success: true, error: null };
+export async function updateTrackPool(leagueId: string, trackIds: string[]) {
+  try {
+    await db.update(pointsConfig)
+      .set({ trackPool: JSON.stringify(trackIds) })
+      .where(eq(pointsConfig.leagueId, leagueId));
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
 }
 
 // --- TEAM ACTIONS ---
@@ -149,11 +168,34 @@ export async function deleteLeagueTeam(leagueId: string, teamId: string) {
 
 export async function getPointsConfig(leagueId: string) {
   const [config] = await db.select().from(pointsConfig).where(eq(pointsConfig.leagueId, leagueId));
-  return { success: true, config, error: null };
+  if (config && typeof config.trackPool === 'string') {
+    try {
+      (config as any).trackPool = JSON.parse(config.trackPool || '[]');
+    } catch (e) {
+      (config as any).trackPool = [];
+    }
+  }
+  return { success: true, config: config as any, error: null };
 }
 
 export async function updatePointsConfig(leagueId: string, config: any) {
-  return { success: true, error: null };
+  try {
+    await db.update(pointsConfig)
+      .set({
+        pointsJson: JSON.stringify(config.points || []),
+        qualiPointsJson: JSON.stringify(config.qualiPoints || {}),
+        fastestLapBonus: config.fastestLapBonus,
+        cleanDriverBonus: config.cleanDriverBonus,
+        totalRaces: config.totalRaces,
+        trackPool: JSON.stringify(config.trackPool || []),
+        dropResultsCount: config.dropResultsCount,
+        teamCompetition: config.teamCompetition
+      })
+      .where(eq(pointsConfig.leagueId, leagueId));
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
 }
 
 // --- TELEMETRY ACTIONS ---

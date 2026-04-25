@@ -76,11 +76,11 @@ export default function TeamManagementPage({ params }: { params: Promise<{ leagu
 
   const toggleLock = async () => {
     if (!league) return;
-    const nextLocked = !league.teams_locked;
+    const nextLocked = !league.teamsLocked;
     setSaving(true);
-    const res = await updateLeagueSettings(leagueId, { teams_locked: nextLocked });
+    const res = await updateLeagueSettings(leagueId, { teamsLocked: nextLocked });
     if (res.success) {
-      setLeague({ ...league, teams_locked: nextLocked });
+      setLeague({ ...league, teamsLocked: nextLocked });
     }
     setSaving(false);
   };
@@ -103,20 +103,20 @@ export default function TeamManagementPage({ params }: { params: Promise<{ leagu
                 <h1 className="text-f1 text-gradient" style={{ fontSize: '3rem' }}>TEAM MANAGEMENT</h1>
                 <p style={{ color: 'var(--text-secondary)' }}>Configure the constructors competing in this league.</p>
             </div>
-            <div className="flex items-center gap-4 glass-panel p-3 px-6" style={{ borderColor: league?.teams_locked ? 'var(--f1-red)' : 'rgba(255,255,255,0.1)' }}>
+            <div className="flex items-center gap-4 glass-panel p-3 px-6" style={{ borderColor: league?.teamsLocked ? 'var(--f1-red)' : 'rgba(255,255,255,0.1)' }}>
                 <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 900, color: league?.teams_locked ? 'var(--f1-red)' : 'var(--silver)' }}>
-                        {league?.teams_locked ? 'ROSTER LOCKED' : 'ROSTER OPEN'}
+                    <div style={{ fontSize: '0.7rem', fontWeight: 900, color: league?.teamsLocked ? 'var(--f1-red)' : 'var(--silver)' }}>
+                        {league?.teamsLocked ? 'ROSTER LOCKED' : 'ROSTER OPEN'}
                     </div>
                     <div style={{ fontSize: '0.6rem', opacity: 0.6 }}>Drivers can't change teams when locked</div>
                 </div>
                 <button 
                     onClick={toggleLock}
-                    className={league?.teams_locked ? 'btn-primary' : 'btn-secondary'} 
+                    className={league?.teamsLocked ? 'btn-primary' : 'btn-secondary'} 
                     style={{ fontSize: '0.7rem', padding: '0.5rem 1rem' }}
                     disabled={saving}
                 >
-                    {league?.teams_locked ? 'UNLOCK' : 'LOCK TEAMS'}
+                    {league?.teamsLocked ? 'UNLOCK' : 'LOCK TEAMS'}
                 </button>
             </div>
         </div>

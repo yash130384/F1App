@@ -172,7 +172,7 @@ function RaceResultsTable({ raceResults, handleDriverClick, compact = false }: R
                                     </span>
                                     <div className="flex gap-small">
                                         {res.fastestLap && <span title="Fastest Lap" style={{ background: '#9c27b0', color: 'white', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>FL</span>}
-                                        {res.clean_driver && <span title="Clean Driver" style={{ background: 'var(--f1-cyan)', color: 'black', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>CD</span>}
+                                        {res.cleanDriver && <span title="Clean Driver" style={{ background: 'var(--f1-cyan)', color: 'black', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>CD</span>}
                                         {res.isDnf && <span style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '2px', fontWeight: 900 }}>DNF</span>}
                                     </div>
                                 </div>
@@ -248,7 +248,7 @@ export default function Dashboard() {
         loadInitialLeagues();
     }, []);
 
-    const displayedLeagues = showAllLeagues ? leaguesList : leaguesList.filter(l => !l.is_completed);
+    const displayedLeagues = showAllLeagues ? leaguesList : leaguesList.filter(l => !l.isCompleted);
 
     const selectLeague = async (name: string) => {
         setSelectedLeagueName(name);
@@ -269,9 +269,13 @@ export default function Dashboard() {
             setLeagueStats(res.stats);
 
             // Fetch live session
-            const liveRes = await getActiveTelemetrySession(res.league.id);
-            if (liveRes.success && liveRes.session) {
-                setLiveSession({ session: liveRes.session, participants: liveRes.participants });
+            if (res.league) {
+                const liveRes = await getActiveTelemetrySession(res.league.id);
+                if (liveRes.success && liveRes.session) {
+                    setLiveSession({ session: liveRes.session, participants: liveRes.participants });
+                } else {
+                    setLiveSession(null);
+                }
             } else {
                 setLiveSession(null);
             }
@@ -287,7 +291,7 @@ export default function Dashboard() {
 
     const selectRace = async (raceId: string) => {
         const raceToSelect = races.find(r => r.id === raceId) || upcomingRaces.find(r => r.id === raceId);
-        if (raceToSelect?.is_hidden) {
+        if (raceToSelect?.isHidden) {
             alert('Track is not revealed yet!');
             return;
         }
@@ -369,11 +373,11 @@ export default function Dashboard() {
                                 <div
                                     key={l.id}
                                     className="f1-card"
-                                    style={{ cursor: 'pointer', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', opacity: l.is_completed ? 0.6 : 1 }}
+                                    style={{ cursor: 'pointer', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', opacity: l.isCompleted ? 0.6 : 1 }}
                                     onClick={() => selectLeague(l.name)}
                                 >
-                                    <span className="text-f1-bold" style={{ fontSize: '0.7rem', color: l.is_completed ? 'var(--text-muted)' : 'var(--f1-red)' }}>
-                                        {l.is_completed ? 'COMPLETED CHAMPIONSHIP' : 'CHAMPIONSHIP'}
+                                    <span className="text-f1-bold" style={{ fontSize: '0.7rem', color: l.isCompleted ? 'var(--text-muted)' : 'var(--f1-red)' }}>
+                                        {l.isCompleted ? 'COMPLETED CHAMPIONSHIP' : 'CHAMPIONSHIP'}
                                     </span>
                                     <h3 className="h3" style={{ fontSize: '1.5rem', color: 'white' }}>{l.name}</h3>
                                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'right', marginTop: 'auto' }}>Open Dashboard &rarr;</div>
@@ -401,7 +405,7 @@ export default function Dashboard() {
                                         <div>
                                             <span className="text-f1-bold" style={{ color: 'var(--f1-red)', fontSize: '0.8rem', letterSpacing: '2px' }}>LIVE TELEMETRY</span>
                                             <h3 className="h3" style={{ fontSize: '1.5rem', margin: '0.5rem 0' }}>
-                                                {liveSession.session.session_type} Session
+                                                {liveSession.session.sessionType} Session
                                             </h3>
                                             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                                                 {liveSession.participants.length} Drivers Connected
@@ -417,17 +421,17 @@ export default function Dashboard() {
                                             {liveSession.participants.map((p: any, idx: number) => (
                                                 <div key={idx} className="f1-card" style={{ padding: '1rem', minWidth: '160px', background: 'var(--surface-lowest)' }}>
                                                     <div className="stat-label">P{p.position || '-'}</div>
-                                                    <div className="text-f1-bold" style={{ fontSize: '0.9rem', margin: '4px 0' }}>{p.game_name}</div>
-                                                    <div style={{ fontSize: '0.8rem', color: 'var(--f1-cyan)', fontWeight: 700 }}>{p.top_speed ? `${p.top_speed} KM/H` : ''}</div>
+                                                    <div className="text-f1-bold" style={{ fontSize: '0.9rem', margin: '4px 0' }}>{p.gameName}</div>
+                                                    <div style={{ fontSize: '0.8rem', color: 'var(--f1-cyan)', fontWeight: 700 }}>{p.topSpeed ? `${p.topSpeed} KM/H` : ''}</div>
                                                 </div>
                                             ))}
                                         </div>
                                     )}
 
-                                    {liveSession.session.track_length > 0 && liveSession.participants.length > 0 && (
+                                    {liveSession.session.trackLength > 0 && liveSession.participants.length > 0 && (
                                         <div className="glass-panel" style={{ padding: '1rem', background: 'rgba(0,0,0,0.3)' }}>
                                             <LiveTrackMap
-                                                trackLength={liveSession.session.track_length}
+                                                trackLength={liveSession.session.trackLength}
                                                 participants={liveSession.participants}
                                             />
                                         </div>
@@ -640,7 +644,7 @@ export default function Dashboard() {
                                         <h2 className="text-f1-bold" style={{ fontSize: '0.8rem', color: 'var(--f1-red)', letterSpacing: '2px' }}>RECENT RACES</h2>
                                         <div className="flex flex-col gap-small">
                                             {races.map(race => {
-                                                const isHidden = (race as any).is_hidden;
+                                                const isHidden = (race as any).isHidden;
                                                 return (
                                                     <div
                                                         key={race.id}
@@ -655,7 +659,7 @@ export default function Dashboard() {
                                                     >
                                                         <div className="flex justify-between items-center">
                                                             <div>
-                                                                <div className="stat-label" style={{ fontSize: '0.6rem' }} suppressHydrationWarning>{new Date(race.created_at).toLocaleDateString()}</div>
+                                                                <div className="stat-label" style={{ fontSize: '0.6rem' }} suppressHydrationWarning>{new Date(race.createdAt).toLocaleDateString()}</div>
                                                                 <div className="text-f1-bold" style={{ fontSize: '1.1rem', color: isHidden ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
                                                                     {isHidden ? '?? LOCKED TRACK' : (race.track || 'Unknown Grand Prix')}
                                                                 </div>
@@ -813,15 +817,15 @@ export default function Dashboard() {
                                                 </div>
                                                 <div className="glass-panel" style={{ padding: '1.5rem', textAlign: 'center' }}>
                                                     <div className="stat-label">START</div>
-                                                    <div className="stat-value text-mono">P{selectedDriverDetails.summary.quali_position}</div>
+                                                    <div className="stat-value text-mono">P{selectedDriverDetails.summary.qualiPosition}</div>
                                                 </div>
                                                 <div className="glass-panel" style={{ padding: '1.5rem', textAlign: 'center' }}>
                                                     <div className="stat-label">PITS</div>
-                                                    <div className="stat-value text-mono" style={{ color: selectedDriverDetails.summary.pit_stops > 0 ? 'var(--f1-cyan)' : 'var(--text-secondary)' }}>{selectedDriverDetails.summary.pit_stops}</div>
+                                                    <div className="stat-value text-mono" style={{ color: selectedDriverDetails.summary.pitStops > 0 ? 'var(--f1-cyan)' : 'var(--text-secondary)' }}>{selectedDriverDetails.summary.pitStops}</div>
                                                 </div>
                                                 <div className="glass-panel" style={{ padding: '1.5rem', textAlign: 'center' }}>
                                                     <div className="stat-label">PENALTY</div>
-                                                    <div className="stat-value text-mono" style={{ color: selectedDriverDetails.summary.penalties_time > 0 ? 'var(--f1-red)' : 'var(--text-secondary)' }}>+{selectedDriverDetails.summary.penalties_time}s</div>
+                                                    <div className="stat-value text-mono" style={{ color: selectedDriverDetails.summary.penaltiesTime > 0 ? 'var(--f1-red)' : 'var(--text-secondary)' }}>+{selectedDriverDetails.summary.penaltiesTime}s</div>
                                                 </div>
                                             </div>
 
@@ -837,16 +841,16 @@ export default function Dashboard() {
                                                             <ResponsiveContainer width="100%" height="100%">
                                                                 <LineChart data={selectedDriverDetails.laps} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                                                    <XAxis dataKey="lap_number" stroke="var(--text-secondary)" fontSize={10} axisLine={false} tickLine={false} />
+                                                                    <XAxis dataKey="lapNumber" stroke="var(--text-secondary)" fontSize={10} axisLine={false} tickLine={false} />
                                                                     <YAxis stroke="var(--text-secondary)" fontSize={10} axisLine={false} tickLine={false} domain={['auto', 'auto']} tickFormatter={(tick) => formatLapTime(tick)} width={65} />
                                                                     <Tooltip 
                                                                         contentStyle={{ backgroundColor: 'var(--surface-mid)', border: '1px solid var(--glass-border)', borderRadius: '4px' }} 
                                                                         formatter={(v: any) => [formatLapTime(v), 'Time']} 
                                                                     />
-                                                                    {safetyCarEvents.filter((e: any) => e.event_type === 0).map((e: any, i: number) => (
-                                                                        <ReferenceLine key={i} x={e.lap_number} stroke="var(--f1-cyan)" strokeDasharray="4 4" strokeWidth={1} label={{ value: e.safety_car_type === 1 ? 'SC' : 'VSC', position: 'top', fill: 'var(--f1-cyan)', fontSize: 10 }} />
+                                                                    {safetyCarEvents.filter((e: any) => e.eventType === 0).map((e: any, i: number) => (
+                                                                        <ReferenceLine key={i} x={e.lapNumber} stroke="var(--f1-cyan)" strokeDasharray="4 4" strokeWidth={1} label={{ value: e.safetyCarType === 1 ? 'SC' : 'VSC', position: 'top', fill: 'var(--f1-cyan)', fontSize: 10 }} />
                                                                     ))}
-                                                                    <Line type="monotone" dataKey="lap_time_ms" stroke="var(--f1-red)" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#fff' }} />
+                                                                    <Line type="monotone" dataKey="lapTimeMs" stroke="var(--f1-red)" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#fff' }} />
                                                                 </LineChart>
                                                             </ResponsiveContainer>
                                                         </div>
@@ -855,8 +859,8 @@ export default function Dashboard() {
                                                     {/* Damage section */}
                                                     {(() => {
                                                         const damageEntries = selectedDriverDetails.laps
-                                                            .filter((l: any) => l.car_damage_json)
-                                                            .map((l: any) => ({ lap: l.lap_number, damage: JSON.parse(l.car_damage_json) }));
+                                                            .filter((l: any) => l.carDamageJson)
+                                                            .map((l: any) => ({ lap: l.lapNumber, damage: JSON.parse(l.carDamageJson) }));
                                                         if (damageEntries.length === 0) return null;
                                                         const last = damageEntries[damageEntries.length - 1].damage;
                                                         const damages = [
@@ -902,22 +906,22 @@ export default function Dashboard() {
                                                                 </thead>
                                                                 <tbody>
                                                                     {selectedDriverDetails.laps.map((lap: any) => {
-                                                                        const isOverallFastest = selectedDriverDetails.summary.fastest_lap &&
-                                                                            lap.lap_time_ms === Math.min(...selectedDriverDetails.laps.filter((l: any) => l.is_valid).map((l: any) => l.lap_time_ms));
+                                                                        const isOverallFastest = selectedDriverDetails.summary.fastestLap &&
+                                                                            lap.lapTimeMs === Math.min(...selectedDriverDetails.laps.filter((l: any) => l.isValid).map((l: any) => l.lapTimeMs));
                                                                         return (
-                                                                            <tr key={lap.lap_number}>
-                                                                                <td className="pos-number text-mono" style={{ fontSize: '0.9rem' }}>{lap.lap_number}</td>
-                                                                                <td className="text-f1-bold text-mono" style={{ color: isOverallFastest ? '#9c27b0' : (lap.is_valid ? 'var(--text-primary)' : 'rgba(255,24,1,0.4)') }}>
-                                                                                    {formatLapTime(lap.lap_time_ms)}
+                                                                            <tr key={lap.lapNumber}>
+                                                                                <td className="pos-number text-mono" style={{ fontSize: '0.9rem' }}>{lap.lapNumber}</td>
+                                                                                <td className="text-f1-bold text-mono" style={{ color: isOverallFastest ? '#9c27b0' : (lap.isValid ? 'var(--text-primary)' : 'rgba(255,24,1,0.4)') }}>
+                                                                                    {formatLapTime(lap.lapTimeMs)}
                                                                                 </td>
-                                                                                <td className="hide-mobile text-mono" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{lap.sector1_ms ? formatLapTime(lap.sector1_ms) : '-'}</td>
-                                                                                <td className="hide-mobile text-mono" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{lap.sector2_ms ? formatLapTime(lap.sector2_ms) : '-'}</td>
-                                                                                <td className="hide-mobile text-mono" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{lap.sector3_ms ? formatLapTime(lap.sector3_ms) : '-'}</td>
+                                                                                <td className="hide-mobile text-mono" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{lap.sector1Ms ? formatLapTime(lap.sector1Ms) : '-'}</td>
+                                                                                <td className="hide-mobile text-mono" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{lap.sector2Ms ? formatLapTime(lap.sector2Ms) : '-'}</td>
+                                                                                <td className="hide-mobile text-mono" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{lap.sector3Ms ? formatLapTime(lap.sector3Ms) : '-'}</td>
                                                                                 <td>
-                                                                                    {lap.tyre_compound ? <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: getTyreInfo(lap.tyre_compound).color, border: '1px solid rgba(255,255,255,0.2)' }} /> : '-'}
+                                                                                    {lap.tyreCompound ? <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: getTyreInfo(lap.tyreCompound).color, border: '1px solid rgba(255,255,255,0.2)' }} /> : '-'}
                                                                                 </td>
                                                                                 <td style={{ textAlign: 'right' }}>
-                                                                                    {lap.is_pit_lap && <span style={{ color: 'var(--f1-cyan)', fontSize: '0.7rem', fontWeight: 900 }}>PIT</span>}
+                                                                                    {lap.isPitLap && <span style={{ color: 'var(--f1-cyan)', fontSize: '0.7rem', fontWeight: 900 }}>PIT</span>}
                                                                                     {isOverallFastest && <span style={{ color: '#9c27b0', fontSize: '0.7rem', fontWeight: 900, marginLeft: '8px' }}>FASTEST</span>}
                                                                                 </td>
                                                                             </tr>

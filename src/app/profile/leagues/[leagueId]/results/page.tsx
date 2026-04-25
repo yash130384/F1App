@@ -46,7 +46,7 @@ export default function ManualResults({
                         const nextScheduled = racesRes.races.find((r: any) => !r.is_finished);
                         if (nextScheduled) {
                             currentRaceId = nextScheduled.id;
-                            preSelectedTrack = nextScheduled.track;
+                            preSelectedTrack = nextScheduled.track ?? '';
                         }
                     }
                 }
