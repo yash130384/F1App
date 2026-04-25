@@ -18,7 +18,7 @@ import {
   telemetrySpeedTraps,
   raceResults
 } from '@/lib/schema';
-import { calculatePoints } from '@/lib/scoring';
+import { calculatePoints, DEFAULT_POINTS, DEFAULT_QUALI_POINTS } from '@/lib/scoring';
 
 import { eq, or, and, desc, isNull, isNotNull, inArray } from 'drizzle-orm';
 
@@ -298,37 +298,73 @@ export async function deleteLeagueTeam(leagueId: string, teamId: string) {
 // --- SCORING ACTIONS ---
 
 export async function getPointsConfig(leagueId: string) {
-  const [config] = await db.select().from(pointsConfig).where(eq(pointsConfig.leagueId, leagueId));
-  if (config && typeof config.trackPool === 'string') {
-    try {
-      (config as any).trackPool = JSON.parse(config.trackPool || '[]');
-    } catch (e) {
-      (config as any).trackPool = [];
+  try {
+    const [config] = await db.select().from(pointsConfig).where(eq(pointsConfig.leagueId, leagueId));
+    
+    if (!config) {
+      return { 
+        success: true, 
+        config: {
+          leagueId,
+          points: DEFAULT_POINTS,
+          qualiPoints: DEFAULT_QUALI_POINTS,
+          fastestLapBonus: 1,
+          cleanDriverBonus: 0,
+          totalRaces: 0,
+          trackPool: [],
+          dropResultsCount: 0,
+          teamCompetition: false
+        } as any, 
+        error: null 
+      };
     }
+
+    const parsedConfig = {
+      ...config,
+      points: config.pointsJson ? JSON.parse(config.pointsJson) : DEFAULT_POINTS,
+      qualiPoints: config.qualiPointsJson ? JSON.parse(config.qualiPointsJson) : DEFAULT_QUALI_POINTS,
+      trackPool: typeof config.trackPool === 'string' ? JSON.parse(config.trackPool || '[]') : (config.trackPool || [])
+    };
+
+    return { success: true, config: parsedConfig as any, error: null };
+  } catch (err: any) {
+    console.error('getPointsConfig error:', err);
+    return { success: false, config: null, error: err.message };
   }
-  return { success: true, config: config as any, error: null };
 }
+
 
 export async function updatePointsConfig(leagueId: string, config: any) {
   try {
     await ensureAdmin(leagueId);
-    await db.update(pointsConfig)
-      .set({
-        pointsJson: JSON.stringify(config.points || []),
-        qualiPointsJson: JSON.stringify(config.qualiPoints || {}),
-        fastestLapBonus: config.fastestLapBonus,
-        cleanDriverBonus: config.cleanDriverBonus,
-        totalRaces: config.totalRaces,
-        trackPool: JSON.stringify(config.trackPool || []),
-        dropResultsCount: config.dropResultsCount,
-        teamCompetition: config.teamCompetition
-      })
-      .where(eq(pointsConfig.leagueId, leagueId));
+    
+    // Check if config exists
+    const [existing] = await db.select().from(pointsConfig).where(eq(pointsConfig.leagueId, leagueId));
+    
+    const values = {
+      pointsJson: JSON.stringify(config.points || DEFAULT_POINTS),
+      qualiPointsJson: JSON.stringify(config.qualiPoints || DEFAULT_QUALI_POINTS),
+      fastestLapBonus: config.fastestLapBonus,
+      cleanDriverBonus: config.cleanDriverBonus,
+      totalRaces: config.totalRaces,
+      trackPool: JSON.stringify(config.trackPool || []),
+      dropResultsCount: config.dropResultsCount,
+      teamCompetition: config.teamCompetition
+    };
+
+    if (existing) {
+      await db.update(pointsConfig).set(values).where(eq(pointsConfig.leagueId, leagueId));
+    } else {
+      await db.insert(pointsConfig).values({ leagueId, ...values });
+    }
+    
     return { success: true, error: null };
   } catch (err: any) {
+    console.error('updatePointsConfig error:', err);
     return { success: false, error: err.message };
   }
 }
+
 
 // --- TELEMETRY ACTIONS ---
 
@@ -412,17 +448,8 @@ export async function getDashboardData(leagueIdOrSessionId: string, maybeLeagueI
   const racesRes = await db.select().from(races).where(eq(races.leagueId, actualLeagueId));
   const upcomingRes = await db.select().from(races).where(and(eq(races.leagueId, actualLeagueId), eq(races.isFinished, false))).limit(3);
   
-  const [configRow] = await db.select().from(pointsConfig).where(eq(pointsConfig.leagueId, actualLeagueId));
-  const config = configRow ? {
-    points: JSON.parse(configRow.pointsJson),
-    qualiPoints: JSON.parse(configRow.qualiPointsJson || '{}'),
-    fastestLapBonus: configRow.fastestLapBonus ?? 0,
-    cleanDriverBonus: configRow.cleanDriverBonus ?? 0,
-    totalRaces: configRow.totalRaces ?? 0,
-    trackPool: JSON.parse(configRow.trackPool || '[]'),
-    dropResultsCount: configRow.dropResultsCount ?? 0,
-    teamCompetition: configRow.teamCompetition ?? false
-  } : undefined;
+  const configRes = await getPointsConfig(actualLeagueId);
+  const config = configRes.success ? configRes.config : undefined;
 
   const allResults = await db.select({
     raceResults: raceResults,
@@ -482,7 +509,7 @@ export async function getDashboardData(leagueIdOrSessionId: string, maybeLeagueI
 
   return { 
     success: true, 
-    league, 
+    league: { ...league, config }, 
     standings, 
     teamStandings, 
     races: racesRes || [], 
@@ -580,9 +607,90 @@ export async function getRaceResults(raceId: string) {
   return { success: true, results: res, track: race?.track || null, error: null };
 }
 
-export async function saveRaceResults(leagueId: string, track: string, results: any, raceId?: string) {
-  return { success: true, error: null };
+export async function saveRaceResults(leagueId: string, track: string, results: any[], raceId?: string) {
+  try {
+    await ensureAdmin(leagueId);
+
+    // Get points config
+    const configRes = await getPointsConfig(leagueId);
+    if (!configRes.success) throw new Error(configRes.error || 'Failed to load points config');
+    
+    const config = configRes.config;
+
+    let targetRaceId = raceId;
+
+    if (!targetRaceId) {
+      // Find or create race
+      const [existingRace] = await db.select().from(races).where(
+        and(
+          eq(races.leagueId, leagueId), 
+          eq(races.track, track), 
+          eq(races.isFinished, false)
+        )
+      ).limit(1);
+      
+      if (existingRace) {
+        targetRaceId = existingRace.id;
+      } else {
+        const [newRace] = await db.insert(races).values({
+          leagueId,
+          track,
+          isFinished: true,
+          raceDate: new Date()
+        }).returning({ id: races.id });
+        targetRaceId = newRace.id;
+      }
+    } else {
+      // Update existing race
+      await db.update(races).set({ 
+        isFinished: true, 
+        track,
+        raceDate: new Date() 
+      }).where(eq(races.id, targetRaceId));
+    }
+
+    // Delete existing results for this race
+    await db.delete(raceResults).where(eq(raceResults.raceId, targetRaceId));
+
+    // Prepare and insert results
+    const resultsToInsert = results.map(r => {
+      const points = calculatePoints({
+        position: r.position,
+        qualiPosition: r.quali_position,
+        fastestLap: r.fastest_lap,
+        cleanDriver: r.clean_driver,
+        isDnf: r.is_dnf
+      }, config as any);
+
+      return {
+        raceId: targetRaceId,
+        driverId: r.driver_id,
+        position: r.position,
+        qualiPosition: r.quali_position,
+        fastestLap: r.fastest_lap,
+        cleanDriver: r.clean_driver,
+        isDnf: r.is_dnf,
+        pointsEarned: points
+      };
+    });
+
+    if (resultsToInsert.length > 0) {
+      await db.insert(raceResults).values(resultsToInsert);
+    }
+
+    revalidatePath(`/profile/leagues/${leagueId}`);
+    revalidatePath(`/profile/leagues/${leagueId}/results`);
+    revalidatePath(`/dashboard`);
+    revalidatePath(`/`);
+
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('saveRaceResults error:', err);
+    return { success: false, error: err.message };
+  }
 }
+
+
 
 export async function getAdminLeagueDrivers(leagueId: string) {
   try {
