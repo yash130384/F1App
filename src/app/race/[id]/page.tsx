@@ -95,7 +95,7 @@ function RaceDetailContent() {
                                 {race.track}
                             </h1>
                             <div className="text-f1-bold" style={{ fontSize: '0.7rem', color: 'var(--f1-red)', letterSpacing: '4px' }}>
-                                {race.raceDate ? new Date(race.raceDate).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' }) : 'SESSION RECORDED'}
+                                {race.scheduledDate || race.raceDate ? new Date(race.scheduledDate || race.raceDate).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' }) : 'SESSION RECORDED'}
                                 <span className="mx-4 opacity-20">|</span>
                                 <span className="text-white/40">{race.leagueName}</span>
                             </div>

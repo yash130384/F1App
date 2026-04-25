@@ -659,7 +659,7 @@ export default function Dashboard() {
                                                     >
                                                         <div className="flex justify-between items-center">
                                                             <div>
-                                                                <div className="stat-label" style={{ fontSize: '0.6rem' }} suppressHydrationWarning>{new Date(race.createdAt).toLocaleDateString()}</div>
+                                                                <div className="stat-label" style={{ fontSize: '0.6rem' }} suppressHydrationWarning>{new Date(race.scheduledDate || race.raceDate || race.createdAt).toLocaleString()}</div>
                                                                 <div className="text-f1-bold" style={{ fontSize: '1.1rem', color: isHidden ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
                                                                     {isHidden ? '?? LOCKED TRACK' : (race.track || 'Unknown Grand Prix')}
                                                                 </div>
