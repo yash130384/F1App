@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useState, useEffect } from 'react';
-import { getAdminLeagueDrivers, saveRaceResults, getRaceResults, getLeagueRaces } from '@/lib/actions';
+import { getAdminLeagueDrivers, saveRaceResults, getRaceResults, getLeagueRaces, getPointsConfig } from '@/lib/actions';
 import { calculatePoints, formatPoints } from '@/lib/scoring';
 import { F1_TRACKS_2025 } from '@/lib/constants';
 
@@ -19,6 +19,8 @@ export default function ManualResults({
     const [track, setTrack] = useState('');
     const [activeRaceId, setActiveRaceId] = useState<string | undefined>(undefined);
     const [results, setResults] = useState<Record<string, { position: number; qualiPosition: number; fastestLap: boolean; cleanDriver: boolean; isDnf: boolean }>>({});
+    const [trackPool, setTrackPool] = useState<string[]>([]);
+    const [finishedTracks, setFinishedTracks] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -26,11 +28,23 @@ export default function ManualResults({
         async function fetchData() {
             setLoading(true);
             try {
-                const driversRes = await getAdminLeagueDrivers(leagueId);
+                const [driversRes, pointsRes, racesRes] = await Promise.all([
+                    getAdminLeagueDrivers(leagueId),
+                    getPointsConfig(leagueId),
+                    getLeagueRaces(leagueId)
+                ]);
+
                 if (!driversRes.success) throw new Error(driversRes.error || 'Failed to load drivers');
-                
                 setDrivers(driversRes.drivers || []);
                 
+                if (pointsRes.success && pointsRes.config?.trackPool) {
+                    setTrackPool(pointsRes.config.trackPool);
+                }
+
+                if (racesRes.success && racesRes.races) {
+                    setFinishedTracks(racesRes.races.filter((r: any) => r.is_finished).map((r: any) => r.track));
+                }
+
                 // Set initial empty state
                 const initialResults: any = {};
                 (driversRes.drivers || []).forEach((d: any) => {
@@ -41,7 +55,6 @@ export default function ManualResults({
                 let preSelectedTrack = '';
                 
                 if (!currentRaceId) {
-                    const racesRes = await getLeagueRaces(leagueId);
                     if (racesRes.success && racesRes.races) {
                         const nextScheduled = racesRes.races.find((r: any) => !r.is_finished);
                         if (nextScheduled) {
@@ -255,10 +268,17 @@ export default function ManualResults({
                             value={track}
                             onChange={e => setTrack(e.target.value)}
                             style={{ padding: '0.8rem', border: '1px solid var(--f1-red)', background: 'rgba(255, 24, 1, 0.05)', borderRadius: '4px', color: 'white', width: '100%' }}
-                            disabled={loading || !!activeRaceId}
+                            disabled={loading}
                         >
                             <option value="">-- Select Track --</option>
-                            {Object.values(F1_TRACKS_2025).map(t => <option key={t} value={t}>{t}</option>)}
+                            {(trackPool.length > 0 ? trackPool : Object.values(F1_TRACKS_2025)).map(t => {
+                                const hasResult = finishedTracks.includes(t);
+                                return (
+                                    <option key={t} value={t} style={{ color: hasResult ? 'var(--silver)' : 'white' }}>
+                                        {t} {hasResult ? '(hat bereits ein Ergebnis)' : ''}
+                                    </option>
+                                );
+                            })}
                         </select>
                     </div>
                     <div className="input-group">
