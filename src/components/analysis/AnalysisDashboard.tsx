@@ -62,16 +62,16 @@ export default function AnalysisDashboard({ sessionId, leagueId, trackId }: Anal
             if (sessionRes.success) {
                 setBestLaps(sessionRes.bestLaps || []);
                 if (sessionRes.bestLaps && sessionRes.bestLaps.length > 0) {
-                    setSelectedLap1(sessionRes.bestLaps[0].lap_id);
+                    setSelectedLap1(sessionRes.bestLaps[0].lapId);
                 }
             }
 
             if (trackRes.success && trackRes.lap) {
                 setGoldenLap(trackRes.lap);
-                setSelectedLap2(trackRes.lap.lap_id);
+                setSelectedLap2(trackRes.lap.lapId);
             } else if (sessionRes.success && sessionRes.bestLaps && sessionRes.bestLaps.length > 1) {
                 // Falls keine GoldenCopy vorhanden, nimm den zweitschnellsten Fahrer
-                setSelectedLap2(sessionRes.bestLaps[1].lap_id);
+                setSelectedLap2(sessionRes.bestLaps[1].lapId);
             }
 
             if (allLapsRes.success) {
@@ -101,8 +101,8 @@ export default function AnalysisDashboard({ sessionId, leagueId, trackId }: Anal
     }, [selectedLap1, selectedLap2]);
 
     // Informationen für Labels in den Charts finden
-    const lap1Info = bestLaps.find(l => l.lap_id === selectedLap1);
-    const lap2Info = bestLaps.find(l => l.lap_id === selectedLap2) || (selectedLap2 === goldenLap?.lap_id ? goldenLap : null);
+    const lap1Info = bestLaps.find(l => l.lapId === selectedLap1);
+    const lap2Info = bestLaps.find(l => l.lapId === selectedLap2) || (selectedLap2 === goldenLap?.lapId ? goldenLap : null);
 
     if (loading) {
         return (
@@ -139,10 +139,10 @@ export default function AnalysisDashboard({ sessionId, leagueId, trackId }: Anal
                             <DriverTrace 
                                 data1={samples1} 
                                 data2={samples2} 
-                                label1={lap1Info?.driver_name || (lap1Info?.game_name || 'Fahrer 1')} 
-                                label2={lap2Info?.driver_name || (lap2Info?.game_name || 'Fahrer 2')} 
-                                color1={lap1Info?.lap_id === goldenLap?.lap_id ? '#fbbf24' : (lap1Info?.driver_color || '#e10600')} 
-                                color2={lap2Info?.lap_id === goldenLap?.lap_id ? '#fbbf24' : (lap2Info?.driver_color || '#3b82f6')} 
+                                label1={lap1Info?.driverName || (lap1Info?.gameName || 'Fahrer 1')} 
+                                label2={lap2Info?.driverName || (lap2Info?.gameName || 'Fahrer 2')} 
+                                color1={lap1Info?.lapId === goldenLap?.lapId ? '#fbbf24' : (lap1Info?.driverColor || '#e10600')} 
+                                color2={lap2Info?.lapId === goldenLap?.lapId ? '#fbbf24' : (lap2Info?.driverColor || '#3b82f6')} 
                             />
                         )}
 
@@ -159,10 +159,10 @@ export default function AnalysisDashboard({ sessionId, leagueId, trackId }: Anal
                         {/* Reifen-Analyse - Thermik und Verschleiß (Böden und Oberflächen) */}
                         {activeTab === 'tyres' && (
                             <div className="flex flex-col gap-12">
-                               <TyreAnalysis samples={samples1} driverName={lap1Info?.driver_name || 'Fahrer 1'} />
+                               <TyreAnalysis samples={samples1} driverName={lap1Info?.driverName || 'Fahrer 1'} />
                                {samples2.length > 0 && (
                                    <div className="pt-12 border-t border-white/5">
-                                       <TyreAnalysis samples={samples2} driverName={lap2Info?.driver_name || 'Fahrer 2'} />
+                                       <TyreAnalysis samples={samples2} driverName={lap2Info?.driverName || 'Fahrer 2'} />
                                    </div>
                                )}
                             </div>
@@ -173,14 +173,15 @@ export default function AnalysisDashboard({ sessionId, leagueId, trackId }: Anal
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                 <GGCircle 
                                     samples={samples1} 
-                                    driverName={lap1Info?.driver_name || 'Fahrer 1'} 
-                                    color={lap1Info?.lap_id === goldenLap?.lap_id ? '#fbbf24' : (lap1Info?.driver_color || '#e10600')} 
+                                    driverName={lap1Info?.driverName || 'Fahrer 1'} 
+                                    color={lap1Info?.lapId === goldenLap?.lapId ? '#fbbf24' : (lap1Info?.driverColor || '#e10600')} 
+                                
                                 />
                                 {samples2.length > 0 && (
                                     <GGCircle 
                                         samples={samples2} 
-                                        driverName={lap2Info?.driver_name || 'Fahrer 2'} 
-                                        color={lap2Info?.lap_id === goldenLap?.lap_id ? '#fbbf24' : (lap2Info?.driver_color || '#3b82f6')} 
+                                        driverName={lap2Info?.driverName || 'Fahrer 2'} 
+                                        color={lap2Info?.lapId === goldenLap?.lapId ? '#fbbf24' : (lap2Info?.driverColor || '#3b82f6')} 
                                     />
                                 )}
                             </div>

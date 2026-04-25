@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { query, run } from "@/lib/db";
+import { db } from "@/lib/db";
+import { drivers, leagues, teams } from "@/lib/schema";
+import { eq, and, sql } from "drizzle-orm";
 
 export async function GET(req: Request) {
     try {
@@ -13,25 +15,38 @@ export async function GET(req: Request) {
         const userId = (session.user as any).id;
 
         // Finde alle Driver des Users und prüfe dabei ob er Owner der Liga ist
-        const drivers = await query<any>(`
-            SELECT d.id as driver_id, d.league_id, d.team_id, l.name as league_name, (l.owner_id = ?) as is_owner, l.teams_locked
-            FROM drivers d
-            JOIN leagues l ON d.league_id = l.id
-            WHERE d.user_id = ?
-        `, [userId, userId]);
+        const userDrivers = await db.select({
+            driverId: drivers.id,
+            leagueId: drivers.leagueId,
+            teamId: drivers.teamId,
+            leagueName: leagues.name,
+            isOwner: sql<boolean>`(${leagues.ownerId} = ${userId})`,
+            teamsLocked: leagues.teamsLocked
+        })
+        .from(drivers)
+        .innerJoin(leagues, eq(drivers.leagueId, leagues.id))
+        .where(eq(drivers.userId, userId));
 
         const result = [];
-        for (const row of drivers) {
+        for (const row of userDrivers) {
             // Finde verfügbare Teams in dieser Liga
-            const teams = await query<any>(`SELECT id, name, color FROM teams WHERE league_id = ? ORDER BY name ASC`, [row.league_id]);
+            const availableTeams = await db.select({
+                id: teams.id,
+                name: teams.name,
+                color: teams.color
+            })
+            .from(teams)
+            .where(eq(teams.leagueId, row.leagueId as string))
+            .orderBy(teams.name);
+
             result.push({
-                driverId: row.driver_id,
-                leagueId: row.league_id,
-                leagueName: row.league_name,
-                teamId: row.team_id,
-                isAdmin: !!row.is_owner,
-                isLocked: !!row.teams_locked,
-                availableTeams: teams
+                driverId: row.driverId,
+                leagueId: row.leagueId,
+                leagueName: row.leagueName,
+                teamId: row.teamId,
+                isAdmin: !!row.isOwner,
+                isLocked: !!row.teamsLocked,
+                availableTeams: availableTeams
             });
         }
 
@@ -58,25 +73,31 @@ export async function PUT(req: Request) {
         }
 
         // Sicherstellen dass der Driver zum einloggten User gehört UND ob die Liga gesperrt ist
-        const valid = await query<any>(`
-            SELECT d.id, l.teams_locked 
-            FROM drivers d 
-            JOIN leagues l ON d.league_id = l.id 
-            WHERE d.id = ? AND d.user_id = ?
-        `, [driverId, userId]);
+        const valid = await db.select({
+            id: drivers.id,
+            teamsLocked: leagues.teamsLocked
+        })
+        .from(drivers)
+        .innerJoin(leagues, eq(drivers.leagueId, leagues.id))
+        .where(and(eq(drivers.id, driverId), eq(drivers.userId, userId)))
+        .limit(1);
 
         if (valid.length === 0) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        if (valid[0].teams_locked) {
+        if (valid[0].teamsLocked) {
             return NextResponse.json({ error: "Teams are locked by the administrator" }, { status: 403 });
         }
 
         if (!teamId || teamId.trim() === '') {
-            await run("UPDATE drivers SET team_id = NULL, team = NULL WHERE id = ?", [driverId]);
+            await db.update(drivers)
+                .set({ teamId: null, team: null })
+                .where(eq(drivers.id, driverId));
         } else {
-            await run("UPDATE drivers SET team_id = ?, team = NULL WHERE id = ?", [teamId, driverId]);
+            await db.update(drivers)
+                .set({ teamId: teamId, team: null })
+                .where(eq(drivers.id, driverId));
         }
 
         return NextResponse.json({ success: true });

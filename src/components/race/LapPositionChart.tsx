@@ -6,16 +6,16 @@ import {
 } from 'recharts';
 
 interface PositionEntry {
-    car_index: number;
-    lap_number: number;
+    carIndex: number;
+    lapNumber: number;
     position: number;
 }
 
 interface Participant {
-    game_name: string;
-    driver_name?: string;
-    driver_color?: string;
-    car_index: number;
+    gameName: string;
+    driverName?: string;
+    driverColor?: string;
+    carIndex: number;
     position: number;
 }
 
@@ -26,11 +26,11 @@ interface LapPositionChartProps {
 }
 
 export function LapPositionChart({ participants, history, totalLaps }: LapPositionChartProps) {
-    // Mapping von car_index auf Teilnehmer erstellen
+    // Mapping von carIndex auf Teilnehmer erstellen
     const carIndexMap: Record<number, Participant> = React.useMemo(() => {
         const map: Record<number, Participant> = {};
         participants.forEach(p => {
-            map[p.car_index] = p;
+            map[p.carIndex] = p;
         });
         return map;
     }, [participants]);
@@ -44,12 +44,12 @@ export function LapPositionChart({ participants, history, totalLaps }: LapPositi
     const chartData = React.useMemo(() => {
         const dataByLap: Record<number, any> = {};
         history.forEach(entry => {
-            if (!dataByLap[entry.lap_number]) {
-                dataByLap[entry.lap_number] = { lap: entry.lap_number };
+            if (!dataByLap[entry.lapNumber]) {
+                dataByLap[entry.lapNumber] = { lap: entry.lapNumber };
             }
-            const driver = carIndexMap[entry.car_index];
+            const driver = carIndexMap[entry.carIndex];
             if (driver) {
-                dataByLap[entry.lap_number][driver.game_name] = entry.position;
+                dataByLap[entry.lapNumber][driver.gameName] = entry.position;
             }
         });
         return Object.values(dataByLap).sort((a, b) => a.lap - b.lap);
@@ -94,11 +94,11 @@ export function LapPositionChart({ participants, history, totalLaps }: LapPositi
                 />
                 {topDrivers.map((p, i) => (
                     <Line
-                        key={p.game_name}
+                        key={p.gameName}
                         type="monotone"
-                        dataKey={p.game_name}
-                        name={p.driver_name || p.game_name}
-                        stroke={p.driver_color || 'var(--text-muted)'}
+                        dataKey={p.gameName}
+                        name={p.driverName || p.gameName}
+                        stroke={p.driverColor || 'var(--text-muted)'}
                         strokeWidth={2}
                         dot={false}
                         activeDot={{ r: 4, strokeWidth: 0 }}

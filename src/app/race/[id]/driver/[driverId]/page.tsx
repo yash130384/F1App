@@ -87,9 +87,9 @@ function computeDamageEvents(laps: any[]): DamageEvent[] {
     let prev: Record<string, number> = {};
 
     laps.forEach((lap: any) => {
-        if (!lap.car_damage_json) return;
+        if (!lap.carDamageJson) return;
         let curr: Record<string, number>;
-        try { curr = JSON.parse(lap.car_damage_json); } catch { return; }
+        try { curr = JSON.parse(lap.carDamageJson); } catch { return; }
 
         const newDamages: DamageEvent['newDamages'] = [];
         const repairs:    DamageEvent['repairs']    = [];
@@ -102,7 +102,7 @@ function computeDamageEvents(laps: any[]): DamageEvent[] {
         });
 
         if (newDamages.length > 0 || repairs.length > 0) {
-            events.push({ lap: lap.lap_number, newDamages, repairs, isPitLap: !!lap.is_pit_lap });
+            events.push({ lap: lap.lapNumber, newDamages, repairs, isPitLap: !!lap.isPitLap });
         }
         DAMAGE_PARTS.forEach(({ key }) => {
             prev[key] = key === 'engineBlown' ? (curr[key] ? 100 : 0) : (curr[key] ?? 0);
@@ -136,7 +136,7 @@ function DriverDetailContent() {
     const [driverLaps, setDriverLaps] = useState<any[]>([]);
     const [positionHistory, setPositionHistory] = useState<any[]>([]);
     const [scEvents, setScEvents] = useState<any[]>([]);
-    const [fastestSectors, setFastestSectors] = useState<{min_s1: number, min_s2: number, min_s3: number} | null>(null);
+    const [fastestSectors, setFastestSectors] = useState<{minS1: number, minS2: number, minS3: number} | null>(null);
     const [incidents, setIncidents] = useState<any[]>([]);
     
     // Toggle state for engine/gearbox damage
@@ -149,8 +149,8 @@ function DriverDetailContent() {
             if (rRes.success && rRes.race) {
                 setRace(rRes.race);
                 const results = rRes.results || [];
-                const dRes = results.find((r: any) => r.driver_id === driverId);
-                setDriverRes(dRes || { driver_name: 'Unknown', driver_id: driverId, position: '-', points_earned: 0, quali_position: 0 });
+                const dRes = results.find((r: any) => r.driverId === driverId);
+                setDriverRes(dRes || { driverName: 'Unknown', driverId: driverId, position: '-', pointsEarned: 0, qualiPosition: 0 });
 
                 const sid = rRes.telemetrySessionId || null;
 
@@ -167,7 +167,7 @@ function DriverDetailContent() {
                     setPositionHistory(posRes.positions || []);
                 }
                 if (scRes.success && (scRes as any).events) {
-                    setScEvents((scRes as any).events.filter((e: any) => e.event_type === 0));
+                    setScEvents((scRes as any).events.filter((e: any) => e.eventType === 0));
                 }
                 if (sectRes.success && sectRes.fastestSectors) {
                     setFastestSectors(sectRes.fastestSectors);
@@ -186,27 +186,27 @@ function DriverDetailContent() {
         }
     }, [raceId, driverId]);
 
-    const leagueUrl = race?.league_id 
-        ? `/dashboard?league=${race.league_id}` 
+    const leagueUrl = race?.leagueId 
+        ? `/dashboard?league=${race.leagueId}` 
         : '/dashboard';
-    const backLabel = race?.league_name || leagueName || 'Dashboard';
-    const raceUrl = `/race/${raceId}?league=${race?.league_id || ''}`;
+    const backLabel = race?.leagueName || leagueName || 'Dashboard';
+    const raceUrl = `/race/${raceId}?league=${race?.leagueId || ''}`;
 
     const fastestLapMs = driverLaps.length > 0
-        ? Math.min(...driverLaps.filter((l: any) => l.is_valid && l.lap_time_ms > 0).map((l: any) => l.lap_time_ms))
+        ? Math.min(...driverLaps.filter((l: any) => l.isValid && l.lapTimeMs > 0).map((l: any) => l.lapTimeMs))
         : Infinity;
 
-    const currentTyre = driverLaps.length > 0 ? driverLaps[driverLaps.length - 1]?.tyre_compound : null;
+    const currentTyre = driverLaps.length > 0 ? driverLaps[driverLaps.length - 1]?.tyreCompound : null;
 
     const lastDamage = (() => {
-        const withDmg = driverLaps.filter((l: any) => l.car_damage_json);
+        const withDmg = driverLaps.filter((l: any) => l.carDamageJson);
         if (withDmg.length === 0) return null;
-        try { return JSON.parse(withDmg[withDmg.length - 1].car_damage_json); } catch { return null; }
+        try { return JSON.parse(withDmg[withDmg.length - 1].carDamageJson); } catch { return null; }
     })();
 
     const driverPosData = (() => {
         if (!driverRes || positionHistory.length === 0) return [];
-        return positionHistory.map((p: any) => ({ lap: p.lap_number, position: p.position }));
+        return positionHistory.map((p: any) => ({ lap: p.lapNumber, position: p.position }));
     })();
 
     if (loading) {
@@ -234,26 +234,26 @@ function DriverDetailContent() {
                 </Link>
                 <span style={{ color: 'rgba(255,255,255,0.2)' }}>/</span>
                 <Link href={raceUrl} className="text-f1" style={{ color: 'var(--silver)', fontSize: '0.85rem', textDecoration: 'none' }}>
-                    {race.track_name || 'Rennen'}
+                    {race.track || race.trackName || 'Rennen'}
                 </Link>
                 <span style={{ color: 'rgba(255,255,255,0.2)' }}>/</span>
-                <span className="text-f1" style={{ color: 'var(--white)', fontSize: '0.85rem' }}>{driverRes.driver_name}</span>
+                <span className="text-f1" style={{ color: 'var(--white)', fontSize: '0.85rem' }}>{driverRes.driverName}</span>
             </div>
 
             <div className="f1-card animate-fade-in" style={{ marginBottom: '2rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ width: '4px', height: '36px', borderRadius: '2px', background: driverRes.driver_color || 'var(--f1-red)', flexShrink: 0 }} />
+                        <div style={{ width: '4px', height: '36px', borderRadius: '2px', background: driverRes.driverColor || 'var(--f1-red)', flexShrink: 0 }} />
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                <h1 className="text-f1" style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', marginBottom: 0 }}>{driverRes.driver_name}</h1>
+                                <h1 className="text-f1" style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', marginBottom: 0 }}>{driverRes.driverName}</h1>
                                 {currentTyre != null && <TyreBadge compoundId={currentTyre} />}
                             </div>
                             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem', color: 'var(--silver)', flexWrap: 'wrap', marginTop: '3px' }}>
                                 <span>P{driverRes.position}</span>
-                                {driverRes.quali_position > 0 && <span>Grid: P{driverRes.quali_position}</span>}
-                                {driverRes.pit_stops > 0 && <span>{driverRes.pit_stops} Pit{driverRes.pit_stops > 1 ? 's' : ''}</span>}
-                                {driverRes.penalties_time > 0 && <span style={{ color: 'var(--f1-red)' }}>+{driverRes.penalties_time}s Strafe</span>}
+                                {driverRes.qualiPosition > 0 && <span>Grid: P{driverRes.qualiPosition}</span>}
+                                {driverRes.pitStops > 0 && <span>{driverRes.pitStops} Pit{driverRes.pitStops > 1 ? 's' : ''}</span>}
+                                {driverRes.penaltiesTime > 0 && <span style={{ color: 'var(--f1-red)' }}>+{driverRes.penaltiesTime}s Strafe</span>}
                                 {driverRes.warnings > 0 && <span style={{ color: '#ff8700' }}>{driverRes.warnings} Verwarnungen</span>}
                             </div>
                         </div>
@@ -265,22 +265,22 @@ function DriverDetailContent() {
                         <div style={{ marginBottom: '0.5rem', fontSize: '0.7rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Rundenzeitverlauf</div>
                         <div style={{ width: '100%', height: 'clamp(200px, 35vw, 300px)', marginBottom: '2rem' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={driverLaps.map(l => ({ ...l, lap_time_ms: l.lap_time_ms > 0 ? l.lap_time_ms : null }))} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                                <LineChart data={driverLaps.map(l => ({ ...l, lapTimeMs: l.lapTimeMs > 0 ? l.lapTimeMs : null }))} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                                     <defs>
                                         {(() => {
                                             if (driverLaps.length === 0) return null;
-                                            const minLap = Math.min(...driverLaps.map(d => d.lap_number));
-                                            const maxLap = Math.max(...driverLaps.map(d => d.lap_number));
+                                            const minLap = Math.min(...driverLaps.map(d => d.lapNumber));
+                                            const maxLap = Math.max(...driverLaps.map(d => d.lapNumber));
                                             const range = maxLap - minLap || 1;
                                             let stops: any[] = [];
-                                            let curTyre = driverLaps[0]?.tyre_compound;
+                                            let curTyre = driverLaps[0]?.tyreCompound;
                                             stops.push(<stop key="s0" offset="0%" stopColor={getTyreInfo(curTyre).color} />);
                                             driverLaps.forEach(lap => {
-                                                if (lap.tyre_compound !== curTyre && lap.tyre_compound !== undefined) {
-                                                    const pct = `${((lap.lap_number - minLap) / range) * 100}%`;
-                                                    stops.push(<stop key={`e${lap.lap_number}`} offset={pct} stopColor={getTyreInfo(curTyre).color} />);
-                                                    stops.push(<stop key={`s${lap.lap_number}`} offset={pct} stopColor={getTyreInfo(lap.tyre_compound).color} />);
-                                                    curTyre = lap.tyre_compound;
+                                                if (lap.tyreCompound !== curTyre && lap.tyreCompound !== undefined) {
+                                                    const pct = `${((lap.lapNumber - minLap) / range) * 100}%`;
+                                                    stops.push(<stop key={`e${lap.lapNumber}`} offset={pct} stopColor={getTyreInfo(curTyre).color} />);
+                                                    stops.push(<stop key={`s${lap.lapNumber}`} offset={pct} stopColor={getTyreInfo(lap.tyreCompound).color} />);
+                                                    curTyre = lap.tyreCompound;
                                                 }
                                             });
                                             stops.push(<stop key="send" offset="100%" stopColor={getTyreInfo(curTyre).color} />);
@@ -292,39 +292,39 @@ function DriverDetailContent() {
                                         })()}
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.07)" vertical={false} />
-                                    <XAxis dataKey="lap_number" stroke="var(--silver)" tick={{ fill: 'var(--silver)', fontSize: 10 }} />
+                                    <XAxis dataKey="lapNumber" stroke="var(--silver)" tick={{ fill: 'var(--silver)', fontSize: 10 }} />
                                     <YAxis stroke="var(--silver)" tick={{ fill: 'var(--silver)', fontSize: 10 }} domain={['auto', 'auto']} tickFormatter={formatLapTime} width={65} />
                                     <Tooltip
                                         contentStyle={{ backgroundColor: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', fontSize: '0.85rem' }}
                                         labelFormatter={(l) => `Runde ${l}`}
                                         formatter={(v: any, _key: any, props: any) => {
-                                            const lap = driverLaps.find((l: any) => l.lap_number === props.payload?.lap_number);
-                                            const tyrInfo = lap?.tyre_compound ? getTyreInfo(lap.tyre_compound) : null;
+                                            const lap = driverLaps.find((l: any) => l.lapNumber === props.payload?.lapNumber);
+                                            const tyrInfo = lap?.tyreCompound ? getTyreInfo(lap.tyreCompound) : null;
                                             return [
                                                 <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     {formatLapTime(v)}
-                                                    {!lap?.is_valid && <span style={{ color: 'var(--f1-red)', fontSize: '0.7em', fontWeight: 900 }}>INV</span>}
-                                                    {tyrInfo && <TyreBadge compoundId={lap.tyre_compound} />}
+                                                    {!lap?.isValid && <span style={{ color: 'var(--f1-red)', fontSize: '0.7em', fontWeight: 900 }}>INV</span>}
+                                                    {tyrInfo && <TyreBadge compoundId={lap.tyreCompound} />}
                                                 </span>,
                                                 'Rundenzeit'
                                             ];
                                         }}
                                     />
                                     {scEvents.map((e: any, i: number) => (
-                                        <ReferenceLine key={`sc-${i}`} x={e.lap_number} stroke="#ffc107" strokeDasharray="4 3" strokeWidth={1.5}
-                                            label={{ value: e.safety_car_type === 1 ? 'SC' : 'VSC', position: 'insideTopLeft', fill: '#ffc107', fontSize: 9 }} />
+                                        <ReferenceLine key={`sc-${i}`} x={e.lapNumber} stroke="#ffc107" strokeDasharray="4 3" strokeWidth={1.5}
+                                            label={{ value: e.safetyCarType === 1 ? 'SC' : 'VSC', position: 'insideTopLeft', fill: '#ffc107', fontSize: 9 }} />
                                     ))}
                                     {driverLaps.filter((l: any, idx: number) => {
-                                        if (!l.is_pit_lap) return false;
+                                        if (!l.isPitLap) return false;
                                         // Nur anzeigen, wenn die Vorrunde keine Pit-Runde war (verhindert Doppel-Anzeige)
-                                        return idx === 0 || !driverLaps[idx-1].is_pit_lap;
+                                        return idx === 0 || !driverLaps[idx-1].isPitLap;
                                     }).map((l: any) => (
-                                        <ReferenceLine key={`pit-${l.lap_number}`} x={l.lap_number} stroke="#ff8700"
+                                        <ReferenceLine key={`pit-${l.lapNumber}`} x={l.lapNumber} stroke="#ff8700"
                                             strokeWidth={1} strokeDasharray="3 2"
                                             label={<ChartEventLabel value="PIT" color="#ff8700" bg="rgba(255,135,0,0.18)" />} />
                                     ))}
-                                    {incidents.filter((i: any) => i.type === 'COLLISION' && i.lap_num > 0).map((inc: any, idx: number) => (
-                                        <ReferenceLine key={`coll-${idx}`} x={inc.lap_num} stroke="#ff0000"
+                                    {incidents.filter((i: any) => i.type === 'COLLISION' && i.lapNum > 0).map((inc: any, idx: number) => (
+                                        <ReferenceLine key={`coll-${idx}`} x={inc.lapNum} stroke="#ff0000"
                                             strokeWidth={1.5} strokeDasharray="3 3"
                                             label={<ChartEventLabel value="💥" color="#ff0000" bg="rgba(255,0,0,0.15)" />} />
                                     ))}
@@ -349,17 +349,17 @@ function DriverDetailContent() {
                                             />
                                         );
                                     })}
-                                    <Line type="monotone" dataKey="lap_time_ms" stroke="url(#singleTyreGradient)" strokeWidth={3}
+                                    <Line type="monotone" dataKey="lapTimeMs" stroke="url(#singleTyreGradient)" strokeWidth={3}
                                         dot={(props: any) => {
                                             const idx = props.index;
                                             const lap = driverLaps[idx];
                                             if (!lap) return <g key={props.key} />;
-                                            const isFirstPitLap = lap.is_pit_lap && (idx === 0 || !driverLaps[idx-1].is_pit_lap);
-                                            if (isFirstPitLap && lap.tyre_compound) {
-                                                const info = getTyreInfo(lap.tyre_compound);
+                                            const isFirstPitLap = lap.isPitLap && (idx === 0 || !driverLaps[idx-1].isPitLap);
+                                            if (isFirstPitLap && lap.tyreCompound) {
+                                                const info = getTyreInfo(lap.tyreCompound);
                                                 return <circle key={props.key} cx={props.cx} cy={props.cy} r={6} fill={info.color} stroke="rgba(255,255,255,0.5)" strokeWidth={2} />;
                                             }
-                                            return <circle key={props.key} cx={props.cx} cy={props.cy} r={3} fill={!lap.is_valid ? 'rgba(225,6,0,0.3)' : 'rgba(225,6,0,0.7)'} />;
+                                            return <circle key={props.key} cx={props.cx} cy={props.cy} r={3} fill={!lap.isValid ? 'rgba(225,6,0,0.3)' : 'rgba(225,6,0,0.7)'} />;
                                         }}
                                         isAnimationActive={false}
                                     />
@@ -405,11 +405,11 @@ function DriverDetailContent() {
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
                                                 <span style={{ color: 'var(--silver)' }}>Start</span>
-                                                <span style={{ fontWeight: 700 }}>P{driverRes.quali_position > 0 ? driverRes.quali_position : '-'}</span>
+                                                <span style={{ fontWeight: 700 }}>P{driverRes.qualiPosition > 0 ? driverRes.qualiPosition : '-'}</span>
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
                                                 <span style={{ color: 'var(--silver)' }}>Ziel</span>
-                                                <span style={{ fontWeight: 700, color: driverRes.position < (driverRes.quali_position || 99) ? 'var(--success)' : 'var(--f1-red)' }}>P{driverRes.position}</span>
+                                                <span style={{ fontWeight: 700, color: driverRes.position < (driverRes.qualiPosition || 99) ? 'var(--success)' : 'var(--f1-red)' }}>P{driverRes.position}</span>
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
                                                 <span style={{ color: 'var(--silver)' }}>Bestzeit</span>
@@ -419,7 +419,7 @@ function DriverDetailContent() {
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
                                                 <span style={{ color: 'var(--silver)' }}>Punkte</span>
-                                                <span style={{ fontWeight: 700, color: 'var(--f1-red)' }}>{driverRes.points_earned}</span>
+                                                <span style={{ fontWeight: 700, color: 'var(--f1-red)' }}>{driverRes.pointsEarned}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -433,22 +433,22 @@ function DriverDetailContent() {
                                             let lastLapWasPit = false;
 
                                             for (const lap of driverLaps) {
-                                                if (!currentStint || lastLapWasPit || lap.tyre_compound !== currentStint.tyre_compound) {
+                                                if (!currentStint || lastLapWasPit || lap.tyreCompound !== currentStint.tyreCompound) {
                                                     if (currentStint) {
-                                                        currentStint.end_lap = lap.lap_number - 1;
+                                                        currentStint.endLap = lap.lapNumber - 1;
                                                         computedStints.push(currentStint);
                                                     }
                                                     currentStint = {
-                                                        stint_number: stintNum++,
-                                                        tyre_compound: lap.tyre_compound || 0,
-                                                        visual_compound: lap.tyre_compound || 0,
-                                                        start_lap: lap.lap_number,
-                                                        end_lap: lap.lap_number
+                                                        stintNumber: stintNum++,
+                                                        tyreCompound: lap.tyreCompound || 0,
+                                                        visualCompound: lap.tyreCompound || 0,
+                                                        startLap: lap.lapNumber,
+                                                        endLap: lap.lapNumber
                                                     };
                                                 } else {
-                                                    currentStint.end_lap = lap.lap_number;
+                                                    currentStint.endLap = lap.lapNumber;
                                                 }
-                                                lastLapWasPit = lap.is_pit_lap ? true : false;
+                                                lastLapWasPit = lap.isPitLap ? true : false;
                                             }
                                             if (currentStint) {
                                                 computedStints.push(currentStint);
@@ -457,11 +457,11 @@ function DriverDetailContent() {
                                             return (
                                                 <TyreStrategyChart 
                                                     participants={[{
-                                                        game_name: driverRes.driver_name || 'Driver',
+                                                        gameName: driverRes.driverName || 'Driver',
                                                         position: driverRes.position,
                                                         stints: computedStints
                                                     }]}
-                                                    totalLaps={driverLaps[driverLaps.length - 1].lap_number}
+                                                    totalLaps={driverLaps[driverLaps.length - 1].lapNumber}
                                                 />
                                             );
                                         })()}
@@ -492,54 +492,54 @@ function DriverDetailContent() {
                                                 const dmgEvents = computeDamageEvents(driverLaps);
                                                 const dmgByLap = new Map(dmgEvents.map(e => [e.lap, e]));
                                                 
-                                                const validLaps = driverLaps.filter(l => l.is_valid);
-                                                const pbS1 = validLaps.filter(l => l.sector1_ms > 0).length > 0 ? Math.min(...validLaps.filter(l => l.sector1_ms > 0).map(l => l.sector1_ms)) : Infinity;
-                                                const pbS2 = validLaps.filter(l => l.sector2_ms > 0).length > 0 ? Math.min(...validLaps.filter(l => l.sector2_ms > 0).map(l => l.sector2_ms)) : Infinity;
-                                                const pbS3 = validLaps.filter(l => l.sector3_ms > 0).length > 0 ? Math.min(...validLaps.filter(l => l.sector3_ms > 0).map(l => l.sector3_ms)) : Infinity;
+                                                const validLaps = driverLaps.filter(l => l.isValid);
+                                                const pbS1 = validLaps.filter(l => l.sector1Ms > 0).length > 0 ? Math.min(...validLaps.filter(l => l.sector1Ms > 0).map(l => l.sector1Ms)) : Infinity;
+                                                const pbS2 = validLaps.filter(l => l.sector2Ms > 0).length > 0 ? Math.min(...validLaps.filter(l => l.sector2Ms > 0).map(l => l.sector2Ms)) : Infinity;
+                                                const pbS3 = validLaps.filter(l => l.sector3Ms > 0).length > 0 ? Math.min(...validLaps.filter(l => l.sector3Ms > 0).map(l => l.sector3Ms)) : Infinity;
                                                 
                                                 return driverLaps.map((lap) => {
-                                                    const isFastest = lap.is_valid && lap.lap_time_ms === fastestLapMs;
-                                                    const dmgEv = dmgByLap.get(lap.lap_number);
+                                                    const isFastest = lap.isValid && lap.lapTimeMs === fastestLapMs;
+                                                    const dmgEv = dmgByLap.get(lap.lapNumber);
                                                     
                                                     const visibleDamages = dmgEv?.newDamages.filter(d => showHiddendamage || !['engineDamage', 'engineBlown', 'gearBoxDamage'].includes(d.key)) || [];
                                                     const visibleRepairs = dmgEv?.repairs.filter(d => showHiddendamage || !['engineDamage', 'engineBlown', 'gearBoxDamage'].includes(d.key)) || [];
-                                                    const lapCollisions = incidents.filter(i => i.type === 'COLLISION' && i.lap_num === lap.lap_number);
+                                                    const lapCollisions = incidents.filter(i => i.type === 'COLLISION' && i.lapNum === lap.lapNumber);
                                                     
                                                     const hasVisibleDmg = visibleDamages.length > 0;
                                                     
-                                                    const s1Purple = fastestSectors && fastestSectors.min_s1 && lap.sector1_ms && lap.sector1_ms <= (fastestSectors.min_s1 + 2) && lap.is_valid;
-                                                    const s2Purple = fastestSectors && fastestSectors.min_s2 && lap.sector2_ms && lap.sector2_ms <= (fastestSectors.min_s2 + 2) && lap.is_valid;
-                                                    const s3Purple = fastestSectors && fastestSectors.min_s3 && lap.sector3_ms && lap.sector3_ms <= (fastestSectors.min_s3 + 2) && lap.is_valid;
+                                                    const s1Purple = fastestSectors && fastestSectors.minS1 && lap.sector1Ms && lap.sector1Ms <= (fastestSectors.minS1 + 2) && lap.isValid;
+                                                    const s2Purple = fastestSectors && fastestSectors.minS2 && lap.sector2Ms && lap.sector2Ms <= (fastestSectors.minS2 + 2) && lap.isValid;
+                                                    const s3Purple = fastestSectors && fastestSectors.minS3 && lap.sector3Ms && lap.sector3Ms <= (fastestSectors.minS3 + 2) && lap.isValid;
 
-                                                    const s1Green = !s1Purple && pbS1 !== Infinity && lap.sector1_ms && lap.sector1_ms <= (pbS1 + 2) && lap.is_valid;
-                                                    const s2Green = !s2Purple && pbS2 !== Infinity && lap.sector2_ms && lap.sector2_ms <= (pbS2 + 2) && lap.is_valid;
-                                                    const s3Green = !s3Purple && pbS3 !== Infinity && lap.sector3_ms && lap.sector3_ms <= (pbS3 + 2) && lap.is_valid;
+                                                    const s1Green = !s1Purple && pbS1 !== Infinity && lap.sector1Ms && lap.sector1Ms <= (pbS1 + 2) && lap.isValid;
+                                                    const s2Green = !s2Purple && pbS2 !== Infinity && lap.sector2Ms && lap.sector2Ms <= (pbS2 + 2) && lap.isValid;
+                                                    const s3Green = !s3Purple && pbS3 !== Infinity && lap.sector3Ms && lap.sector3Ms <= (pbS3 + 2) && lap.isValid;
 
                                                     return (
-                                                        <tr key={lap.lap_number} style={{
-                                                            background: lap.is_pit_lap ? 'rgba(255,255,255,0.03)' : hasVisibleDmg ? 'rgba(255, 135, 0, 0.05)' : 'transparent',
+                                                        <tr key={lap.lapNumber} style={{
+                                                            background: lap.isPitLap ? 'rgba(255,255,255,0.03)' : hasVisibleDmg ? 'rgba(255, 135, 0, 0.05)' : 'transparent',
                                                             borderBottom: '1px solid rgba(255,255,255,0.02)'
                                                         }}>
-                                                            <td style={{ padding: '0.5rem 0.75rem', color: 'var(--silver)', fontSize: '0.85rem' }}>{lap.lap_number}</td>
-                                                            <td style={{ padding: '0.5rem 0.75rem', color: isFastest ? '#9c27b0' : !lap.is_valid ? 'var(--f1-red)' : 'var(--white)', fontWeight: isFastest ? 900 : 400, fontSize: '0.85rem', fontFamily: 'monospace' }}>
-                                                                {formatLapTime(lap.lap_time_ms)}
+                                                            <td style={{ padding: '0.5rem 0.75rem', color: 'var(--silver)', fontSize: '0.85rem' }}>{lap.lapNumber}</td>
+                                                            <td style={{ padding: '0.5rem 0.75rem', color: isFastest ? '#9c27b0' : !lap.isValid ? 'var(--f1-red)' : 'var(--white)', fontWeight: isFastest ? 900 : 400, fontSize: '0.85rem', fontFamily: 'monospace' }}>
+                                                                {formatLapTime(lap.lapTimeMs)}
                                                                 {isFastest && <span style={{ fontSize: '0.5rem', marginLeft: '6px', background: '#9c27b0', color: 'white', padding: '1px 3px', borderRadius: '3px' }}>FL</span>}
                                                             </td>
-                                                            <td style={{ padding: '0.5rem 0.75rem', color: s1Purple ? '#9c27b0' : s1Green ? '#34c38f' : 'var(--silver)', fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: s1Purple || s1Green ? 900 : 400 }}>{formatSectorTime(lap.sector1_ms)}</td>
-                                                            <td style={{ padding: '0.5rem 0.75rem', color: s2Purple ? '#9c27b0' : s2Green ? '#34c38f' : 'var(--silver)', fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: s2Purple || s2Green ? 900 : 400 }}>{formatSectorTime(lap.sector2_ms)}</td>
-                                                            <td style={{ padding: '0.5rem 0.75rem', color: s3Purple ? '#9c27b0' : s3Green ? '#34c38f' : 'var(--silver)', fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: s3Purple || s3Green ? 900 : 400 }}>{formatSectorTime(lap.sector3_ms)}</td>
+                                                            <td style={{ padding: '0.5rem 0.75rem', color: s1Purple ? '#9c27b0' : s1Green ? '#34c38f' : 'var(--silver)', fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: s1Purple || s1Green ? 900 : 400 }}>{formatSectorTime(lap.sector1Ms)}</td>
+                                                            <td style={{ padding: '0.5rem 0.75rem', color: s2Purple ? '#9c27b0' : s2Green ? '#34c38f' : 'var(--silver)', fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: s2Purple || s2Green ? 900 : 400 }}>{formatSectorTime(lap.sector2Ms)}</td>
+                                                            <td style={{ padding: '0.5rem 0.75rem', color: s3Purple ? '#9c27b0' : s3Green ? '#34c38f' : 'var(--silver)', fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: s3Purple || s3Green ? 900 : 400 }}>{formatSectorTime(lap.sector3Ms)}</td>
                                                             <td style={{ padding: '0.5rem 0.75rem', textAlign: 'center' }}>
                                                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                                                                    {lap.tyre_compound != null && <TyreBadge compoundId={lap.tyre_compound} />}
+                                                                    {lap.tyreCompound != null && <TyreBadge compoundId={lap.tyreCompound} />}
                                                                     {(() => {
-                                                                        const idx = driverLaps.findIndex(l => l.lap_number === lap.lap_number);
-                                                                        const isFirstPitLap = lap.is_pit_lap && (idx === 0 || !driverLaps[idx-1].is_pit_lap);
+                                                                        const idx = driverLaps.findIndex(l => l.lapNumber === lap.lapNumber);
+                                                                        const isFirstPitLap = lap.isPitLap && (idx === 0 || !driverLaps[idx-1].isPitLap);
                                                                         return isFirstPitLap ? <span style={{ background: '#ff8700', color: 'white', fontSize: '0.55rem', padding: '2px 4px', borderRadius: '3px', fontWeight: 900 }}>PIT</span> : null;
                                                                     })()}
-                                                                    {!lap.is_valid && <span style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.55rem', padding: '2px 4px', borderRadius: '3px', fontWeight: 900 }} title="Runde Ungültig">INV</span>}
+                                                                    {!lap.isValid && <span style={{ background: 'var(--f1-red)', color: 'white', fontSize: '0.55rem', padding: '2px 4px', borderRadius: '3px', fontWeight: 900 }} title="Runde Ungültig">INV</span>}
                                                                     
                                                                     {lapCollisions.length > 0 && (
-                                                                        <span title={lapCollisions.map((c: any) => `Kollision mit ${c.other_driver || 'Unbekannt'}`).join(' | ')}
+                                                                        <span title={lapCollisions.map((c: any) => `Kollision mit ${c.otherDriver || 'Unbekannt'}`).join(' | ')}
                                                                             style={{ background: 'rgba(255,0,0,0.8)', color: 'white', fontSize: '0.55rem', padding: '2px 4px', borderRadius: '3px', fontWeight: 900, cursor: 'help' }}
                                                                         >💥 COLL</span>
                                                                     )}
@@ -550,7 +550,7 @@ function DriverDetailContent() {
                                                                         >⚠ {visibleDamages.map(d => d.label).join(', ')}</span>
                                                                     )}
                                                                     
-                                                                    {visibleRepairs.length > 0 && lap.is_pit_lap && (
+                                                                    {visibleRepairs.length > 0 && lap.isPitLap && (
                                                                         <span title={visibleRepairs.map(d => `${d.label} repariert`).join(', ')}
                                                                             style={{ background: 'rgba(52,195,143,0.8)', color: 'white', fontSize: '0.55rem', padding: '2px 4px', borderRadius: '3px', fontWeight: 900, cursor: 'help' }}
                                                                         >🔧 REP</span>

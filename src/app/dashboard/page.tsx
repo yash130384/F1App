@@ -39,7 +39,7 @@ function RaceGraphContent({ raceGraphData, raceGraphDrivers, showTyreLines, setS
                     <LineChart data={raceGraphData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                         <XAxis
-                            dataKey="lap_number"
+                            dataKey="lapNumber"
                             stroke="var(--silver)"
                             tick={{ fill: 'var(--silver)', fontSize: 12 }}
                             domain={['dataMin', 'dataMax']}
@@ -58,8 +58,8 @@ function RaceGraphContent({ raceGraphData, raceGraphDrivers, showTyreLines, setS
                                     const driverLaps = raceGraphData.filter(d => d[driver.id] !== undefined);
                                     if (driverLaps.length === 0) return null;
 
-                                    const maxLap = Math.max(...driverLaps.map(d => d.lap_number));
-                                    const minLap = Math.min(...driverLaps.map(d => d.lap_number));
+                                    const maxLap = Math.max(...driverLaps.map(d => d.lapNumber));
+                                    const minLap = Math.min(...driverLaps.map(d => d.lapNumber));
                                     const range = maxLap - minLap;
 
                                     if (range === 0) return null;
@@ -71,7 +71,7 @@ function RaceGraphContent({ raceGraphData, raceGraphDrivers, showTyreLines, setS
                                     driverLaps.forEach(lap => {
                                         const tyre = lap[`${driver.id}_current_tyre`];
                                         if (tyre !== currentTyre && tyre !== undefined) {
-                                            const offset = `${((lap.lap_number - minLap) / range) * 100}%`;
+                                            const offset = `${((lap.lapNumber - minLap) / range) * 100}%`;
                                             stops.push(<stop key={`stop1-${lap.lap_number}`} offset={offset} stopColor={getTyreInfo(currentTyre).color} />);
                                             stops.push(<stop key={`stop2-${lap.lap_number}`} offset={offset} stopColor={getTyreInfo(tyre).color} />);
                                             currentTyre = tyre;
@@ -355,7 +355,7 @@ export default function Dashboard() {
                 <section>
                     <div className="flex justify-between items-center mb-4" style={{ marginBottom: '1.5rem' }}>
                         <h2 className="h2" style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', margin: 0 }}>Select a League</h2>
-                        {leaguesList.some(l => l.is_completed) && (
+                        {leaguesList.some(l => l.isCompleted) && (
                             <button 
                                 className="btn-secondary btn-sm" 
                                 onClick={() => setShowAllLeagues(!showAllLeagues)}
@@ -480,7 +480,7 @@ export default function Dashboard() {
                                                         <td>
                                                             <div className="flex items-center gap-small">
                                                                 <DriverAvatar 
-                                                                    src={driver.avatar_url} 
+                                                                    src={driver.avatarUrl} 
                                                                     name={driver.name} 
                                                                     size={32} 
                                                                     borderColor={driver.color}
@@ -493,12 +493,12 @@ export default function Dashboard() {
                                                         <td className="hide-mobile" style={{ color: 'var(--text-secondary)' }}>{driver.team || 'Independent'}</td>
                                                         <td style={{ textAlign: 'center', fontWeight: 700 }}>{driver.wins}</td>
                                                         <td style={{ textAlign: 'center', fontWeight: 700 }}>{driver.podiums}</td>
-                                                        <td className="hide-mobile" style={{ textAlign: 'center', fontWeight: 700 }}>{driver.fastest_laps}</td>
+                                                        <td className="hide-mobile" style={{ textAlign: 'center', fontWeight: 700 }}>{driver.fastestLaps}</td>
                                                         <td className="text-right text-mono" style={{ fontWeight: 900, color: 'var(--f1-red)', fontSize: '1.2rem' }}>
-                                                            {driver.total_points}
-                                                            {driver.raw_points !== driver.total_points && (
+                                                            {driver.totalPoints}
+                                                            {driver.rawPoints !== driver.totalPoints && (
                                                                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '4px', fontWeight: 400 }}>
-                                                                    ({driver.raw_points})
+                                                                    ({driver.rawPoints})
                                                                 </span>
                                                             )}
                                                         </td>
@@ -539,7 +539,7 @@ export default function Dashboard() {
                                                             </td>
                                                             <td style={{ textAlign: 'center', fontWeight: 700 }}>{team.wins}</td>
                                                             <td className="text-right text-mono" style={{ fontWeight: 900, color: 'var(--f1-red)', fontSize: '1.2rem' }}>
-                                                                {team.total_points} <span style={{ fontSize: '0.7rem', opacity: 0.3 }}>PTS</span>
+                                                                {team.totalPoints} <span style={{ fontSize: '0.7rem', opacity: 0.3 }}>PTS</span>
                                                             </td>
                                                         </tr>
                                                     ))}
@@ -807,7 +807,7 @@ export default function Dashboard() {
 
                                         <div style={{ padding: '2rem' }}>
                                             <h2 className="h1" style={{ fontSize: '3rem', marginBottom: '2rem' }}>
-                                                {selectedDriverDetails.summary.driver_name}
+                                                {selectedDriverDetails.summary.driverName}
                                             </h2>
 
                                             <div className="grid-responsive" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', marginBottom: '3rem' }}>

@@ -53,8 +53,8 @@ export function AnalysisHeader({
                         className={styles.select}
                     >
                         {bestLaps.map(l => (
-                            <option key={l.lap_id} value={l.lap_id}>
-                                {l.driver_name || l.game_name} — {l.lap_time_ms / 1000}s (R{l.lap_number})
+                            <option key={l.lapId} value={l.lapId}>
+                                {l.driverName || l.gameName} — {l.lapTimeMs / 1000}s (R{l.lapNumber})
                             </option>
                         ))}
                     </select>
@@ -70,15 +70,15 @@ export function AnalysisHeader({
                     >
                         <option value="">Kein Vergleich</option>
                         {goldenLap && (
-                            <option value={goldenLap.lap_id} style={{ color: '#fbbf24', fontWeight: 'bold' }}>
-                                🌟 GOLDEN COPY ({goldenLap.driver_name || goldenLap.game_name})
+                            <option value={goldenLap.lapId} style={{ color: '#fbbf24', fontWeight: 'bold' }}>
+                                🌟 GOLDEN COPY ({goldenLap.driverName || goldenLap.gameName})
                             </option>
                         )}
                         {bestLaps
-                            .filter(l => l.lap_id !== selectedLap1 && l.lap_id !== goldenLap?.lap_id)
+                            .filter(l => l.lapId !== selectedLap1 && l.lapId !== goldenLap?.lapId)
                             .map(l => (
-                                <option key={l.lap_id} value={l.lap_id}>
-                                    {l.driver_name || l.game_name} — {l.lap_time_ms / 1000}s (R{l.lap_number})
+                                <option key={l.lapId} value={l.lapId}>
+                                    {l.driverName || l.gameName} — {l.lapTimeMs / 1000}s (R{l.lapNumber})
                                 </option>
                             ))
                         }

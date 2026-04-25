@@ -6,13 +6,13 @@ import {
 } from 'recharts';
 
 interface LapEntry {
-    participant_id: string;
-    lap_number: number;
-    lap_time_ms: number;
-    is_valid: boolean;
-    driver_name?: string;
-    game_name: string;
-    driver_color?: string;
+    participantId: string;
+    lapNumber: number;
+    lapTimeMs: number;
+    isValid: boolean;
+    driverName?: string;
+    gameName: string;
+    driverColor?: string;
 }
 
 interface GapToLeaderChartProps {
@@ -26,30 +26,30 @@ export default function GapToLeaderChart({ laps }: GapToLeaderChartProps) {
         const driversMap = new Map<string, { name: string, color: string }>();
 
         // Sort by lap number first to ensure accumulation works
-        const sortedLaps = [...laps].sort((a,b) => a.lap_number - b.lap_number);
+        const sortedLaps = [...laps].sort((a,b) => a.lapNumber - b.lapNumber);
 
         sortedLaps.forEach(l => {
-            const name = l.driver_name || l.game_name;
-            driversMap.set(name, { name, color: l.driver_color || 'var(--text-muted)' });
+            const name = l.driverName || l.gameName;
+            driversMap.set(name, { name, color: l.driverColor || 'var(--text-muted)' });
 
             if (!totalTimes.has(name)) totalTimes.set(name, new Map());
             
             let prevTotal = 0;
             const driverLaps = totalTimes.get(name)!;
-            if (l.lap_number > 1) {
-                for (let i = l.lap_number - 1; i >= 0; i--) {
+            if (l.lapNumber > 1) {
+                for (let i = l.lapNumber - 1; i >= 0; i--) {
                     if (driverLaps.has(i)) {
                         prevTotal = driverLaps.get(i)!;
                         break;
                     }
                 }
             }
-            driverLaps.set(l.lap_number, prevTotal + l.lap_time_ms);
+            driverLaps.set(l.lapNumber, prevTotal + l.lapTimeMs);
         });
 
         // 2. Identify leader for each lap and calculate gaps
         const dataByLap: Record<number, any> = {};
-        const ALL_LAPS = [...new Set(laps.map(l => l.lap_number))].sort((a,b) => a-b);
+        const ALL_LAPS = [...new Set(laps.map(l => l.lapNumber))].sort((a,b) => a-b);
         const relevantLaps = ALL_LAPS.filter(l => l > 0);
 
         relevantLaps.forEach(lap => {
@@ -63,7 +63,7 @@ export default function GapToLeaderChart({ laps }: GapToLeaderChartProps) {
             dataByLap[lap] = { lap };
             
             totalTimes.forEach((lapMap, driverName) => {
-                const driverFinishedThisLap = laps.some(l => (l.driver_name || l.game_name) === driverName && l.lap_number === lap);
+                const driverFinishedThisLap = laps.some(l => (l.driverName || l.gameName) === driverName && l.lapNumber === lap);
                 const time = lapMap.get(lap);
                 if (time !== undefined && driverFinishedThisLap) {
                     const gap = (time - leaderTime) / 1000;

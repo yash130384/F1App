@@ -3,16 +3,16 @@
 import React from 'react';
 
 interface Stint {
-    stint_number: number;
-    tyre_compound: number;
-    visual_compound: number;
-    start_lap: number;
-    end_lap: number | null;
+    stintNumber: number;
+    tyreCompound: number;
+    visualCompound: number;
+    startLap: number;
+    endLap: number | null;
 }
 
 interface Participant {
-    game_name: string;
-    driver_name?: string;
+    gameName: string;
+    driverName?: string;
     position: number;
     stints: Stint[];
 }
@@ -43,7 +43,7 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
         const driverMap = new Map<string, Participant & { mergedStints: Stint[] }>();
 
         participants.forEach(p => {
-            const rawName = p.driver_name || p.game_name || 'UNKNOWN';
+            const rawName = p.driverName || p.gameName || 'UNKNOWN';
             const key = rawName.trim().toUpperCase();
             
             if (!driverMap.has(key)) {
@@ -51,7 +51,7 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
             } else {
                 const existing = driverMap.get(key)!;
                 p.stints.forEach(s => {
-                    if (!existing.stints.find(es => es.start_lap === s.start_lap)) {
+                    if (!existing.stints.find(es => es.startLap === s.startLap)) {
                         existing.stints.push(s);
                     }
                 });
@@ -62,14 +62,14 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
         return Array.from(driverMap.values())
             .sort((a, b) => a.position - b.position)
             .map(p => {
-                const sortedStints = [...p.stints].sort((a, b) => a.start_lap - b.start_lap);
+                const sortedStints = [...p.stints].sort((a, b) => a.startLap - b.startLap);
                 const merged: Stint[] = [];
                 sortedStints.forEach(stint => {
                     const last = merged[merged.length - 1];
-                    if (last && last.visual_compound === stint.visual_compound) {
-                        last.end_lap = stint.end_lap || totalLaps;
+                    if (last && last.visualCompound === stint.visualCompound) {
+                        last.endLap = stint.endLap || totalLaps;
                     } else {
-                        merged.push({ ...stint, end_lap: stint.end_lap || totalLaps });
+                        merged.push({ ...stint, endLap: stint.endLap || totalLaps });
                     }
                 });
                 return { ...p, mergedStints: merged };
@@ -80,7 +80,7 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
         let max = 0;
         sortedParticipants.forEach(p => {
             p.mergedStints.forEach(s => {
-                const end = s.end_lap || totalLaps;
+                const end = s.endLap || totalLaps;
                 if (end > max) max = end;
             });
         });
@@ -118,20 +118,20 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
             {/* Strategy Grid - FORCE GRID 160px 1fr */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
                 {sortedParticipants.map((p) => (
-                    <div key={p.game_name} style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '24px', alignItems: 'center', width: '100%' }}>
+                    <div key={p.gameName} style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '24px', alignItems: 'center', width: '100%' }}>
                         {/* Driver Name */}
                         <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#949498', fontFamily: 'monospace' }}>
-                                {(p.driver_name || p.game_name).toUpperCase()}
+                                {(p.driverName || p.gameName).toUpperCase()}
                             </span>
                         </div>
 
                         {/* Stint Timeline Container */}
                         <div style={{ position: 'relative', height: '32px', background: 'rgba(255,255,255,0.03)', width: '100%', overflow: 'hidden' }}>
                             {p.mergedStints.map((stint, idx) => {
-                                const endLap = stint.end_lap || effectiveMaxLaps;
-                                const leftPct = ((stint.start_lap - 1) / effectiveMaxLaps) * 100;
-                                const widthPct = ((endLap - stint.start_lap + 1) / effectiveMaxLaps) * 100;
+                                const endLap = stint.endLap || effectiveMaxLaps;
+                                const leftPct = ((stint.startLap - 1) / effectiveMaxLaps) * 100;
+                                const widthPct = ((endLap - stint.startLap + 1) / effectiveMaxLaps) * 100;
 
                                 return (
                                     <div 
@@ -142,8 +142,8 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
                                             height: '100%',
                                             left: `${leftPct}%`,
                                             width: `${widthPct}%`,
-                                            background: COMPOUND_COLORS[stint.visual_compound],
-                                            color: stint.visual_compound === 18 ? '#000' : '#fff',
+                                            background: COMPOUND_COLORS[stint.visualCompound],
+                                            color: stint.visualCompound === 18 ? '#000' : '#fff',
                                             display: 'flex',
                                             alignItems: 'center',
                                             padding: '0 12px',
@@ -151,7 +151,7 @@ export function TyreStrategyChart({ participants, totalLaps }: TyreStrategyChart
                                             boxSizing: 'border-box'
                                         }}
                                     >
-                                        <span style={{ fontSize: '0.8rem', fontWeight: 900, fontFamily: 'monospace' }}>{COMPOUND_LABELS[stint.visual_compound]}</span>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 900, fontFamily: 'monospace' }}>{COMPOUND_LABELS[stint.visualCompound]}</span>
                                     </div>
                                 );
                             })}

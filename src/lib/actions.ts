@@ -464,21 +464,21 @@ export async function getDashboardData(leagueIdOrSessionId: string, maybeLeagueI
 
     return {
       ...row.driver,
-      total_points: totalPoints,
+      totalPoints: totalPoints,
       wins,
       podiums,
-      fastest_laps: fastestLaps,
+      fastestLaps: fastestLaps,
       team: row.team?.name || row.driver.team || 'Independent'
     };
-  }).sort((a: any, b: any) => b.total_points - a.total_points);
+  }).sort((a: any, b: any) => b.totalPoints - a.totalPoints);
   
   const teamData = await db.select().from(teams).where(eq(teams.leagueId, actualLeagueId));
   const teamStandings = teamData.map((team: any) => {
     const teamDrivers = standings.filter((d: any) => d.teamId === team.id);
-    const totalPoints = teamDrivers.reduce((sum: number, d: any) => sum + (d.total_points || 0), 0);
+    const totalPoints = teamDrivers.reduce((sum: number, d: any) => sum + (d.totalPoints || 0), 0);
     const wins = teamDrivers.reduce((sum: number, d: any) => sum + (d.wins || 0), 0);
-    return { ...team, total_points: totalPoints, wins };
-  }).sort((a: any, b: any) => b.total_points - a.total_points);
+    return { ...team, totalPoints: totalPoints, wins };
+  }).sort((a: any, b: any) => b.totalPoints - a.totalPoints);
 
   return { 
     success: true, 

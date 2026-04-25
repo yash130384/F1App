@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { run, query } from '@/lib/db';
+import { db } from '@/lib/db';
+import { telemetrySessions, leagues } from '@/lib/schema';
+import { eq, and } from 'drizzle-orm';
 
 export async function PATCH(req: Request) {
   try {
@@ -18,21 +20,23 @@ export async function PATCH(req: Request) {
     }
 
     // Sicherheitscheck: User muss Owner der Liga sein, zu der die Session gehört
-    const rows = await query<any>(
-      `SELECT ts.id FROM telemetry_sessions ts
-       JOIN leagues l ON ts.league_id = l.id
-       WHERE ts.id = ? AND l.owner_id = ?`,
-      [sessionId, userId]
-    );
+    const rows = await db.select({ id: telemetrySessions.id })
+      .from(telemetrySessions)
+      .innerJoin(leagues, eq(telemetrySessions.leagueId, leagues.id))
+      .where(and(eq(telemetrySessions.id, sessionId), eq(leagues.ownerId, userId)))
+      .limit(1);
 
     if (rows.length === 0) {
       return NextResponse.json({ error: 'Keine Berechtigung oder Session nicht gefunden' }, { status: 403 });
     }
 
-    await run(
-      `UPDATE telemetry_sessions SET track_id = ?, session_type = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      [trackId ?? null, sessionType ?? null, sessionId]
-    );
+    await db.update(telemetrySessions)
+      .set({ 
+          trackId: trackId ?? null, 
+          sessionType: sessionType ?? null, 
+          updatedAt: new Date() 
+      })
+      .where(eq(telemetrySessions.id, sessionId));
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

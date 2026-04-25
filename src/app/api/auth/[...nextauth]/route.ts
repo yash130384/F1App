@@ -1,7 +1,9 @@
 import NextAuth, { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { query } from "@/lib/db";
+import { db } from "@/lib/db";
+import { users as usersTable } from "@/lib/schema";
+import { eq, sql } from "drizzle-orm";
 
 export const authOptions: AuthOptions = {
     providers: [
@@ -17,17 +19,17 @@ export const authOptions: AuthOptions = {
                 }
 
                 // Username abfragen
-                const users = await query<any>("SELECT * FROM users WHERE username = ? LIMIT 1", [credentials.username]);
+                const users = await db.select().from(usersTable).where(eq(usersTable.username, credentials.username)).limit(1);
                 
                 if (users.length === 0) {
                     // Try case insensitive fallback if exact match doesn't work right away
-                    const usersFallback = await query<any>("SELECT * FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1", [credentials.username]);
+                    const usersFallback = await db.select().from(usersTable).where(sql`LOWER(${usersTable.username}) = LOWER(${credentials.username})`).limit(1);
                     if (usersFallback.length === 0) return null;
                     users[0] = usersFallback[0];
                 }
 
                 const user = users[0];
-                const isValid = await bcrypt.compare(credentials.password, user.password_hash);
+                const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
 
                 if (!isValid) {
                     return null;
@@ -38,9 +40,9 @@ export const authOptions: AuthOptions = {
                     id: user.id,
                     email: user.email,
                     name: user.username,        // Using username as name
-                    image: user.avatar_url,
-                    steamName: user.steam_name,
-                    globalColor: user.global_color
+                    image: user.avatarUrl,
+                    steamName: user.steamName,
+                    globalColor: user.globalColor
                 };
             }
         })

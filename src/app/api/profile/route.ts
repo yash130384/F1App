@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { run } from "@/lib/db";
+import { db } from "@/lib/db";
+import { users, drivers } from "@/lib/schema";
+import { eq } from "drizzle-orm";
 
 export async function PUT(req: Request) {
     try {
@@ -15,16 +17,21 @@ export async function PUT(req: Request) {
         const userId = (session.user as any).id;
 
         // Update the users table
-        await run(
-            `UPDATE users SET steam_name = ?, global_color = ?, avatar_url = ? WHERE id = ?`,
-            [steamName, globalColor, avatarUrl, userId]
-        );
+        await db.update(users)
+            .set({ 
+                steamName: steamName, 
+                globalColor: globalColor, 
+                avatarUrl: avatarUrl 
+            })
+            .where(eq(users.id, userId));
 
         // Update drivers table (sync values down to all specific league driver profiles)
-        await run(
-            `UPDATE drivers SET game_name = ?, color = ? WHERE user_id = ?`,
-            [steamName, globalColor, userId]
-        );
+        await db.update(drivers)
+            .set({ 
+                gameName: steamName, 
+                color: globalColor 
+            })
+            .where(eq(drivers.userId, userId));
 
         return NextResponse.json({ success: true });
     } catch (e: any) {

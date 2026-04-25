@@ -1,6 +1,14 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { query } from "@/lib/db";
+import { db } from "@/lib/db";
+import { 
+    telemetrySessions, 
+    telemetryParticipants, 
+    drivers, 
+    leagues, 
+    races 
+} from "@/lib/schema";
+import { eq, desc } from "drizzle-orm";
 import { getTrackNameById } from "@/lib/constants";
 import Link from "next/link";
 import styles from "../Profile.module.css";
@@ -17,24 +25,23 @@ export default async function UserAnalysisPage() {
 
     // Finde alle Sessions in denen dieser User mitgefahren ist
     // Wir joinen über drivers -> telemetry_participants -> telemetry_sessions
-    const sessions = await query<any>(`
-        SELECT 
-            s.id as session_id,
-            s.session_type,
-            s.created_at,
-            s.track_id,
-            l.name as league_name,
-            p.id as participant_id,
-            p.top_speed,
-            r.track as race_track
-        FROM telemetry_sessions s
-        JOIN telemetry_participants p ON p.session_id = s.id
-        JOIN drivers d ON p.driver_id = d.id
-        JOIN leagues l ON s.league_id = l.id
-        LEFT JOIN races r ON s.race_id = r.id
-        WHERE d.user_id = ?
-        ORDER BY s.created_at DESC
-    `, [userId]);
+    const sessions = await db.select({
+        sessionId: telemetrySessions.id,
+        sessionType: telemetrySessions.sessionType,
+        createdAt: telemetrySessions.createdAt,
+        trackId: telemetrySessions.trackId,
+        leagueName: leagues.name,
+        participantId: telemetryParticipants.id,
+        topSpeed: telemetryParticipants.topSpeed,
+        raceTrack: races.track
+    })
+    .from(telemetrySessions)
+    .innerJoin(telemetryParticipants, eq(telemetryParticipants.sessionId, telemetrySessions.id))
+    .innerJoin(drivers, eq(telemetryParticipants.driverId, drivers.id))
+    .innerJoin(leagues, eq(telemetrySessions.leagueId, leagues.id))
+    .leftJoin(races, eq(telemetrySessions.raceId, races.id))
+    .where(eq(drivers.userId, userId))
+    .orderBy(desc(telemetrySessions.createdAt));
 
     return (
         <div className={styles.profileContainer}>
@@ -57,17 +64,17 @@ export default async function UserAnalysisPage() {
                     </div>
                 ) : (
                     sessions.map((s, idx) => {
-                        const trackName = s.race_track || getTrackNameById(s.track_id) || `Track ID ${s.track_id}`;
-                        const dateText = new Date(s.created_at).toLocaleString('de-DE');
-                        const url = `/profile/analysis/${s.session_id}?pid=${s.participant_id}`;
+                        const trackName = s.raceTrack || getTrackNameById(Number(s.trackId)) || `Track ID ${s.trackId}`;
+                        const dateText = s.createdAt ? new Date(s.createdAt).toLocaleString('de-DE') : 'Unbekannt';
+                        const url = `/profile/analysis/${s.sessionId}?pid=${s.participantId}`;
 
                         return (
-                            <Link href={url} key={`${s.session_id}-${idx}`} style={{ textDecoration: 'none' }}>
+                            <Link href={url} key={`${s.sessionId}-${idx}`} style={{ textDecoration: 'none' }}>
                                 <div className={styles.card} style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
                                     <div>
                                         <div style={{fontSize: '1.2rem', fontWeight: 800}}>{trackName}</div>
                                         <div style={{color: 'var(--f1-red)', fontSize: '0.9rem', fontStyle: 'italic', fontWeight: 700}}>
-                                            {s.league_name} <span style={{color: '#fff', margin: '0 0.5rem'}}>•</span> {s.session_type}
+                                            {s.leagueName} <span style={{color: '#fff', margin: '0 0.5rem'}}>•</span> {s.sessionType}
                                         </div>
                                         <div style={{color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', marginTop: '0.25rem'}}>
                                             {dateText}
@@ -75,7 +82,7 @@ export default async function UserAnalysisPage() {
                                     </div>
                                     <div style={{textAlign: 'right'}}>
                                         <div style={{fontSize: '0.8rem', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)'}}>Top Speed</div>
-                                        <div style={{fontSize: '1.1rem', fontWeight: 700}}>{Math.round(s.top_speed || 0)} km/h</div>
+                                        <div style={{fontSize: '1.1rem', fontWeight: 700}}>{Math.round(s.topSpeed || 0)} km/h</div>
                                     </div>
                                 </div>
                             </Link>

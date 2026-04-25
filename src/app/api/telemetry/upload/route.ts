@@ -1,7 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { run, query } from '@/lib/db';
+import { db } from '@/lib/db';
+import { 
+    leagues, 
+    races, 
+    telemetrySessions, 
+    drivers, 
+    telemetryParticipants, 
+    raceResults 
+} from '@/lib/schema';
+import { eq, and, or, sql, desc, ilike, isNull } from 'drizzle-orm';
 import crypto from 'crypto';
 import { getTrackNameById } from '@/lib/constants';
 import { put } from '@vercel/blob';
@@ -17,12 +26,15 @@ export async function GET() {
     }
 
     const userId = (session.user as any).id;
-    const leagues = await query<any>(
-      `SELECT id, name FROM leagues WHERE owner_id = ? AND (is_completed = false OR is_completed IS NULL) ORDER BY name ASC`,
-      [userId]
-    );
+    const userLeagues = await db.select({ id: leagues.id, name: leagues.name })
+      .from(leagues)
+      .where(and(
+          eq(leagues.ownerId, userId),
+          or(eq(leagues.isCompleted, false), isNull(leagues.isCompleted))
+      ))
+      .orderBy(leagues.name);
 
-    return NextResponse.json({ success: true, leagues });
+    return NextResponse.json({ success: true, leagues: userLeagues });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -38,17 +50,18 @@ export async function POST(req: Request) {
 
     const userId = (session.user as any).id;
     const body = await req.json();
-    const { leagueId, fileName, fileSize, participants, trackId, sessionType, trackLength, telemetryData } = body;
+    const { leagueId, participants, trackId, sessionType, trackLength, telemetryData } = body;
 
     if (!leagueId) {
       return NextResponse.json({ error: 'Keine Liga ausgewählt' }, { status: 400 });
     }
 
     // Sicherheitscheck: User muss Owner der Liga sein
-    const leagueRows = await query<any>(
-      `SELECT id, name FROM leagues WHERE id = ? AND owner_id = ?`,
-      [leagueId, userId]
-    );
+    const leagueRows = await db.select({ id: leagues.id, name: leagues.name })
+        .from(leagues)
+        .where(and(eq(leagues.id, leagueId), eq(leagues.ownerId, userId)))
+        .limit(1);
+        
     if (leagueRows.length === 0) {
       return NextResponse.json({ error: 'Keine Admin-Berechtigung für diese Liga' }, { status: 403 });
     }
@@ -62,10 +75,11 @@ export async function POST(req: Request) {
     if (trackId !== undefined && trackId !== null) {
       const trackString = getTrackNameById(Number(trackId));
       // Hole Rennen dieser Liga, die zu dieser Strecke passen
-      const matches = await query<any>(
-        `SELECT id FROM races WHERE league_id = ? AND track = ? LIMIT 1`,
-        [leagueId, trackString]
-      );
+      const matches = await db.select({ id: races.id })
+        .from(races)
+        .where(and(eq(races.leagueId, leagueId), eq(races.track, trackString)))
+        .limit(1);
+        
       if (matches.length > 0) {
         raceId = matches[0].id;
       }
@@ -87,6 +101,9 @@ export async function POST(req: Request) {
           blobUrl = blob.url;
         } else {
           const filePath = path.join(process.cwd(), 'public', 'uploads', `telemetry-${sessionId}.json`);
+          if (!fs.existsSync(path.join(process.cwd(), 'public', 'uploads'))) {
+              fs.mkdirSync(path.join(process.cwd(), 'public', 'uploads'), { recursive: true });
+          }
           fs.writeFileSync(filePath, jsonStr);
           blobUrl = `/uploads/telemetry-${sessionId}.json`;
         }
@@ -96,11 +113,17 @@ export async function POST(req: Request) {
     }
 
     // Session anlegen
-    await run(
-      `INSERT INTO telemetry_sessions (id, league_id, session_type, is_active, track_flags, created_at, updated_at, track_id, track_length, race_id, blob_url)
-       VALUES (?, ?, ?, false, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, ?, ?, ?)`,
-      [sessionId, leagueId, sType, tId, tLen, raceId, blobUrl]
-    );
+    await db.insert(telemetrySessions).values({
+        id: sessionId,
+        leagueId,
+        sessionType: sType,
+        isActive: false,
+        trackFlags: 0,
+        trackId: tId,
+        trackLength: tLen,
+        raceId,
+        blobUrl
+    });
 
     // Participants speichern
     let savedCount = 0;
@@ -109,23 +132,34 @@ export async function POST(req: Request) {
       if (!name) continue;
 
       // Versuch Driver case-insensitiv in dieser Liga zu matchen
-      const driverRows = await query<any>(
-        `SELECT id FROM drivers WHERE league_id = ? AND LOWER(game_name) = LOWER(?) LIMIT 1`,
-        [leagueId, name]
-      );
+      const driverRows = await db.select({ id: drivers.id })
+        .from(drivers)
+        .where(and(eq(drivers.leagueId, leagueId), ilike(drivers.gameName, name)))
+        .limit(1);
+        
       const driverId = driverRows.length > 0 ? driverRows[0].id : null;
 
-      await run(
-        `INSERT INTO telemetry_participants (session_id, game_name, driver_id, team_id, start_position, position, lap_distance, top_speed, is_human, pit_stops, warnings, penalties_time, car_index)
-         VALUES (?, ?, ?, ?, ?, 0, 0, 0, true, 0, 0, 0, ?)
-         ON CONFLICT(session_id, game_name) DO NOTHING`,
-        [sessionId, name, driverId, p.teamId ?? null, p.raceNumber ?? 0, p.carIndex ?? 0]
-      );
+      await db.insert(telemetryParticipants).values({
+          sessionId,
+          gameName: name,
+          driverId,
+          teamId: p.teamId ?? null,
+          startPosition: p.raceNumber ?? 0,
+          position: 0,
+          lapDistance: 0,
+          topSpeed: 0,
+          isHuman: true,
+          pitStops: 0,
+          warnings: 0,
+          penaltiesTime: 0,
+          carIndex: p.carIndex ?? 0
+      }).onConflictDoNothing();
+      
       savedCount++;
     }
 
     // Wenn SessionType = Race und wir raceId haben, Race Results füllen!
-    if (raceId && telemetryData) {
+    if (raceId && telemetryData && Array.isArray(telemetryData)) {
       const finalClassPackets = telemetryData.filter((pkt: any) => pkt.type === 'final_classification');
       if (finalClassPackets.length > 0) {
         const lastFinal = finalClassPackets[finalClassPackets.length - 1]; // Das letzte Packet hat das Endresultat
@@ -139,10 +173,11 @@ export async function POST(req: Request) {
             if (!resultInfo) continue;
 
             const name = (p.name || '').trim();
-            const driverRows = await query<any>(
-              `SELECT id FROM drivers WHERE league_id = ? AND LOWER(game_name) = LOWER(?) LIMIT 1`,
-              [leagueId, name]
-            );
+            const driverRows = await db.select({ id: drivers.id })
+                .from(drivers)
+                .where(and(eq(drivers.leagueId, leagueId), ilike(drivers.gameName, name)))
+                .limit(1);
+                
             if (driverRows.length > 0) {
               const driverId = driverRows[0].id;
               
@@ -163,31 +198,30 @@ export async function POST(req: Request) {
               const cleanDriver = resultInfo.m_numPenalties === 0 && resultInfo.m_penaltiesTime === 0;
 
               // Insert in race_results
-              await run(
-                `INSERT INTO race_results (id, race_id, driver_id, position, quali_position, fastest_lap, clean_driver, points_earned, is_dnf, pit_stops, warnings, penalties_time)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                 ON CONFLICT(driver_id, race_id) DO UPDATE SET
-                   position = EXCLUDED.position,
-                   fastest_lap = EXCLUDED.fastest_lap,
-                   clean_driver = EXCLUDED.clean_driver,
-                   is_dnf = EXCLUDED.is_dnf,
-                   pit_stops = EXCLUDED.pit_stops,
-                   penalties_time = EXCLUDED.penalties_time`,
-                [
-                  crypto.randomUUID(),
+              await db.insert(raceResults).values({
+                  id: crypto.randomUUID(),
                   raceId,
                   driverId,
-                  resultInfo.m_position, // position
-                  resultInfo.m_gridPosition, // quali_position
+                  position: resultInfo.m_position,
+                  qualiPosition: resultInfo.m_gridPosition,
                   fastestLap,
                   cleanDriver,
-                  0, // Points initially 0, until recalculated
+                  pointsEarned: 0,
                   isDnf,
-                  resultInfo.m_numPitStops,
-                  resultInfo.m_numPenalties,
-                  resultInfo.m_penaltiesTime
-                ]
-              );
+                  pitStops: resultInfo.m_numPitStops,
+                  warnings: resultInfo.m_numPenalties,
+                  penaltiesTime: resultInfo.m_penaltiesTime
+              }).onConflictDoUpdate({
+                  target: [raceResults.driverId, raceResults.raceId],
+                  set: {
+                    position: sql`EXCLUDED.position`,
+                    fastestLap: sql`EXCLUDED.fastest_lap`,
+                    cleanDriver: sql`EXCLUDED.clean_driver`,
+                    isDnf: sql`EXCLUDED.is_dnf`,
+                    pitStops: sql`EXCLUDED.pit_stops`,
+                    penaltiesTime: sql`EXCLUDED.penalties_time`
+                  }
+              });
             }
           }
         }

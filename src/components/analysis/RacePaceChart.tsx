@@ -6,13 +6,13 @@ import {
 } from 'recharts';
 
 interface LapEntry {
-    participant_id: string;
-    lap_number: number;
-    lap_time_ms: number;
-    is_valid: boolean;
-    driver_name?: string;
-    game_name: string;
-    driver_color?: string;
+    participantId: string;
+    lapNumber: number;
+    lapTimeMs: number;
+    isValid: boolean;
+    driverName?: string;
+    gameName: string;
+    driverColor?: string;
 }
 
 interface RacePaceChartProps {
@@ -25,19 +25,19 @@ export default function RacePaceChart({ laps }: RacePaceChartProps) {
         const driversMap = new Map<string, { name: string, color: string }>();
 
         laps.forEach(l => {
-            if (l.lap_number === 0) return;
-            if (!dataByLap[l.lap_number]) dataByLap[l.lap_number] = { lap: l.lap_number };
+            if (l.lapNumber === 0) return;
+            if (!dataByLap[l.lapNumber]) dataByLap[l.lapNumber] = { lap: l.lapNumber };
             
-            const name = l.driver_name || l.game_name || 'Unknown';
-            driversMap.set(name, { name, color: l.driver_color || 'var(--text-muted)' });
+            const name = l.driverName || l.gameName || 'Unknown';
+            driversMap.set(name, { name, color: l.driverColor || 'var(--text-muted)' });
             
-            let time: number | null = l.lap_time_ms / 1000;
+            let time: number | null = l.lapTimeMs / 1000;
             // Handle potentially invalid or zero times
-            const isValid = l.is_valid !== false && (l as any).isValid !== false;
+            const isValid = l.isValid !== false;
             if (time <= 0 || time > 180 || !isValid) {
                 time = null; 
             }
-            dataByLap[l.lap_number][name] = time ? parseFloat(time.toFixed(3)) : null;
+            dataByLap[l.lapNumber][name] = time ? parseFloat(time.toFixed(3)) : null;
         });
 
         return {
