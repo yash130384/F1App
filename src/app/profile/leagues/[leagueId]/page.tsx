@@ -26,6 +26,7 @@ export default function LeagueDashboard({ params }: { params: Promise<{ leagueId
 
     useEffect(() => {
         async function loadData() {
+            console.log("Starting loadData for leagueId:", leagueId);
             setLoading(true);
             try {
                 const [leagueRes, driversRes] = await Promise.all([
@@ -33,12 +34,24 @@ export default function LeagueDashboard({ params }: { params: Promise<{ leagueId
                     getAdminLeagueDrivers(leagueId)
                 ]);
 
-                if (leagueRes.success) setLeague(leagueRes.league);
-                else setError(leagueRes.error);
+                console.log("leagueRes:", leagueRes.success ? "success" : "failed", leagueRes.error);
+                console.log("driversRes:", driversRes.success ? "success" : "failed", driversRes.error);
 
-                if (driversRes.success) setDrivers(driversRes.drivers || []);
+                if (leagueRes.success) {
+                    setLeague(leagueRes.league);
+                } else {
+                    setError(leagueRes.error || "Failed to load league details");
+                }
+
+                if (driversRes.success) {
+                    setDrivers(driversRes.drivers || []);
+                } else if (!leagueRes.success) {
+                    // Only show driver error if league load also failed or if we want to be strict
+                    console.error("Drivers load error:", driversRes.error);
+                }
             } catch (err: any) {
-                setError(err.message);
+                console.error("LeagueDashboard loadData error:", err);
+                setError(err.message || "An unexpected error occurred while syncing league data.");
             } finally {
                 setLoading(false);
             }

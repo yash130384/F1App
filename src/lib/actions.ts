@@ -20,7 +20,7 @@ import {
 } from '@/lib/schema';
 import { calculatePoints } from '@/lib/scoring';
 
-import { eq, or, and, desc, isNull, isNotNull } from 'drizzle-orm';
+import { eq, or, and, desc, isNull, isNotNull, inArray } from 'drizzle-orm';
 
 import { auth } from '@/lib/auth';
 import { telemetryService } from '@/lib/telemetry/telemetry-service';
@@ -35,9 +35,32 @@ export async function updateUserEmail(emailOrUserId: string, newEmail?: string) 
   return { success: true, error: null };
 }
 
-export async function getUserLeagues(userId?: string) {
-  const res = await db.select().from(leagues);
-  return { success: true, leagues: res, error: null };
+export async function getUserLeagues() {
+  const session = await auth();
+  if (!session?.user) return { success: false, leagues: [], error: 'Not authenticated' };
+  const userId = (session.user as any).id;
+
+  // Find leagues where user is owner OR a driver
+  const owned = await db.select().from(leagues).where(eq(leagues.ownerId, userId));
+  
+  // Also find leagues where they are a driver
+  const driverEntries = await db.select().from(drivers).where(eq(drivers.userId, userId));
+  const driverLeagueIds = driverEntries.map(d => d.leagueId).filter(id => id !== null) as string[];
+  
+  let driverLeagues: any[] = [];
+  if (driverLeagueIds.length > 0) {
+    driverLeagues = await db.select().from(leagues).where(inArray(leagues.id, driverLeagueIds));
+  }
+
+  // Combine and deduplicate
+  const allLeagues = [...owned];
+  for (const dl of driverLeagues) {
+    if (!allLeagues.find(l => l.id === dl.id)) {
+      allLeagues.push(dl);
+    }
+  }
+
+  return { success: true, leagues: allLeagues, error: null };
 }
 
 export async function deleteLeague(leagueId: string) {
@@ -91,6 +114,9 @@ export async function getAdminLeagues() {
 }
 
 export async function getPublicLeagueRaces(leagueId: string) {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(leagueId);
+  if (!isUuid) return { success: false, races: [], error: 'Invalid ID' };
+
   const res = await db.select().from(races).where(eq(races.leagueId, leagueId));
   return { success: true, races: res, error: null };
 }
@@ -114,6 +140,11 @@ export async function fixLeaguePermissions(leagueId?: string) {
 
 export async function getLeagueById(leagueId: string) {
   if (!leagueId) return { success: false, league: null, error: 'Missing league ID' };
+  
+  // Check if leagueId is a valid UUID
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(leagueId);
+  if (!isUuid) return { success: false, league: null, error: 'Ungültiges Liga-ID Format. Bitte nutze den Link aus dem Dashboard.' };
+
   try {
     const league = await ensureAdmin(leagueId);
     return { success: true, league, error: null };
@@ -486,10 +517,27 @@ export async function saveRaceResults(leagueId: string, track: string, results: 
 
 export async function getAdminLeagueDrivers(leagueId: string) {
   try {
+    // Check if leagueId is a valid UUID
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(leagueId);
+    if (!isUuid) return { success: false, drivers: [], error: 'Invalid League ID format' };
+
     await ensureAdmin(leagueId);
-    const res = await db.select().from(drivers).where(eq(drivers.leagueId, leagueId));
+    
+    // Join with users to get avatarUrl
+    const res = await db.select({
+      id: drivers.id,
+      name: drivers.name,
+      team: drivers.team,
+      color: drivers.color,
+      avatarUrl: users.avatarUrl,
+    })
+    .from(drivers)
+    .leftJoin(users, eq(drivers.userId, users.id))
+    .where(eq(drivers.leagueId, leagueId));
+
     return { success: true, drivers: res, error: null };
   } catch (err: any) {
+    console.error('getAdminLeagueDrivers error:', err);
     return { success: false, drivers: [], error: err.message };
   }
 }

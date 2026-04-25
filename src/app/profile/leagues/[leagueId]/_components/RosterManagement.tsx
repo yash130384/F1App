@@ -6,9 +6,9 @@ import DriverAvatar from '@/components/common/DriverAvatar';
 interface Driver {
   id: string;
   name: string;
-  team: string;
+  team: string | null;
   color?: string;
-  avatar_url?: string | null;
+  avatarUrl?: string | null;
 }
 
 interface RosterManagementProps {
@@ -33,14 +33,14 @@ export default function RosterManagement({ drivers }: RosterManagementProps) {
             <div key={d.id} className={`f1-card ${styles.driverCard}`}>
               <div className="flex items-center gap-4">
                 <DriverAvatar 
-                  src={d.avatar_url} 
+                  src={d.avatarUrl} 
                   name={d.name} 
                   size={36} 
                   borderColor={d.color}
                 />
                 <div>
                   <div className={`text-f1 ${styles.driverName}`}>{d.name}</div>
-                  <div className={styles.driverTeam}>{d.team}</div>
+                  <div className={styles.driverTeam}>{d.team || 'Independent'}</div>
                 </div>
               </div>
               <button className={styles.removeBtn}>REMOVE</button>

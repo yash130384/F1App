@@ -7,7 +7,6 @@ import styles from '../LeagueDashboard.module.css';
 
 /**
  * Zeigt die letzten und kommenden Rennen einer Liga an.
- * Nutzt die Public-Action, um Strecken vor dem Reveal zu verbergen.
  */
 export default function RecentSessions() {
   const { leagueId } = useParams() as { leagueId: string };
@@ -16,11 +15,16 @@ export default function RecentSessions() {
 
   useEffect(() => {
     async function load() {
-      const res = await getPublicLeagueRaces(leagueId);
-      if (res.success) {
-        setRaces(res.races || []);
+      try {
+        const res = await getPublicLeagueRaces(leagueId);
+        if (res.success) {
+          setRaces(res.races || []);
+        }
+      } catch (err) {
+        console.error("Failed to load races:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     load();
   }, [leagueId]);
@@ -45,29 +49,29 @@ export default function RecentSessions() {
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {races.slice(0, 5).map((race) => (
+          {races.slice(0, 10).map((race) => (
             <div 
                 key={race.id} 
                 className="flex justify-between items-center p-3 rounded bg-carbon-800/20 border border-glass"
-                style={{ borderLeft: race.is_finished ? '3px solid var(--f1-red)' : '3px solid var(--f1-cyan)' }}
+                style={{ borderLeft: race.isFinished ? '3px solid var(--f1-red)' : '3px solid var(--f1-cyan)' }}
             >
               <div className="flex flex-col">
-                <span className={`font-bold ${race.is_hidden ? 'italic opacity-60' : ''}`} style={{ fontSize: '0.9rem', color: race.is_hidden ? 'var(--silver)' : 'white' }}>
-                    {race.track}
-                    {race.is_random && !race.is_finished && <span className="ml-2 text-[0.6rem] text-[#ffb700] border border-[#ffb700] px-1 rounded">RANDOM</span>}
+                <span className={`font-bold ${race.isHidden ? 'italic opacity-60' : ''}`} style={{ fontSize: '0.9rem', color: race.isHidden ? 'var(--silver)' : 'white' }}>
+                    {race.track || 'Unscheduled Track'}
+                    {race.isRandom && !race.isFinished && <span className="ml-2 text-[0.6rem] text-[#ffb700] border border-[#ffb700] px-1 rounded">RANDOM</span>}
                 </span>
                 <span style={{ fontSize: '0.65rem', color: 'var(--silver)' }}>
-                    {race.scheduled_date ? new Date(race.scheduled_date).toLocaleDateString() : 'TBA'}
+                    {race.scheduledDate ? new Date(race.scheduledDate).toLocaleDateString() : 'TBA'}
                 </span>
               </div>
 
               <div className="flex items-center gap-2">
                  <span style={{ 
                     fontSize: '0.55rem', padding: '1px 5px', borderRadius: '3px',
-                    background: race.is_finished ? 'rgba(255,24,1,0.1)' : 'rgba(0,245,255,0.05)',
-                    color: race.is_finished ? 'var(--f1-red)' : 'var(--f1-cyan)', border: '1px solid currentColor', fontWeight: 900
+                    background: race.isFinished ? 'rgba(255,24,1,0.1)' : 'rgba(0,245,255,0.05)',
+                    color: race.isFinished ? 'var(--f1-red)' : 'var(--f1-cyan)', border: '1px solid currentColor', fontWeight: 900
                  }}>
-                    {race.is_finished ? 'FINISHED' : 'PLANNED'}
+                    {race.isFinished ? 'FINISHED' : 'PLANNED'}
                  </span>
               </div>
             </div>
