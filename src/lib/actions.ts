@@ -41,8 +41,13 @@ export async function getUserLeagues(userId?: string) {
 }
 
 export async function deleteLeague(leagueId: string) {
-  await db.delete(leagues).where(eq(leagues.id, leagueId));
-  return { success: true, error: null };
+  try {
+    await ensureAdmin(leagueId);
+    await db.delete(leagues).where(eq(leagues.id, leagueId));
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
 }
 
 export async function getOpenLeagues() {
@@ -60,8 +65,28 @@ export async function getDashboardLeagues() {
   return { success: true, leagues: res, error: null };
 }
 
+/**
+ * Helper to ensure the current user is the admin of a league.
+ */
+async function ensureAdmin(leagueId: string) {
+  const session = await auth();
+  if (!session?.user) throw new Error('NOT_AUTHENTICATED');
+  
+  const userId = (session.user as any).id;
+  const [league] = await db.select().from(leagues).where(and(eq(leagues.id, leagueId), eq(leagues.ownerId, userId)));
+  
+  if (!league) throw new Error('NOT_AUTHORIZED');
+  return league;
+}
+
 export async function getAdminLeagues() {
-  const res = await db.select().from(leagues);
+  const session = await auth();
+  if (!session?.user) return { success: false, error: 'Not authenticated', leagues: [] };
+  
+  const userId = (session.user as any).id;
+  if (!userId) return { success: false, error: 'User ID missing', leagues: [] };
+
+  const res = await db.select().from(leagues).where(eq(leagues.ownerId, userId));
   return { success: true, leagues: res, error: null };
 }
 
@@ -89,12 +114,17 @@ export async function fixLeaguePermissions(leagueId?: string) {
 
 export async function getLeagueById(leagueId: string) {
   if (!leagueId) return { success: false, league: null, error: 'Missing league ID' };
-  const [league] = await db.select().from(leagues).where(eq(leagues.id, leagueId));
-  return { success: true, league, error: null };
+  try {
+    const league = await ensureAdmin(leagueId);
+    return { success: true, league, error: null };
+  } catch (err: any) {
+    return { success: false, league: null, error: err.message === 'NOT_AUTHORIZED' ? 'Zugriff verweigert: Du bist nicht der Admin dieser Liga.' : err.message };
+  }
 }
 
 export async function updateLeagueSettings(leagueId: string, settings: any) {
   try {
+    await ensureAdmin(leagueId);
     await db.update(leagues)
       .set({
         name: settings.name,
@@ -136,6 +166,7 @@ export async function scheduleRace(leagueId: string, raceData: { track: string; 
 
 export async function updateTrackPool(leagueId: string, trackIds: string[]) {
   try {
+    await ensureAdmin(leagueId);
     await db.update(pointsConfig)
       .set({ trackPool: JSON.stringify(trackIds) })
       .where(eq(pointsConfig.leagueId, leagueId));
@@ -180,6 +211,7 @@ export async function getPointsConfig(leagueId: string) {
 
 export async function updatePointsConfig(leagueId: string, config: any) {
   try {
+    await ensureAdmin(leagueId);
     await db.update(pointsConfig)
       .set({
         pointsJson: JSON.stringify(config.points || []),
@@ -453,6 +485,11 @@ export async function saveRaceResults(leagueId: string, track: string, results: 
 }
 
 export async function getAdminLeagueDrivers(leagueId: string) {
-  const res = await db.select().from(drivers).where(eq(drivers.leagueId, leagueId));
-  return { success: true, drivers: res, error: null };
+  try {
+    await ensureAdmin(leagueId);
+    const res = await db.select().from(drivers).where(eq(drivers.leagueId, leagueId));
+    return { success: true, drivers: res, error: null };
+  } catch (err: any) {
+    return { success: false, drivers: [], error: err.message };
+  }
 }
