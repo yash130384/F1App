@@ -3,6 +3,7 @@
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -155,9 +156,11 @@ export default function LoginPage() {
                     </button>
                 </form>
 
-                <div className="mt-large pt-medium flex justify-between items-center" style={{ borderTop: '1px solid var(--glass-border)', opacity: 0.5 }}>
-                    <span className="stat-label" style={{ fontSize: '0.6rem' }}>© KINETIC MONOLITH v1.0</span>
-                    <span className="stat-label" style={{ fontSize: '0.6rem' }}>ENCRYPTED</span>
+                <div className="mt-large pt-medium flex justify-between items-center" style={{ borderTop: '1px solid var(--glass-border)', opacity: 0.8 }}>
+                    <Link href="/register" className="stat-label hover:text-f1-red" style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textDecoration: 'underline' }}>
+                        NEW DRIVER? ENLIST HERE
+                    </Link>
+                    <span className="stat-label" style={{ fontSize: '0.6rem', opacity: 0.5 }}>SECURE UPLINK</span>
                 </div>
             </div>
         </div>
