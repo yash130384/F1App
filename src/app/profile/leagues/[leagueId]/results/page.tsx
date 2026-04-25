@@ -23,6 +23,11 @@ export default function ManualResults({
     const [finishedTracks, setFinishedTracks] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [raceDate, setRaceDate] = useState(() => {
+        const now = new Date();
+        const tzOffset = now.getTimezoneOffset() * 60000;
+        return new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
+    });
 
     useEffect(() => {
         async function fetchData() {
@@ -69,6 +74,11 @@ export default function ManualResults({
                     const raceRes = await getRaceResults(currentRaceId);
                     if (raceRes.success && raceRes.results && raceRes.results.length > 0) {
                         setTrack(raceRes.track || '');
+                        if (raceRes.raceDate) {
+                            const d = new Date(raceRes.raceDate);
+                            const tzOffset = d.getTimezoneOffset() * 60000;
+                            setRaceDate(new Date(d.getTime() - tzOffset).toISOString().slice(0, 16));
+                        }
                         raceRes.results.forEach((r: any) => {
                             initialResults[r.driverId] = {
                                 position: r.position,
@@ -119,7 +129,7 @@ export default function ManualResults({
             is_dnf: results[d.id].isDnf
         }));
 
-        const res = await saveRaceResults(leagueId, track, formattedResults, activeRaceId);
+        const res = await saveRaceResults(leagueId, track, formattedResults, activeRaceId, raceDate);
 
         if (res.success) {
             alert('Race Results Submitted!');
@@ -280,6 +290,16 @@ export default function ManualResults({
                                 );
                             })}
                         </select>
+                    </div>
+                    <div className="input-group">
+                        <label style={{ color: 'var(--f1-yellow)' }}>RACE DATE & TIME</label>
+                        <input 
+                            type="datetime-local"
+                            value={raceDate}
+                            onChange={e => setRaceDate(e.target.value)}
+                            style={{ padding: '0.8rem', border: '1px solid var(--f1-yellow)', background: 'rgba(255, 183, 0, 0.05)', borderRadius: '4px', color: 'white', width: '100%' }}
+                            disabled={loading}
+                        />
                     </div>
                     <div className="input-group">
                         <label style={{ color: 'var(--f1-cyan)' }}>CSV UPLOAD (OPTIONAL)</label>

@@ -604,10 +604,10 @@ export async function getPerformanceScores(sessionId: string) {
 export async function getRaceResults(raceId: string) {
   const [race] = await db.select().from(races).where(eq(races.id, raceId));
   const res = await db.select().from(raceResults).where(eq(raceResults.raceId, raceId));
-  return { success: true, results: res, track: race?.track || null, error: null };
+  return { success: true, results: res, track: race?.track || null, raceDate: race?.raceDate || null, error: null };
 }
 
-export async function saveRaceResults(leagueId: string, track: string, results: any[], raceId?: string) {
+export async function saveRaceResults(leagueId: string, track: string, results: any[], raceId?: string, raceDate?: string) {
   try {
     await ensureAdmin(leagueId);
 
@@ -636,7 +636,7 @@ export async function saveRaceResults(leagueId: string, track: string, results: 
           leagueId,
           track,
           isFinished: true,
-          raceDate: new Date()
+          raceDate: raceDate ? new Date(raceDate) : new Date()
         }).returning({ id: races.id });
         targetRaceId = newRace.id;
       }
@@ -645,7 +645,7 @@ export async function saveRaceResults(leagueId: string, track: string, results: 
       await db.update(races).set({ 
         isFinished: true, 
         track,
-        raceDate: new Date() 
+        raceDate: raceDate ? new Date(raceDate) : new Date() 
       }).where(eq(races.id, targetRaceId));
     }
 
