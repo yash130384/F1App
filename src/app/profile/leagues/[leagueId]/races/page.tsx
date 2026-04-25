@@ -67,6 +67,7 @@ export default function RaceManagementPage({ params }: { params: Promise<{ leagu
     
     if (res.success) {
       setShowForm(false);
+      alert("Event erfolgreich geplant!");
       loadRaces();
     } else {
       alert("Fehler bei der Planung: " + res.error);

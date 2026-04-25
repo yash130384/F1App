@@ -256,12 +256,50 @@ export async function getRaceDetails(raceId: string) {
 }
 
 export async function deleteRace(raceId: string) {
-  await db.delete(races).where(eq(races.id, raceId));
-  return { success: true, error: null };
+  try {
+    const [race] = await db.select().from(races).where(eq(races.id, raceId));
+    if (!race || !race.leagueId) return { success: false, error: 'Race not found' };
+    
+    await ensureAdmin(race.leagueId);
+    
+    await db.delete(races).where(eq(races.id, raceId));
+    
+    revalidatePath(`/profile/leagues/${race.leagueId}/races`);
+    revalidatePath(`/profile/leagues/${race.leagueId}`);
+    revalidatePath(`/dashboard`);
+    revalidatePath(`/`);
+    
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('deleteRace error:', err);
+    return { success: false, error: err.message };
+  }
 }
 
 export async function scheduleRace(leagueId: string, raceData: { track: string; date: string; isRandom: boolean; revealHours: number }) {
-  return { success: true, error: null };
+  try {
+    await ensureAdmin(leagueId);
+    
+    await db.insert(races).values({
+      leagueId,
+      track: raceData.isRandom ? 'RANDOM' : raceData.track,
+      scheduledDate: new Date(raceData.date),
+      isRandom: raceData.isRandom,
+      isHidden: raceData.isRandom,
+      revealHoursBefore: raceData.revealHours,
+      isFinished: false,
+    });
+    
+    revalidatePath(`/profile/leagues/${leagueId}/races`);
+    revalidatePath(`/profile/leagues/${leagueId}`);
+    revalidatePath(`/dashboard`);
+    revalidatePath(`/`);
+    
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('scheduleRace error:', err);
+    return { success: false, error: err.message };
+  }
 }
 
 export async function updateTrackPool(leagueId: string, trackIds: string[]) {
