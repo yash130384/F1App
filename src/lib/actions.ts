@@ -322,15 +322,48 @@ export async function getLeagueTeams(leagueId: string) {
 }
 
 export async function addLeagueTeam(leagueId: string, teamName: string, color?: string) {
-  return { success: true, error: null };
+  try {
+    await ensureAdmin(leagueId);
+    await db.insert(teams).values({
+      leagueId,
+      name: teamName,
+      color: color || '#ffffff'
+    });
+    revalidatePath(`/profile/leagues/${leagueId}/teams`);
+    revalidatePath(`/profile/leagues/${leagueId}`);
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('addLeagueTeam error:', err);
+    return { success: false, error: err.message };
+  }
 }
 
-export async function updateLeagueTeam(leagueId: string, teamId: string, data: any, extra?: any) {
-  return { success: true, error: null };
+export async function updateLeagueTeam(leagueId: string, teamId: string, name: string, color: string) {
+  try {
+    await ensureAdmin(leagueId);
+    await db.update(teams)
+      .set({ name, color })
+      .where(eq(teams.id, teamId));
+    revalidatePath(`/profile/leagues/${leagueId}/teams`);
+    revalidatePath(`/profile/leagues/${leagueId}`);
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('updateLeagueTeam error:', err);
+    return { success: false, error: err.message };
+  }
 }
 
 export async function deleteLeagueTeam(leagueId: string, teamId: string) {
-  return { success: true, error: null };
+  try {
+    await ensureAdmin(leagueId);
+    await db.delete(teams).where(eq(teams.id, teamId));
+    revalidatePath(`/profile/leagues/${leagueId}/teams`);
+    revalidatePath(`/profile/leagues/${leagueId}`);
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('deleteLeagueTeam error:', err);
+    return { success: false, error: err.message };
+  }
 }
 
 // --- SCORING ACTIONS ---
