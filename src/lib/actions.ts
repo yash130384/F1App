@@ -631,6 +631,72 @@ export async function getDashboardData(leagueIdOrSessionId: string, maybeLeagueI
     return { ...team, totalPoints: totalPoints, wins };
   }).sort((a: any, b: any) => b.totalPoints - a.totalPoints);
 
+  // Build Graph Data
+  // 1. Sort finished races by date
+  const finishedRaces = racesRes.filter(r => r.isFinished).sort((a, b) => {
+    const dateA = a.raceDate ? new Date(a.raceDate).getTime() : 0;
+    const dateB = b.raceDate ? new Date(b.raceDate).getTime() : 0;
+    return dateA - dateB;
+  });
+
+  const graphData: any[] = [];
+  const teamGraphData: any[] = [];
+  const driverPositionData: any[] = [];
+  const teamPointsPerRaceData: any[] = [];
+
+  const cumulativeDriverPoints: Record<string, number> = {};
+  const cumulativeTeamPoints: Record<string, number> = {};
+
+  finishedRaces.forEach((race, index) => {
+    const raceName = race.track || `Race ${index + 1}`;
+    const raceEntry: any = { name: raceName };
+    const teamEntry: any = { name: raceName };
+    const posEntry: any = { name: raceName };
+    const teamPerRaceEntry: any = { name: raceName };
+
+    standings.forEach(d => {
+      const result = allResults.find(r => r.raceResults.raceId === race.id && r.raceResults.driverId === d.id);
+      const points = result ? calculatePoints({
+        position: result.raceResults.position,
+        qualiPosition: result.raceResults.qualiPosition ?? undefined,
+        fastestLap: !!result.raceResults.fastestLap,
+        cleanDriver: !!result.raceResults.cleanDriver,
+        isDnf: result.raceResults.isDnf ?? undefined
+      }, config as any) : 0;
+
+      cumulativeDriverPoints[d.id] = (cumulativeDriverPoints[d.id] || 0) + points;
+      raceEntry[d.name] = cumulativeDriverPoints[d.id];
+      
+      // Position evolution
+      if (result) {
+        posEntry[d.name] = result.raceResults.position;
+        if (result.raceResults.isDnf) {
+          posEntry[`${d.name}_dnf`] = true;
+        }
+      }
+    });
+
+    teamStandings.forEach(t => {
+      const teamResults = allResults.filter(r => r.raceResults.raceId === race.id && standings.find(d => d.id === r.raceResults.driverId)?.teamId === t.id);
+      const points = teamResults.reduce((sum, r) => sum + calculatePoints({
+        position: r.raceResults.position,
+        qualiPosition: r.raceResults.qualiPosition ?? undefined,
+        fastestLap: !!r.raceResults.fastestLap,
+        cleanDriver: !!r.raceResults.cleanDriver,
+        isDnf: r.raceResults.isDnf ?? undefined
+      }, config as any), 0);
+
+      cumulativeTeamPoints[t.id] = (cumulativeTeamPoints[t.id] || 0) + points;
+      teamEntry[t.name] = cumulativeTeamPoints[t.id];
+      teamPerRaceEntry[t.name] = points;
+    });
+
+    graphData.push(raceEntry);
+    teamGraphData.push(teamEntry);
+    driverPositionData.push(posEntry);
+    teamPointsPerRaceData.push(teamPerRaceEntry);
+  });
+
   return { 
     success: true, 
     league: { ...league, config }, 
@@ -638,8 +704,10 @@ export async function getDashboardData(leagueIdOrSessionId: string, maybeLeagueI
     teamStandings, 
     races: racesRes || [], 
     upcoming: upcomingRes || [],
-    graphData: [],
-    teamGraphData: [],
+    graphData,
+    teamGraphData,
+    driverPositionData,
+    teamPointsPerRaceData,
     stats: {
         totalRaces: racesRes.filter((r: any) => r.isFinished).length
     },

@@ -207,7 +207,9 @@ export default function Dashboard() {
     const [leagueStats, setLeagueStats] = useState<any>(null);
     const [graphData, setGraphData] = useState<any[]>([]);
     const [teamGraphData, setTeamGraphData] = useState<any[]>([]);
-    const [activeGraphTab, setActiveGraphTab] = useState<'driver' | 'team'>('driver');
+    const [driverPositionData, setDriverPositionData] = useState<any[]>([]);
+    const [teamPointsPerRaceData, setTeamPointsPerRaceData] = useState<any[]>([]);
+    const [activeGraphTab, setActiveGraphTab] = useState<'driver_cumulative' | 'team_cumulative' | 'driver_position' | 'team_per_race'>('driver_cumulative');
 
     const [selectedRace, setSelectedRace] = useState<any | null>(null);
     const [raceResults, setRaceResults] = useState<any[]>([]);
@@ -266,6 +268,8 @@ export default function Dashboard() {
             setUpcomingRaces(res.upcoming || []);
             setGraphData(res.graphData || []);
             setTeamGraphData(res.teamGraphData || []);
+            setDriverPositionData((res as any).driverPositionData || []);
+            setTeamPointsPerRaceData((res as any).teamPointsPerRaceData || []);
             setLeagueStats(res.stats);
 
             // Fetch live session
@@ -284,6 +288,9 @@ export default function Dashboard() {
             setLeague(null);
             setLeagueStats(null);
             setGraphData([]);
+            setTeamGraphData([]);
+            setDriverPositionData([]);
+            setTeamPointsPerRaceData([]);
             setLiveSession(null);
         }
         setLoading(false);
@@ -553,28 +560,46 @@ export default function Dashboard() {
                             {graphData && graphData.length > 0 && (
                                 <section>
                                     <div className="flex justify-between items-center" style={{ marginBottom: '1.5rem', borderLeft: '4px solid var(--f1-red)', paddingLeft: '1rem' }}>
-                                        <h2 className="h2" style={{ fontSize: '1.5rem', margin: 0 }}>Season Progression</h2>
-                                        {league.config?.teamCompetition && (
-                                            <div className="flex gap-xsmall glass-panel p-1">
-                                                <button 
-                                                    onClick={() => setActiveGraphTab('driver')}
-                                                    className={`btn btn-xs ${activeGraphTab === 'driver' ? 'btn-primary' : 'btn-outline'}`}
-                                                >
-                                                    DRIVERS
-                                                </button>
-                                                <button 
-                                                    onClick={() => setActiveGraphTab('team')}
-                                                    className={`btn btn-xs ${activeGraphTab === 'team' ? 'btn-primary' : 'btn-outline'}`}
-                                                >
-                                                    CONSTRUCTORS
-                                                </button>
-                                            </div>
-                                        )}
+                                        <h2 className="h2" style={{ fontSize: '1.5rem', margin: 0 }}>Season Analytics</h2>
+                                        <div className="flex gap-xsmall glass-panel p-1 flex-wrap">
+                                            <button 
+                                                onClick={() => setActiveGraphTab('driver_cumulative')}
+                                                className={`btn btn-xs ${activeGraphTab === 'driver_cumulative' ? 'btn-primary' : 'btn-outline'}`}
+                                            >
+                                                DRIVERS CHAMPIONSHIP
+                                            </button>
+                                            <button 
+                                                onClick={() => setActiveGraphTab('team_cumulative')}
+                                                className={`btn btn-xs ${activeGraphTab === 'team_cumulative' ? 'btn-primary' : 'btn-outline'}`}
+                                            >
+                                                TEAM CHAMPIONSHIP
+                                            </button>
+                                            <button 
+                                                onClick={() => setActiveGraphTab('driver_position')}
+                                                className={`btn btn-xs ${activeGraphTab === 'driver_position' ? 'btn-primary' : 'btn-outline'}`}
+                                            >
+                                                POSITION EVOLUTION
+                                            </button>
+                                            <button 
+                                                onClick={() => setActiveGraphTab('team_per_race')}
+                                                className={`btn btn-xs ${activeGraphTab === 'team_per_race' ? 'btn-primary' : 'btn-outline'}`}
+                                            >
+                                                TEAM POINTS PER RACE
+                                            </button>
+                                        </div>
                                     </div>
                                     <div className="f1-card" style={{ padding: '2rem 1.5rem 1rem 1rem' }}>
                                         <div style={{ width: '100%', height: 400 }}>
                                             <ResponsiveContainer>
-                                                <LineChart data={activeGraphTab === 'driver' ? graphData : teamGraphData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                                <LineChart 
+                                                    data={
+                                                        activeGraphTab === 'driver_cumulative' ? graphData :
+                                                        activeGraphTab === 'team_cumulative' ? teamGraphData :
+                                                        activeGraphTab === 'driver_position' ? driverPositionData :
+                                                        teamPointsPerRaceData
+                                                    } 
+                                                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                                                >
                                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                                                     <XAxis 
                                                         dataKey="name" 
@@ -589,22 +614,42 @@ export default function Dashboard() {
                                                         fontSize={10} 
                                                         tickLine={false}
                                                         axisLine={false}
+                                                        reversed={activeGraphTab === 'driver_position'}
+                                                        domain={activeGraphTab === 'driver_position' ? [1, 20] : ['auto', 'auto']}
+                                                        ticks={activeGraphTab === 'driver_position' ? [1, 5, 10, 15, 20] : undefined}
                                                     />
                                                     <Tooltip 
                                                         contentStyle={{ backgroundColor: 'var(--surface-mid)', border: '1px solid var(--glass-border)', borderRadius: '4px', fontSize: '0.8rem' }}
                                                         itemStyle={{ padding: '2px 0' }}
+                                                        formatter={(value: any, name: any, entry: any) => {
+                                                            const nameStr = String(name || '');
+                                                            const valStr = String(value || '');
+                                                            if (activeGraphTab === 'driver_position') {
+                                                                const isDnf = entry?.payload?.[`${nameStr}_dnf`];
+                                                                return [isDnf ? `P${valStr} (DNF)` : `P${valStr}`, nameStr];
+                                                            }
+                                                            return [valStr, nameStr];
+                                                        }}
                                                     />
                                                     <Legend wrapperStyle={{ fontSize: '0.7rem', paddingTop: '20px', fontFamily: 'var(--font-display)', fontWeight: 600 }} />
-                                                    {(activeGraphTab === 'driver' ? standings : teamStandings).map((item, idx) => (
+                                                    {(activeGraphTab === 'driver_cumulative' || activeGraphTab === 'driver_position' ? standings : teamStandings).map((item, idx) => (
                                                         <Line
                                                             key={item.id}
                                                             type="monotone"
                                                             dataKey={item.name}
                                                             stroke={item.color || `hsl(${(idx * 137.5) % 360}, 70%, 50%)`}
                                                             strokeWidth={3}
-                                                            dot={{ r: 4, strokeWidth: 2, fill: 'var(--surface-low)' }}
+                                                            dot={activeGraphTab === 'driver_position' ? (props: any) => {
+                                                                const { cx, cy, payload, dataKey } = props;
+                                                                const isDnf = payload[`${dataKey}_dnf`];
+                                                                if (isDnf) {
+                                                                    return <circle cx={cx} cy={cy} r={5} fill="var(--f1-red)" stroke="white" strokeWidth={2} />;
+                                                                }
+                                                                return <circle cx={cx} cy={cy} r={3} fill={item.color || '#fff'} />;
+                                                            } : { r: 4, strokeWidth: 2, fill: 'var(--surface-low)' }}
                                                             activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }}
                                                             animationDuration={1500}
+                                                            connectNulls={activeGraphTab === 'driver_position'}
                                                         />
                                                     ))}
                                                 </LineChart>
