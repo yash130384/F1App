@@ -634,8 +634,8 @@ export async function getDashboardData(leagueIdOrSessionId: string, maybeLeagueI
   // Build Graph Data
   // 1. Sort finished races by date
   const finishedRaces = racesRes.filter(r => r.isFinished).sort((a, b) => {
-    const dateA = a.raceDate ? new Date(a.raceDate).getTime() : 0;
-    const dateB = b.raceDate ? new Date(b.raceDate).getTime() : 0;
+    const dateA = a.scheduledDate ? new Date(a.scheduledDate).getTime() : (a.raceDate ? new Date(a.raceDate).getTime() : 0);
+    const dateB = b.scheduledDate ? new Date(b.scheduledDate).getTime() : (b.raceDate ? new Date(b.raceDate).getTime() : 0);
     return dateA - dateB;
   });
 
