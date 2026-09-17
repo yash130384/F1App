@@ -35,8 +35,8 @@ export default function CreateLeague() {
                     <p style={{ color: 'var(--silver)' }}>League Name</p>
                     <p className="text-f1" style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>{name}</p>
                 </div>
-                <button className="btn-primary" style={{ marginTop: '2rem', marginInline: 'auto' }} onClick={() => window.location.href = '/profile/leagues'}>
-                    Go to Manage Leagues
+                <button className="btn-primary" style={{ marginTop: '2rem', marginInline: 'auto' }} onClick={() => window.location.href = '/admin'}>
+                    Go to Admin Command Center
                 </button>
             </div>
         );

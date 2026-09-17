@@ -84,7 +84,7 @@ export default function RacePaceChart({ laps }: RacePaceChartProps) {
                         boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
                     }}
                     itemStyle={{ padding: '2px 0' }}
-                    labelFormatter={(l) => `LAP ${l}`}
+                    labelFormatter={(l: any) => `LAP ${l}`}
                     formatter={(v: any) => [formatTime(v), 'PACE']}
                 />
                 <Legend 

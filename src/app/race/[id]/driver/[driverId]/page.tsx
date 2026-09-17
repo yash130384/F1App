@@ -296,7 +296,7 @@ function DriverDetailContent() {
                                     <YAxis stroke="var(--silver)" tick={{ fill: 'var(--silver)', fontSize: 10 }} domain={['auto', 'auto']} tickFormatter={formatLapTime} width={65} />
                                     <Tooltip
                                         contentStyle={{ backgroundColor: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', fontSize: '0.85rem' }}
-                                        labelFormatter={(l) => `Runde ${l}`}
+                                        labelFormatter={(l: any) => `Runde ${l}`}
                                         formatter={(v: any, _key: any, props: any) => {
                                             const lap = driverLaps.find((l: any) => l.lapNumber === props.payload?.lapNumber);
                                             const tyrInfo = lap?.tyreCompound ? getTyreInfo(lap.tyreCompound) : null;

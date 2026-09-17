@@ -9,11 +9,17 @@ describe('Scoring Logic', () => {
             cleanDriver: false,
             isDnf: false
         };
-        // 1st place is 20 points in default config
-        expect(calculatePoints(result, DEFAULT_CONFIG)).toBe(20);
+        // 1st place is 25 points in default F1 config
+        expect(calculatePoints(result, DEFAULT_CONFIG)).toBe(25);
     });
 
     it('should include bonuses', () => {
+        const customConfig = {
+            ...DEFAULT_CONFIG,
+            points: { 1: 20 },
+            fastestLapBonus: 2,
+            cleanDriverBonus: 3
+        };
         const result = {
             position: 1,
             fastestLap: true,  // +2
@@ -21,7 +27,7 @@ describe('Scoring Logic', () => {
             isDnf: false
         };
         // 20 + 2 + 3 = 25
-        expect(calculatePoints(result, DEFAULT_CONFIG)).toBe(25);
+        expect(calculatePoints(result, customConfig)).toBe(25);
     });
 
     it('should return 0 for DNF', () => {

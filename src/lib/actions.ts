@@ -23,6 +23,7 @@ import { calculatePoints, DEFAULT_POINTS, DEFAULT_QUALI_POINTS } from '@/lib/sco
 import { eq, or, and, desc, isNull, isNotNull, inArray } from 'drizzle-orm';
 
 import { auth } from '@/lib/auth';
+import { isAdminAuthenticated } from '@/lib/admin-auth';
 import { telemetryService } from '@/lib/telemetry/telemetry-service';
 import bcrypt from 'bcryptjs';
 
@@ -129,27 +130,27 @@ export async function getDashboardLeagues() {
 }
 
 /**
- * Helper to ensure the current user is the admin of a league.
+ * Helper to ensure the current user is authenticated as Admin.
  */
-async function ensureAdmin(leagueId: string) {
-  const session = await auth();
-  if (!session?.user) throw new Error('NOT_AUTHENTICATED');
-  
-  const userId = (session.user as any).id;
-  const [league] = await db.select().from(leagues).where(and(eq(leagues.id, leagueId), eq(leagues.ownerId, userId)));
-  
-  if (!league) throw new Error('NOT_AUTHORIZED');
-  return league;
+export async function ensureAdmin(leagueId?: string) {
+  const isAuth = await isAdminAuthenticated();
+  if (!isAuth) throw new Error('NOT_AUTHORIZED');
+
+  if (leagueId) {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(leagueId);
+    if (!isUuid) throw new Error('INVALID_LEAGUE_ID');
+    const [league] = await db.select().from(leagues).where(eq(leagues.id, leagueId));
+    if (!league) throw new Error('LEAGUE_NOT_FOUND');
+    return league;
+  }
+  return null;
 }
 
 export async function getAdminLeagues() {
-  const session = await auth();
-  if (!session?.user) return { success: false, error: 'Not authenticated', leagues: [] };
-  
-  const userId = (session.user as any).id;
-  if (!userId) return { success: false, error: 'User ID missing', leagues: [] };
+  const isAuth = await isAdminAuthenticated();
+  if (!isAuth) return { success: false, error: 'Not authenticated', leagues: [] };
 
-  const res = await db.select().from(leagues).where(eq(leagues.ownerId, userId));
+  const res = await db.select().from(leagues).orderBy(desc(leagues.createdAt));
   return { success: true, leagues: res, error: null };
 }
 
@@ -162,8 +163,15 @@ export async function getPublicLeagueRaces(leagueId: string) {
 }
 
 export async function createLeague(name: string, ownerId?: string) {
-  await db.insert(leagues).values({ name, ownerId });
-  return { success: true, error: null };
+  try {
+    await ensureAdmin();
+    const [newLeague] = await db.insert(leagues).values({ name, ownerId }).returning();
+    revalidatePath('/admin');
+    revalidatePath('/dashboard');
+    return { success: true, league: newLeague, error: null };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
 }
 
 export async function joinLeagueById(leagueId: string, driverName: string, teamName: string, color: string) {
@@ -489,6 +497,7 @@ export async function getTelemetrySessionsForLeague(leagueId: string) {
 
 export async function deleteTelemetrySession(sessionId: string) {
   try {
+    await ensureAdmin();
     await db.delete(telemetrySessions).where(eq(telemetrySessions.id, sessionId));
     revalidatePath('/', 'layout');
     return { success: true, error: null };
@@ -519,6 +528,7 @@ export async function getActiveTelemetrySession(leagueId: string) {
 
 export async function linkTelemetryToRace(sessionId: string, raceId: string) {
   try {
+    await ensureAdmin();
     await db.update(telemetrySessions)
       .set({ raceId: raceId })
       .where(eq(telemetrySessions.id, sessionId));
@@ -908,5 +918,117 @@ export async function getAdminLeagueDrivers(leagueId: string) {
   } catch (err: any) {
     console.error('getAdminLeagueDrivers error:', err);
     return { success: false, drivers: [], error: err.message };
+  }
+}
+
+export async function addLeagueDriver(leagueId: string, name: string, teamName?: string, color?: string, gameName?: string) {
+  try {
+    await ensureAdmin(leagueId);
+    let teamId: string | undefined;
+    if (teamName) {
+      const [team] = await db.select().from(teams).where(and(eq(teams.leagueId, leagueId), eq(teams.name, teamName)));
+      if (team) teamId = team.id;
+    }
+
+    const [driver] = await db.insert(drivers).values({
+      leagueId,
+      name,
+      team: teamName || null,
+      teamId: teamId as any,
+      color: color || '#ffffff',
+      gameName: gameName || name
+    }).returning();
+
+    revalidatePath(`/profile/leagues/${leagueId}`);
+    revalidatePath(`/dashboard`);
+    return { success: true, driver, error: null };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function updateLeagueDriver(driverId: string, data: { name?: string; team?: string; color?: string; gameName?: string }) {
+  try {
+    const [driver] = await db.select().from(drivers).where(eq(drivers.id, driverId));
+    if (!driver || !driver.leagueId) return { success: false, error: 'Driver not found' };
+    await ensureAdmin(driver.leagueId);
+
+    let teamId: string | undefined = undefined;
+    if (data.team) {
+      const [team] = await db.select().from(teams).where(and(eq(teams.leagueId, driver.leagueId), eq(teams.name, data.team)));
+      if (team) teamId = team.id;
+    }
+
+    const [updated] = await db.update(drivers).set({
+      ...(data.name ? { name: data.name } : {}),
+      ...(data.team !== undefined ? { team: data.team, teamId: teamId as any } : {}),
+      ...(data.color ? { color: data.color } : {}),
+      ...(data.gameName !== undefined ? { gameName: data.gameName } : {})
+    }).where(eq(drivers.id, driverId)).returning();
+
+    revalidatePath(`/profile/leagues/${driver.leagueId}`);
+    revalidatePath(`/dashboard`);
+    return { success: true, driver: updated, error: null };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteLeagueDriver(driverId: string) {
+  try {
+    const [driver] = await db.select().from(drivers).where(eq(drivers.id, driverId));
+    if (!driver || !driver.leagueId) return { success: false, error: 'Driver not found' };
+    await ensureAdmin(driver.leagueId);
+
+    await db.delete(drivers).where(eq(drivers.id, driverId));
+    revalidatePath(`/profile/leagues/${driver.leagueId}`);
+    revalidatePath(`/dashboard`);
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function recalculateLeaguePoints(leagueId: string) {
+  try {
+    await ensureAdmin(leagueId);
+
+    const configRes = await getPointsConfig(leagueId);
+    const config = configRes.success ? configRes.config : undefined;
+
+    const leagueDrivers = await db.select().from(drivers).where(eq(drivers.leagueId, leagueId));
+    const allResults = await db.select({
+      result: raceResults,
+      race: races
+    })
+    .from(raceResults)
+    .innerJoin(races, eq(raceResults.raceId, races.id))
+    .where(eq(races.leagueId, leagueId));
+
+    for (const d of leagueDrivers) {
+      const driverResults = allResults.filter(r => r.result.driverId === d.id);
+      let total = 0;
+      for (const r of driverResults) {
+        const pts = calculatePoints({
+          position: r.result.position,
+          qualiPosition: r.result.qualiPosition ?? undefined,
+          fastestLap: !!r.result.fastestLap,
+          cleanDriver: !!r.result.cleanDriver,
+          isDnf: r.result.isDnf ?? undefined
+        }, config as any);
+
+        if (pts !== r.result.pointsEarned) {
+          await db.update(raceResults).set({ pointsEarned: pts }).where(eq(raceResults.id, r.result.id));
+        }
+        total += pts;
+      }
+      await db.update(drivers).set({ totalPoints: total, rawPoints: total }).where(eq(drivers.id, d.id));
+    }
+
+    revalidatePath(`/profile/leagues/${leagueId}`);
+    revalidatePath('/dashboard');
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err.message };
   }
 }

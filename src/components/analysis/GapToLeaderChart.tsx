@@ -97,7 +97,7 @@ export default function GapToLeaderChart({ laps }: GapToLeaderChartProps) {
                     tickLine={false}
                     axisLine={false}
                     domain={[0, 'auto']}
-                    tickFormatter={(v) => `+${v}s`}
+                    tickFormatter={(v: any) => `+${v}s`}
                     label={{ value: 'GAP (S)', angle: -90, position: 'insideLeft', fontSize: 9, fill: 'var(--text-muted)', offset: 10, fontWeight: 800 }}
                 />
                 <Tooltip 
@@ -110,7 +110,7 @@ export default function GapToLeaderChart({ laps }: GapToLeaderChartProps) {
                         boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
                     }}
                     itemStyle={{ padding: '2px 0' }}
-                    labelFormatter={(l) => `LAP ${l}`}
+                    labelFormatter={(l: any) => `LAP ${l}`}
                     formatter={(v: any) => [`+${v}s`, 'GAP']}
                 />
                 <Legend 

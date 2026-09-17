@@ -121,7 +121,7 @@ export default function DriverTrace({ data1, data2, label1, label2, color1, colo
                                 dataKey="dist" 
                                 stroke="#ffffff20" 
                                 fontSize={10} 
-                                tickFormatter={(val) => `${val}m`}
+                                tickFormatter={(val: any) => `${val}m`}
                                 tick={{ fill: '#94a3b8' }}
                                 minTickGap={50}
                             />

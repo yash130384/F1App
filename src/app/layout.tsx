@@ -1,8 +1,6 @@
 import './globals.css';
 import Link from 'next/link';
 import { TelemetryNav } from '@/components/common/TelemetryNav';
-import AdminDropdown from "@/components/common/AdminDropdown";
-import AuthNav from "@/components/common/AuthNav";
 import { Providers } from '@/components/Providers';
 
 export default function RootLayout({
@@ -22,10 +20,19 @@ export default function RootLayout({
               
               <div className="flex gap-small items-center nav-links">
                 <Link href="/dashboard" className="nav-link">Standings</Link>
-                
+                <Link href="/live" className="nav-link">Live Track</Link>
                 <TelemetryNav />
-                <AdminDropdown />
-                <AuthNav />
+                <Link 
+                  href="/admin" 
+                  className="nav-link" 
+                  style={{ 
+                    color: 'var(--f1-red)', 
+                    fontWeight: 'bold',
+                    letterSpacing: '0.08em'
+                  }}
+                >
+                  ADMIN
+                </Link>
               </div>
             </div>
           </nav>

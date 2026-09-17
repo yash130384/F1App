@@ -50,7 +50,7 @@ function RaceGraphContent({ raceGraphData, raceGraphDrivers, showTyreLines, setS
                             stroke="var(--silver)"
                             tick={{ fill: 'var(--silver)', fontSize: 12 }}
                             domain={['auto', 'auto']}
-                            tickFormatter={(tick) => formatLapTime(tick)}
+                            tickFormatter={(tick: any) => formatLapTime(tick)}
                         />
                         {showTyreLines && (
                             <defs>
@@ -89,7 +89,7 @@ function RaceGraphContent({ raceGraphData, raceGraphDrivers, showTyreLines, setS
                         )}
                         <Tooltip
                             contentStyle={{ backgroundColor: 'var(--f1-carbon-dark)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--white)' }}
-                            labelFormatter={(label) => `Lap ${label}`}
+                            labelFormatter={(label: any) => `Lap ${label}`}
                             formatter={(value: any, name: any) => {
                                 const driver = raceGraphDrivers.find(d => d.id === name);
                                 return [formatLapTime(value), driver ? driver.name : name];
@@ -887,7 +887,7 @@ export default function Dashboard() {
                                                                 <LineChart data={selectedDriverDetails.laps} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                                                                     <XAxis dataKey="lapNumber" stroke="var(--text-secondary)" fontSize={10} axisLine={false} tickLine={false} />
-                                                                    <YAxis stroke="var(--text-secondary)" fontSize={10} axisLine={false} tickLine={false} domain={['auto', 'auto']} tickFormatter={(tick) => formatLapTime(tick)} width={65} />
+                                                                    <YAxis stroke="var(--text-secondary)" fontSize={10} axisLine={false} tickLine={false} domain={['auto', 'auto']} tickFormatter={(tick: any) => formatLapTime(tick)} width={65} />
                                                                     <Tooltip 
                                                                         contentStyle={{ backgroundColor: 'var(--surface-mid)', border: '1px solid var(--glass-border)', borderRadius: '4px' }} 
                                                                         formatter={(v: any) => [formatLapTime(v), 'Time']} 

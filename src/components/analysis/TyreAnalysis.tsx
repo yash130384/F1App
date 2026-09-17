@@ -72,7 +72,7 @@ export default function TyreAnalysis({ samples, driverName }: TyreAnalysisProps)
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
                                         <XAxis dataKey="dist" hide />
-                                        <YAxis stroke="#475569" fontSize={11} domain={[70, 120]} tickFormatter={(val) => `${val}°C`} />
+                                        <YAxis stroke="#475569" fontSize={11} domain={[70, 120]} tickFormatter={(val: any) => `${val}°C`} />
                                         <Tooltip 
                                             contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px' }}
                                         />
