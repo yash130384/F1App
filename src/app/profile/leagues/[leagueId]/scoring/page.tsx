@@ -2,11 +2,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { getPointsConfig, updatePointsConfig } from '@/lib/actions';
-import { DEFAULT_POINTS, DEFAULT_QUALI_POINTS, PointsConfig } from '@/lib/scoring';
+import { DEFAULT_POINTS, DEFAULT_QUALI_POINTS, SEASON_3_POINTS, PointsConfig } from '@/lib/scoring';
 import { LoadingState, ErrorState } from '../_components/StatusScreens';
 import Link from 'next/link';
 
 const PRESETS = {
+  SEASON_3: {
+    name: 'Season 3 (P1: 36 ... P20: 1)',
+    points: SEASON_3_POINTS,
+    qualiPoints: DEFAULT_QUALI_POINTS,
+    fastestLapBonus: 0,
+    cleanDriverBonus: 0
+  },
   F1_CURRENT: {
     name: 'F1 Standard (2025)',
     points: { 1: 25, 2: 18, 3: 15, 4: 12, 5: 10, 6: 8, 7: 6, 8: 4, 9: 2, 10: 1 },
@@ -55,16 +62,19 @@ export default function ScoringConfigPage({ params }: { params: Promise<{ league
       ...config,
       points: { ...preset.points },
       qualiPoints: { ...preset.qualiPoints },
-      fastestLapBonus: preset.fastestLapBonus
+      fastestLapBonus: preset.fastestLapBonus,
+      cleanDriverBonus: (preset as any).cleanDriverBonus !== undefined ? (preset as any).cleanDriverBonus : config.cleanDriverBonus
     });
   };
 
   const isPresetActive = (presetKey: keyof typeof PRESETS) => {
     if (!config) return false;
     const p = PRESETS[presetKey];
+    const cleanDriverMatches = (p as any).cleanDriverBonus === undefined || config.cleanDriverBonus === (p as any).cleanDriverBonus;
     return JSON.stringify(config.points) === JSON.stringify(p.points) &&
            JSON.stringify(config.qualiPoints) === JSON.stringify(p.qualiPoints) &&
-           config.fastestLapBonus === p.fastestLapBonus;
+           config.fastestLapBonus === p.fastestLapBonus &&
+           cleanDriverMatches;
   };
 
   const handlePointChange = (pos: number, val: number, type: 'points' | 'qualiPoints') => {

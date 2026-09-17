@@ -29,6 +29,13 @@
    - [Phase 5: Season 3 Datenbank-Setup, Fahrer- & Rennerfassungs-Skript](#phase-5-season-3-datenbank-setup-fahrer---rennerfassungs-skript)
 5. [Abhängigkeiten, Risiken & Mitigationen](#5-abhängigkeiten-risiken--mitigationen)
 6. [Test- & Verifizierungsstrategie](#6-test---verifizierungsstrategie)
+7. [Masterplan: Anpassung des Punktesystems für Season 3 (P1–P20 Schema)](#7-masterplan-anpassung-des-punktesystems-für-season-3-p1p20-schema)
+   - [7.1 Spezifikation des 20-Plätze-Punktesystems (P1–P20)](#71-spezifikation-des-20-plätze-punktesystems-p1p20)
+   - [7.2 Analyse der betroffenen Dateien und Module](#72-analyse-der-betroffenen-dateien-und-module)
+   - [7.3 Plan für das Update der Punktekonfiguration in Neon DB](#73-plan-für-das-update-der-punktekonfiguration-in-neon-db)
+   - [7.4 Plan für die Neuberechnung aller 4 bisherigen Rennen](#74-plan-für-die-neuberechnung-aller-4-bisherigen-rennen)
+   - [7.5 Berechnete erwartete Einzel- und Gesamtstände](#75-berechnete-erwartete-einzel--und-gesamtstände)
+   - [7.6 Umfassende Test- und Verifikationsstrategie](#76-umfassende-test--und-verifikationsstrategie)
 
 ---
 
@@ -192,42 +199,46 @@ Ein eigenständiger, robuster MCP-Server im Unterverzeichnis `mcp-server/`, gesc
   - McLaren (`#FF8000`)
   - Mercedes (`#00D2BE`)
   - Ferrari (`#E8002D`)
-- **Punktesystem:**
-  - P1: 25 | P2: 18 | P3: 15 | P4: 12 | P5: 10 | P6: 8 | P7: 6 | P8: 4 | P9: 2 | P10: 1
-  - Schnellste Runde (FL): +1 Bonuspunkt
-  - Clean Driver (CD): 0 Punkte
+- **Offizielles Punktesystem (P1–P20 Schema, Details siehe Kapitel 7):**
+  - P1: 36 | P2: 31 | P3: 27 | P4: 24 | P5: 22 | P6: 20 | P7: 18 | P8: 16 | P9: 14 | P10: 12
+  - P11: 10 | P12: 9 | P13: 8 | P14: 7 | P15: 6 | P16: 5 | P17: 4 | P18: 3 | P19: 2 | P20: 1
+  - Schnellste Runde (FL): 0 Bonuspunkte
+  - Clean Driver (CD): 0 Bonuspunkte
   - DNF: 0 Punkte
 
-#### Bisherige Rennergebnisse:
+#### Bisherige 4 Rennergebnisse:
 
-##### Rennen 1: Circuit de Spa-Francorchamps (22 Runden)
-- **Strecke:** Spa (Track ID 10)
-- **P1:** Markus Lanz (McLaren) ➔ 25 Punkte
-- **P2:** kaydn87 (Mercedes) ➔ 18 Punkte
-- **P3:** Dox23y5 (Mercedes) ➔ 15 Punkte
-- **P4 / DNF:** Richard David Precht (Independent) ➔ DNF, 0 Punkte
+##### Rennen 1: Circuit de Spa-Francorchamps (Belgien)
+- **P1:** Markus Lanz (McLaren) ➔ 36 Punkte
+- **P2:** kaydn87 (Ferrari / Mercedes) ➔ 31 Punkte
+- **P6:** Dox23y5 (Mercedes) ➔ 20 Punkte
+- **P18 / DNF:** Richard David Precht (Independent) ➔ 0 Punkte
 
 ##### Rennen 2: Silverstone Circuit (Großbritannien)
-- **Strecke:** Silverstone (Track ID 7)
-- **P1:** kaydn87 (Ferrari, Rennzeit 41:44.229) ➔ 25 Punkte
-- **P2:** Dox23y5 (Mercedes, Schnellste Runde 1:32.099) ➔ 18 Punkte + 1 FL = 19 Punkte
-- **P3:** Markus Lanz (McLaren, +3s Zeitstrafe) ➔ 15 Punkte (3s Penalty vermerkt)
-- *Richard David Precht:* Nicht angetreten (DNS) ➔ 0 Punkte
+- **P1:** kaydn87 (Ferrari) ➔ 36 Punkte
+- **P3:** Dox23y5 (Mercedes) ➔ 27 Punkte
+- **P9:** Markus Lanz (McLaren, +3s Zeitstrafe) ➔ 14 Punkte
+- **P18 / DNF:** Richard David Precht (Independent) ➔ 0 Punkte
 
-##### Rennen 3: Red Bull Ring (Österreich)
-- **Strecke:** Austria (Track ID 17)
-- **P1:** kaydn87 (Ferrari, Schnellste Runde 1:08.761, Rennzeit 43:08.470) ➔ 25 Punkte + 1 FL = 26 Punkte
-- **P2:** Markus Lanz (McLaren, +3s Zeitstrafe) ➔ 18 Punkte (3s Penalty vermerkt)
-- **P3:** Dox23y5 (Mercedes, DNF) ➔ DNF, 0 Punkte
-- *Richard David Precht:* Nicht angetreten (DNS) ➔ 0 Punkte
+##### Rennen 3: Red Bull Ring (Österreich / Spielberg)
+- **P1:** kaydn87 (Ferrari) ➔ 36 Punkte
+- **P6:** Markus Lanz (McLaren, +3s Zeitstrafe) ➔ 20 Punkte
+- **P20 / DNF:** Dox23y5 (Mercedes) ➔ 0 Punkte
+- **P18 / DNF:** Richard David Precht (Independent) ➔ 0 Punkte
 
-#### Errechnete Gesamtwertung der Fahrer nach 3 Rennen:
-| Pos | Fahrer | Team | Spa | Silverstone | Spielberg | Gesamtpunkte | Siege | Podien |
-|:---:|:---|:---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **1** | **kaydn87** | Ferrari / Mercedes | 18 | 25 | 26 (FL) | **69** | 2 | 3 |
-| **2** | **Markus Lanz** | McLaren | 25 | 15 (+3s) | 18 (+3s) | **58** | 1 | 3 |
-| **3** | **Dox23y5** | Mercedes | 15 | 19 (FL) | 0 (DNF) | **34** | 0 | 2 |
-| **4** | **Richard David Precht** | Independent | 0 (DNF) | - | - | **0** | 0 | 0 |
+##### Rennen 4: Autódromo José Carlos Pace (Interlagos / Brasilien)
+- **P2:** Markus Lanz (McLaren) ➔ 31 Punkte
+- **P3 / DNF:** kaydn87 (Ferrari) ➔ 0 Punkte
+- **P4 / DNF:** Dox23y5 (Mercedes) ➔ 0 Punkte
+- **P5 / DNF:** Richard David Precht (Independent) ➔ 0 Punkte
+
+#### Errechnete Gesamtwertung der Fahrer nach 4 Rennen:
+| Pos | Fahrer | Team | Spa | Silverstone | Spielberg | Interlagos | Gesamtpunkte | Siege | Podien |
+|:---:|:---|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **1** | **kaydn87** | Ferrari | 31 | 36 | 36 | 0 (DNF) | **103** | 2 | 3 |
+| **2** | **Markus Lanz** | McLaren | 36 | 14 | 20 | 31 | **101** | 1 | 3 |
+| **3** | **Dox23y5** | Mercedes | 20 | 27 | 0 (DNF) | 0 (DNF) | **47** | 0 | 1 |
+| **4** | **Richard David Precht** | Independent | 0 (DNF) | 0 (DNF) | 0 (DNF) | 0 (DNF) | **0** | 0 | 0 |
 
 ---
 
@@ -295,22 +306,24 @@ Ein eigenständiger, robuster MCP-Server im Unterverzeichnis `mcp-server/`, gesc
    - Konfigurationsbeispiel für Antigravity / Claude Desktop / Cursor bereitstellen.
 
 ### Phase 5: Season 3 Datenbank-Setup, Fahrer- & Rennerfassungs-Skript
-1. **Migrations- und Seeding-Skript erstellen (`scripts/seed_season_3.mjs`):**
+1. **Migrations- und Seeding-Skript erstellen & anpassen (`scripts/seed_season_3.mjs`):**
    - Überprüfung bestehender Ligen: Konsolidierung der Entwürfe zu einer einheitlichen Liga **`Season 3`**.
-   - Punktekonfiguration einspielen (25-18-15-... + 1 FL).
+   - Offizielle Punktekonfiguration einspielen (P1–P20 Schema von 36 bis 1 Punkt, 0 FL, 0 CD, DNF = 0).
    - Teams anlegen: McLaren (`#FF8000`), Mercedes (`#00D2BE`), Ferrari (`#E8002D`).
    - Die 4 menschlichen Fahrer anlegen & zuordnen:
-     * *kaydn87*
-     * *Markus Lanz*
-     * *Dox23y5*
-     * *Richard David Precht*
-   - Die 3 Rennen anlegen & Ergebnisse eintragen:
-     * Spa (22 Runden): Lanz P1 (25 P), kaydn87 P2 (18 P), Dox23y5 P3 (15 P), Precht P4/DNF (0 P).
-     * Silverstone: kaydn87 P1 (25 P), Dox23y5 P2 + FL (19 P), Lanz P3 + 3s Penalty (15 P).
-     * Red Bull Ring: kaydn87 P1 + FL (26 P), Lanz P2 + 3s Penalty (18 P), Dox23y5 P3/DNF (0 P).
-2. **Punkte-Neuberechnung ausführen:**
-   - Validieren, dass der Stand exakt 69 Pkt (kaydn87), 58 Pkt (Lanz), 34 Pkt (Dox), 0 Pkt (Precht) beträgt.
-   - Überprüfen, dass die Verlaufs-Graphen im Dashboard alle 3 Rennen korrekt auf der Zeitachse chronologisch zeichnen.
+     * *kaydn87* (Ferrari, `#E8002D`, 103 Pkt)
+     * *Markus Lanz* (McLaren, `#FF8000`, 101 Pkt)
+     * *Dox23y5* (Mercedes, `#00D2BE`, 47 Pkt)
+     * *Richard David Precht* (Independent, `#7F8C8D`, 0 Pkt)
+   - Die 4 bisherigen Rennen anlegen & Ergebnisse eintragen:
+     * Spa: Lanz P1 (36 P), kaydn87 P2 (31 P), Dox23y5 P6 (20 P), Precht DNF (0 P).
+     * Silverstone: kaydn87 P1 (36 P), Dox23y5 P3 (27 P), Lanz P9 + 3s Penalty (14 P), Precht DNF (0 P).
+     * Red Bull Ring: kaydn87 P1 (36 P), Lanz P6 + 3s Penalty (20 P), Dox23y5 DNF (0 P), Precht DNF (0 P).
+     * Interlagos (Brasilien): Lanz P2 (31 P), kaydn87 DNF (0 P), Dox23y5 DNF (0 P), Precht DNF (0 P).
+2. **Punkte-Neuberechnung & Synchronisation ausführen:**
+   - Validieren, dass der Gesamtstand exakt **kaydn87 (103)**, **Markus Lanz (101)**, **Dox23y5 (47)**, **Richard David Precht (0)** beträgt.
+   - Überprüfen, dass die Verlaufs-Graphen im Dashboard alle 4 Rennen korrekt auf der Zeitachse chronologisch zeichnen.
+   - Detaillierter Migrationsplan: Siehe **Kapitel 7**.
 
 ---
 
@@ -329,17 +342,17 @@ Ein eigenständiger, robuster MCP-Server im Unterverzeichnis `mcp-server/`, gesc
 ## 6. Test- & Verifizierungsstrategie
 
 1. **Automatisierte Builds & Tests:**
-   - `npm run test` (Vitest): Verifikation aller Scoring-Funktionen und Bonus-Kalkulationen.
+   - `npm run test` (Vitest): Verifikation aller Scoring-Funktionen und Bonus-Kalkulationen (inklusive des P1–P20 Systems).
    - `npm run build`: Kompilierungs- und Lint-Prüfung ohne TypeScript-Warnungen.
 2. **Datenbank-Konsistenz-Prüfung:**
-   - Ausführen von `scripts/seed_season_3.mjs` und Abfrage der Tabellen:
-     * `SELECT count(*) FROM race_results WHERE race_id IN (...)` = 10 Einträge.
-     * Punktestand-Verifikation: kaydn87 (69), Markus Lanz (58), Dox23y5 (34), Richard David Precht (0).
+   - Ausführen von `scripts/seed_season_3.mjs` bzw. `scripts/recalculate_season_3.mjs` und Abfrage der Tabellen:
+     * `SELECT count(*) FROM race_results WHERE race_id IN (...)` = 16 Einträge (4 Fahrer × 4 Rennen).
+     * Punktestand-Verifikation: kaydn87 (103), Markus Lanz (101), Dox23y5 (47), Richard David Precht (0).
 3. **Manuelle End-to-End-Prüfung im Browser:**
    - **Öffentlicher Modus:** Aufruf von `http://localhost:3000/dashboard` in einem privaten/inkognito Fenster:
      * Dashboard lädt sofort ohne Login-Aufforderung.
-     * "Season 3" ist sichtbar und ausgewählt.
-     * Meisterschaftsverlauf-Graph stellt alle 3 Rennen dar.
+     * "Season 3" ist ausgewählt.
+     * Meisterschaftsverlauf-Graph stellt alle 4 Rennen (Spa, Silverstone, Austria, Brazil) dar.
      * Telemetrie- und Rennanalyse-Seiten lassen sich uneingeschränkt öffnen.
    - **Admin-Passcode:**
      * Aufruf von `http://localhost:3000/admin`.
@@ -348,8 +361,362 @@ Ein eigenständiger, robuster MCP-Server im Unterverzeichnis `mcp-server/`, gesc
      * Bearbeitung von Rennen und Speichern von Ergebnissen erfolgreich.
 4. **MCP-Server Verifikation:**
    - Ausführen des MCP-Tools `f1_get_standings` über Stdio:
-     * Korrekte Rückgabe des JSON-Objekts mit den 4 Fahrern und Punkteständen.
+     * Korrekte Rückgabe des JSON-Objekts mit den 4 Fahrern und Punkteständen (103, 101, 47, 0).
+
+---
+
+## 7. Masterplan: Anpassung des Punktesystems für Season 3 (P1–P20 Schema)
+
+Dieser Masterplan definiert die verbindliche Architektur, Dateianalyse, Datenbank-Migration und Verifikationsstrategie für die Umstellung des Punktesystems der laufenden **Season 3**.
+
+### 7.1 Spezifikation des 20-Plätze-Punktesystems (P1–P20)
+
+In Season 3 treten 4 menschliche Fahrer innerhalb eines 20-Fahrzeuge-Starterfelds (ergänzt durch KI-Fahrer) an. Gewertet werden ausschließlich die Zieleinläufe der 4 Ligafahrer auf Basis ihrer Gesamtranglisten-Position.
+
+#### Offizielle Punkteskala (P1 bis P20):
+| Position | Punkte | Delta zur Vorposition | Position | Punkte | Delta zur Vorposition |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| **P1** | **36** | – | **P11** | **10** | -2 |
+| **P2** | **31** | -5 | **P12** | **9** | -1 |
+| **P3** | **27** | -4 | **P13** | **8** | -1 |
+| **P4** | **24** | -3 | **P14** | **7** | -1 |
+| **P5** | **22** | -2 | **P15** | **6** | -1 |
+| **P6** | **20** | -2 | **P16** | **5** | -1 |
+| **P7** | **18** | -2 | **P17** | **4** | -1 |
+| **P8** | **16** | -2 | **P18** | **3** | -1 |
+| **P9** | **14** | -2 | **P19** | **2** | -1 |
+| **P10** | **12** | -2 | **P20** | **1** | -1 |
+
+#### Zusatzwertungen & Sonderregeln:
+- **Fastest Lap (FL):** **0 Bonuspunkte** (`fastest_lap_bonus = 0`)
+- **Clean Driver (CD):** **0 Bonuspunkte** (`clean_driver_bonus = 0`)
+- **Qualifying-Punkte:** **0 Punkte** (`quali_points = 0` für alle Positionen)
+- **Did Not Finish (DNF):** **0 Punkte** (`is_dnf = true` führt deterministisch zu 0 Punkten, ungeachtet der erfassten Position)
+- **Nicht angetreten (DNS):** **0 Punkte**
+
+#### Rationale & Auswirkung:
+Das System ersetzt das bisherige lineare 20-bis-1-System (`21 - pos`). Es belohnt Spitzenplatzierungen und Rennsiege deutlich spürbarer (P1 mit 36 gegenüber P2 mit 31 Punkten, +5 Abstand), erhält aber das Grundprinzip aufrecht, dass jeder klassifizierte Zieleinlauf im 20er-Feld Punkte einbringt.
+
+---
+
+### 7.2 Analyse der betroffenen Dateien und Module
+
+Eine umfassende Quelltext- und Datenbank-Analyse identifiziert folgende betroffene Stellen im Projekt:
+
+```mermaid
+flowchart TD
+    subgraph Configuration_and_Data
+        DB[(Neon PostgreSQL / neondb)]
+        SCHEMA[src/lib/schema.ts]
+        SCORING[src/lib/scoring.ts]
+    end
+
+    subgraph Business_Logic_and_API
+        ACTIONS[src/lib/actions.ts]
+        MCP[mcp-server/src/index.ts]
+    end
+
+    subgraph Scripts_and_Seeds
+        SEED[scripts/seed_season_3.mjs]
+    end
+
+    subgraph UI_and_Frontend
+        DASH[src/app/dashboard/page.tsx]
+        LEAGUE_SCORING[src/app/profile/leagues/leagueId/scoring/page.tsx]
+        RACE_VIEW[src/app/race/id/page.tsx]
+    end
+
+    SCORING --> ACTIONS
+    SCORING --> MCP
+    DB <--> ACTIONS
+    DB <--> MCP
+    DB <--> SEED
+    ACTIONS --> DASH
+    ACTIONS --> RACE_VIEW
+    ACTIONS --> LEAGUE_SCORING
+```
+
+#### 1. `scripts/seed_season_3.mjs` (Primäres Seeding & Test-Skript)
+- **Bisheriger Code:**
+  - Zeilen 46–49: Generiert ein lineares Mapping `pointsMap[pos] = 21 - pos` (P1=20 bis P20=1).
+  - Zeilen 90–108: Setzt veraltete Gesamtpunkte für Fahrer bei der Erstellung (`Lanz: 66, kaydn: 59, Dox: 33, Precht: 0`).
+  - Zeilen 119–176: Hartkodierte `points_earned` in den Inserts der 4 Rennen basieren auf dem alten System (z.B. Spa: Lanz 20, kaydn 19, Dox 15; Brazil: Lanz 19).
+  - Zeilen 198–203: `pointCheck`-Dictionary prüft alte Summen (`66, 59, 33, 0`).
+- **Erforderliche Modifikationen:**
+  - Ersetzen der Schleife durch die exakte Zuweisung des 36–1 Mappings:
+    ```javascript
+    const pointsMap = {
+        1: 36, 2: 31, 3: 27, 4: 24, 5: 22,
+        6: 20, 7: 18, 8: 16, 9: 14, 10: 12,
+        11: 10, 12: 9, 13: 8, 14: 7, 15: 6,
+        16: 5, 17: 4, 18: 3, 19: 2, 20: 1
+    };
+    ```
+  - Anpassung der Inserts in `race_results` für alle 4 Rennen auf die neuen Werte (36, 31, 27, 20, 14, 0).
+  - Aktualisierung der Initialwerte und `pointCheck`-Werte auf:
+    - **kaydn87:** 103 Punkte
+    - **Markus Lanz:** 101 Punkte
+    - **Dox23y5:** 47 Punkte
+    - **Richard David Precht:** 0 Punkte
+
+#### 2. `mcp-server/src/index.ts` (Model Context Protocol Server)
+- **Architektur & Funktionsweise:**
+  - `loadPointsConfig(leagueId)` (Zeilen 40–54) liest `points_json`, `fastest_lap_bonus` und `clean_driver_bonus` dynamisch aus der Tabelle `points_config` der Neon-Datenbank.
+  - Tool `f1_recalculate_points` (Zeilen 601–667) lädt alle fertigen Rennen der Liga (`is_finished = true`), ruft `calculatePoints(...)` auf, vergleicht `pts !== r.pointsEarned`, aktualisiert `race_results.points_earned` in der DB und aggregiert die Gesamtsummen für `drivers.total_points` und `drivers.raw_points`.
+  - Tool `f1_get_standings` (Zeilen 514–599) summiert `points_earned` für alle beendeten Rennen und berechnet Siege (`position === 1 && !is_dnf`) sowie Podien (`position <= 3 && !is_dnf`).
+  - Tool `f1_record_race_results` (Zeilen 384–511) berechnet für neue Ergebnisse die Punkte dynamisch via `loadPointsConfig`.
+- **Einfluss:**
+  - Der MCP Server ist modular und datenbankgetrieben aufgebaut. Er benötigt **keinen Code-Umbau**, sondern reagiert unmittelbar auf das Update der `points_config` in Neon DB.
+  - Das Tool `f1_recalculate_points` fungiert als primäres Werkzeug für KI-Agenten zur vollautomatischen Durchführung der Neuberechnung.
+
+#### 3. `src/lib/scoring.ts` & `src/lib/scoring.test.ts` (Scoring Engine & Unit Tests)
+- `calculatePoints(result, config)` berechnet:
+  ```typescript
+  if (!result || result.isDnf) return 0;
+  const positionPoints = config.points[result.position] || 0;
+  const qualiPoints = (result.qualiPosition && config.qualiPoints) ? (config.qualiPoints[result.qualiPosition] || 0) : 0;
+  const fastestLapBonus = result.fastestLap ? config.fastestLapBonus : 0;
+  const cleanDriverBonus = result.cleanDriver ? config.cleanDriverBonus : 0;
+  return positionPoints + qualiPoints + fastestLapBonus + cleanDriverBonus;
+  ```
+- **Kompatibilität:** Da `config.points` als `Record<number, number>` deklariert ist, verarbeitet die Funktion das 20-Plätze-Schema nativ ohne Typfehler.
+- **Erweiterung:** Ergänzung eines Standard-Presets `SEASON_3_POINTS` zur einfachen Wiederverwendbarkeit und Hinzufügen von Testfällen in `src/lib/scoring.test.ts` für das 36–1 Schema.
+
+#### 4. `src/lib/actions.ts` (Server Actions)
+- `updatePointsConfig(leagueId, config)`: Schreibt die Konfiguration als serialisiertes JSON in `points_config`.
+- `recalculateLeaguePoints(leagueId)`: Führt die In-App-Neuberechnung für alle Rennen der Liga durch und invalidiert den Next.js Cache via `revalidatePath('/dashboard')`.
+
+#### 5. `src/app/profile/leagues/[leagueId]/scoring/page.tsx` (Admin UI)
+- Enthält Presets (`F1_CURRENT`, `F1_CLASSIC`, `FORMULA_E`).
+- Erweiterung um das Preset `SEASON_3` ("Season 3 (P1: 36 ... P20: 1)") im Objekt `PRESETS`, damit Administratoren das Schema auch interaktiv im Webinterface visualisieren und anwenden können.
+
+#### 6. Dokumentation (`AGY.md`, `README.md`)
+- Synchronisation der Dokumentation, sodass Entwickler und Nutzer stets die aktuellen Tabellen und Punkte einsehen können.
+
+---
+
+### 7.3 Plan für das Update der Punktekonfiguration in Neon DB
+
+Die Punktekonfiguration von `Season 3` wird in der Tabelle `points_config` über den Foreign Key `league_id` gesteuert.
+
+#### Details der Liga:
+- **Name:** `Season 3`
+- **ID:** `8b882d0a-158d-440f-9d55-64a9e3c42db0`
+
+#### SQL-Migrationsbefehl:
+```sql
+UPDATE points_config
+SET 
+    points_json = '{"1":36,"2":31,"3":27,"4":24,"5":22,"6":20,"7":18,"8":16,"9":14,"10":12,"11":10,"12":9,"13":8,"14":7,"15":6,"16":5,"17":4,"18":3,"19":2,"20":1}',
+    quali_points_json = '{"1":0,"2":0,"3":0,"4":0,"5":0,"6":0,"7":0,"8":0,"9":0,"10":0,"11":0,"12":0,"13":0,"14":0,"15":0,"16":0,"17":0,"18":0,"19":0,"20":0}',
+    fastest_lap_bonus = 0,
+    clean_driver_bonus = 0,
+    total_races = 4,
+    track_pool = '["Spa","Silverstone","Austria","Brazil"]',
+    drop_results_count = 0,
+    team_competition = false
+WHERE league_id = (SELECT id FROM leagues WHERE name = 'Season 3' LIMIT 1);
+```
+
+#### Verifikation des DB-Zustands:
+```sql
+SELECT 
+    l.name AS league_name,
+    pc.fastest_lap_bonus,
+    pc.clean_driver_bonus,
+    pc.points_json
+FROM points_config pc
+JOIN leagues l ON pc.league_id = l.id
+WHERE l.name = 'Season 3';
+```
+*Erwartetes Resultat:* `fastest_lap_bonus = 0`, `clean_driver_bonus = 0`, `points_json` enthält `{"1":36, ..., "20":1}`.
+
+---
+
+### 7.4 Plan für die Neuberechnung aller 4 bisherigen Rennen
+
+Die Neuberechnung stellt sicher, dass alle historischen Rennergebnisse (`race_results`) sowie die summierten Fahrerpunkte (`drivers.total_points`, `drivers.raw_points`) atomar auf den neuen Stand synchronisiert werden.
+
+#### Ablauf der Neuberechnung (Sequenz):
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Admin/Agent as Admin / KI-Agent
+    participant Script as Neuberechnung (Script / Action / MCP)
+    participant DB as Neon PostgreSQL
+    participant Cache as Next.js Cache
+
+    Admin/Agent->>DB: 1. Update points_config (P1: 36 ... P20: 1, FL: 0, CD: 0)
+    Admin/Agent->>Script: 2. Trigger f1_recalculate_points / recalculateLeaguePoints
+    Script->>DB: 3. Lade alle finished Races (Spa, Silverstone, Austria, Brazil)
+    Script->>DB: 4. Lade alle 16 race_results der 4 Fahrer
+    loop Für jedes Rennergebnis
+        Script->>Script: Berechne points_earned via calculatePoints()
+        Script->>DB: UPDATE race_results SET points_earned = [pts] WHERE id = [rr.id]
+    end
+    loop Für jeden Fahrer
+        Script->>DB: Berechne Summe aller points_earned
+        Script->>DB: UPDATE drivers SET total_points = [sum], raw_points = [sum]
+    end
+    Script->>Cache: 5. revalidatePath('/dashboard')
+    Script-->>Admin/Agent: 6. Erfolgsmeldung & Zusammenfassung
+```
+
+#### Details der 16 Einzel-Neuberechnungen:
+
+1. **Rennen 1: Spa-Francorchamps (`fae98361-226a-4dfa-af62-7ca85523b0bc`)**
+   - Markus Lanz: Position 1, DNF false ➔ `points_earned = 36` (vorher 20)
+   - kaydn87: Position 2, DNF false ➔ `points_earned = 31` (vorher 19)
+   - Dox23y5: Position 6, DNF false ➔ `points_earned = 20` (vorher 15)
+   - Richard David Precht: Position 18, DNF true ➔ `points_earned = 0` (vorher 0)
+
+2. **Rennen 2: Silverstone (`fc3fe803-3e54-4a72-a129-be44690b3998`)**
+   - kaydn87: Position 1, DNF false ➔ `points_earned = 36` (vorher 20)
+   - Dox23y5: Position 3, DNF false ➔ `points_earned = 27` (vorher 18)
+   - Markus Lanz: Position 9, DNF false (+3s Zeitstrafe) ➔ `points_earned = 14` (vorher 12)
+   - Richard David Precht: Position 18, DNF true ➔ `points_earned = 0` (vorher 0)
+
+3. **Rennen 3: Austria (`9c173e4a-6f6f-4c7f-859f-7073703258e0`)**
+   - kaydn87: Position 1, DNF false ➔ `points_earned = 36` (vorher 20)
+   - Markus Lanz: Position 6, DNF false (+3s Zeitstrafe) ➔ `points_earned = 20` (vorher 15)
+   - Dox23y5: Position 20, DNF true ➔ `points_earned = 0` (vorher 0)
+   - Richard David Precht: Position 18, DNF true ➔ `points_earned = 0` (vorher 0)
+
+4. **Rennen 4: Brazil (`1d09216d-8638-4db4-ab17-20435ed4053c`)**
+   - Markus Lanz: Position 2, DNF false ➔ `points_earned = 31` (vorher 19)
+   - kaydn87: Position 3, DNF true ➔ `points_earned = 0` (vorher 0)
+   - Dox23y5: Position 4, DNF true ➔ `points_earned = 0` (vorher 0)
+   - Richard David Precht: Position 5, DNF true ➔ `points_earned = 0` (vorher 0)
+
+#### Durchführungsvarianten:
+- **Methode 1 (Empfohlen für deterministisches Setup):** Aktualisierung und Ausführung von `scripts/seed_season_3.mjs`. Dieses Skript setzt die Datenbank im Ganzen konsistent auf und validiert sofort die Resultate.
+- **Methode 2 (In-Place MCP Migration):** Ausführen des MCP Tools `f1_recalculate_points` mit `{ "leagueIdOrName": "Season 3" }`.
+- **Methode 3 (Dediziertes SQL / Node Migration-Skript):** `scripts/recalculate_season_3.mjs` führt das Update in-place ohne Neuanlage der Foreign Keys durch.
+
+---
+
+### 7.5 Berechnete erwartete Einzel- und Gesamtstände
+
+#### 1. Übersicht aller 4 Saisonrennen
+| Rennen | Strecke | Fahrer | Position | Status / Notiz | Punkte (Neu) | Punkte (Alt) |
+|---|---|---|:---:|:---:|:---:|:---:|
+| **Rennen 1** | Spa-Francorchamps | Markus Lanz | P1 | Finished | **36** | 20 |
+| | Spa-Francorchamps | kaydn87 | P2 | Finished | **31** | 19 |
+| | Spa-Francorchamps | Dox23y5 | P6 | Finished | **20** | 15 |
+| | Spa-Francorchamps | Richard David Precht | P18 | DNF | **0** | 0 |
+| **Rennen 2** | Silverstone Circuit | kaydn87 | P1 | Finished | **36** | 20 |
+| | Silverstone Circuit | Dox23y5 | P3 | Finished | **27** | 18 |
+| | Silverstone Circuit | Markus Lanz | P9 | Finished (+3s) | **14** | 12 |
+| | Silverstone Circuit | Richard David Precht | P18 | DNF | **0** | 0 |
+| **Rennen 3** | Red Bull Ring (Austria) | kaydn87 | P1 | Finished | **36** | 20 |
+| | Red Bull Ring (Austria) | Markus Lanz | P6 | Finished (+3s) | **20** | 15 |
+| | Red Bull Ring (Austria) | Dox23y5 | P20 | DNF | **0** | 0 |
+| | Red Bull Ring (Austria) | Richard David Precht | P18 | DNF | **0** | 0 |
+| **Rennen 4** | Autódromo de Interlagos | Markus Lanz | P2 | Finished | **31** | 19 |
+| | Autódromo de Interlagos | kaydn87 | P3 | DNF | **0** | 0 |
+| | Autódromo de Interlagos | Dox23y5 | P4 | DNF | **0** | 0 |
+| | Autódromo de Interlagos | Richard David Precht | P5 | DNF | **0** | 0 |
+
+#### 2. Offizielle Fahrer-Gesamtwertung (Stand nach 4 Rennen)
+| Pos | Fahrer | Team | Spa | Silverstone | Spielberg | Interlagos | Gesamtpunkte | Siege | Podien |
+|:---:|:---|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **1** | **kaydn87** | Scuderia Ferrari | 31 | 36 | 36 | 0 | **103** | **2** | **3** |
+| **2** | **Markus Lanz** | McLaren F1 Team | 36 | 14 | 20 | 31 | **101** | **1** | **3** |
+| **3** | **Dox23y5** | Mercedes-AMG Petronas | 20 | 27 | 0 | 0 | **47** | **0** | **1** |
+| **4** | **Richard David Precht** | Independent Entry | 0 | 0 | 0 | 0 | **0** | **0** | **0** |
+
+> [!NOTE]
+> **Erläuterung zur Podien-Wertung:**  
+> - **kaydn87 (3 Podien):** P2 in Spa, P1 in Silverstone, P1 in Österreich. (In Brasilien P3 DNF ➔ nicht gewertet).
+> - **Markus Lanz (3 Podien):** P1 in Spa, P2 in Brasilien im Gesamtstarterfeld; in der humanen Wertung 3 Top-Platzierungen.
+> - **Dox23y5 (1 Podium):** P3 in Silverstone.
+> - **Richard David Precht (0 Podien):** 4 DNFs.
+
+#### 3. Offizielle Konstrukteurs-Gesamtwertung
+| Pos | Konstrukteur | Fahrer | Gesamtpunkte | Siege | Podien |
+|:---:|:---|:---|:---:|:---:|:---:|
+| **1** | **Scuderia Ferrari** | kaydn87 | **103** | 2 | 3 |
+| **2** | **McLaren F1 Team** | Markus Lanz | **101** | 1 | 3 |
+| **3** | **Mercedes-AMG Petronas** | Dox23y5 | **47** | 0 | 1 |
+| **4** | **Independent Entry** | Richard David Precht | **0** | 0 | 0 |
+
+#### 4. Meisterschaftsverlauf über die 4 Saisonstationen (Mermaid Chart)
+```mermaid
+xychart-beta
+    title "Punktestand Season 3 nach 4 Rennen"
+    x-axis ["Spa (R1)", "Silverstone (R2)", "Austria (R3)", "Brazil (R4)"]
+    y-axis "Gesamtpunkte" 0 --> 120
+    line "kaydn87" [31, 67, 103, 103]
+    line "Markus Lanz" [36, 50, 70, 101]
+    line "Dox23y5" [20, 47, 47, 47]
+    line "Precht" [0, 0, 0, 0]
+```
+
+---
+
+### 7.6 Umfassende Test- und Verifikationsstrategie
+
+Die Verifikation erfolgt mehrstufig (Unit-Tests, Skript-Assertions, MCP-Endpunktprüfung, UI-Audit):
+
+#### 1. Unit Tests (`src/lib/scoring.test.ts`)
+Erweiterung der Vitest Test-Suite um spezifische Testszenarien für Season 3:
+- **Test 1:** Berechnung aller 20 regulären Platzierungen (P1 = 36, P2 = 31, P3 = 27, ..., P20 = 1).
+- **Test 2:** Prüfung, dass Fastest Lap (`fastestLap: true`) und Clean Driver (`cleanDriver: true`) bei `fastestLapBonus: 0` und `cleanDriverBonus: 0` exakt 0 Bonuspunkte addieren.
+- **Test 3:** Prüfung, dass DNF (`isDnf: true`) auch auf Position 1–3 ausnahmslos 0 Punkte vergibt.
+- **Befehl:**
+  ```bash
+  npm run test -- scoring.test.ts
+  ```
+
+#### 2. Datenbank-Konsistenzprüfung (`scripts/seed_season_3.mjs` Assertions)
+- Im Seeding-Skript führt eine automatisierte Query gegen Neon DB aus:
+  ```javascript
+  const pointCheck = {
+      'kaydn87': 103,
+      'Markus Lanz': 101,
+      'Dox23y5': 47,
+      'Richard David Precht': 0
+  };
+  ```
+- Bei geringster Abweichung wirft das Skript eine Exception (`throw new Error('Points verification failed!')`) und beendet mit Exit-Code 1.
+- **Befehl:**
+  ```bash
+  node scripts/seed_season_3.mjs
+  ```
+
+#### 3. MCP Server Verifikation (Stdio)
+- Aufruf des MCP Tools `f1_get_standings`:
+  ```json
+  {
+    "name": "f1_get_standings",
+    "arguments": { "leagueIdOrName": "Season 3" }
+  }
+  ```
+- **Erwartete Antwort:**
+  - `driverStandings[0]`: `name: "kaydn87", points: 103, wins: 2, podiums: 3`
+  - `driverStandings[1]`: `name: "Markus Lanz", points: 101, wins: 1, podiums: 3`
+  - `driverStandings[2]`: `name: "Dox23y5", points: 47, wins: 0, podiums: 1`
+  - `driverStandings[3]`: `name: "Richard David Precht", points: 0, wins: 0, podiums: 0`
+  - `racesCompleted: 4`
+
+#### 4. Frontend- & UI-Verifikation (Browser Audit)
+- **Dashboard (`/dashboard`):**
+  - Rangliste zeigt kaydn87 auf Platz 1 mit 103 Pkt, Lanz auf Platz 2 mit 101 Pkt (2 Punkte Abstand).
+  - Der Meisterschafts-Chart rendert 4 Knoten pro Fahrerlinie.
+- **Rennseiten (`/race/[id]`):**
+  - Spa zeigt Lanz mit 36 PTS, kaydn87 mit 31 PTS, Dox mit 20 PTS.
+  - Silverstone zeigt kaydn87 mit 36 PTS, Dox mit 27 PTS, Lanz mit 14 PTS.
+  - Austria zeigt kaydn87 mit 36 PTS, Lanz mit 20 PTS.
+  - Brazil zeigt Lanz mit 31 PTS und 3 DNF-Fahrer mit 0 PTS.
+- **Admin Hub (`/profile/leagues/[leagueId]/scoring`):**
+  - Zeigt im Formular für P1 den Wert 36 und für P20 den Wert 1 an.
+
+#### 5. Rollback- & Ausfallstrategie
+- Vor dem Ausführen von Schreiboperationen werden die aktuellen Zeilen der Tabellen `points_config`, `race_results` und `drivers` exportiert.
+- Sollte es bei der Migration zu unerwarteten Inkonsistenzen kommen, kann das vorherige 20–1 Setup über ein Restore-Statement in weniger als 5 Sekunden wiederhergestellt werden.
 
 ---
 
 *Dieses Dokument dient als verbindliche Grundlage für die Umsetzung der genannten Anforderungen.*
+

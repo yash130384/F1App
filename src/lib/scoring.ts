@@ -40,6 +40,24 @@ export const DEFAULT_CONFIG: PointsConfig = {
     teamCompetition: false
 };
 
+export const SEASON_3_POINTS: Record<number, number> = {
+    1: 36, 2: 31, 3: 27, 4: 24, 5: 22,
+    6: 20, 7: 18, 8: 16, 9: 14, 10: 12,
+    11: 10, 12: 9, 13: 8, 14: 7, 15: 6,
+    16: 5, 17: 4, 18: 3, 19: 2, 20: 1
+};
+
+export const SEASON_3_CONFIG: PointsConfig = {
+    points: SEASON_3_POINTS,
+    qualiPoints: DEFAULT_QUALI_POINTS,
+    fastestLapBonus: 0,
+    cleanDriverBonus: 0,
+    totalRaces: 4,
+    trackPool: ['Spa', 'Silverstone', 'Austria', 'Brazil'],
+    dropResultsCount: 0,
+    teamCompetition: false
+};
+
 /**
  * Calculates total points for a driver in a single race using a specific config.
  */
