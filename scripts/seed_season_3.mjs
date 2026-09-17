@@ -42,13 +42,15 @@ async function seedSeason3() {
     }
 
     // 2. Configure Points System
-    const pointsMap = {
-        1: 25, 2: 18, 3: 15, 4: 12, 5: 10,
-        6: 8, 7: 6, 8: 4, 9: 2, 10: 1
-    };
-    const qualiPointsMap = {
-        1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0
-    };
+    // Actual overall finish in 20-car field: P1 = 20 Pkt, ..., P20 = 1 Pkt
+    const pointsMap = {};
+    for (let pos = 1; pos <= 20; pos++) {
+        pointsMap[pos] = 21 - pos;
+    }
+    const qualiPointsMap = {};
+    for (let pos = 1; pos <= 20; pos++) {
+        qualiPointsMap[pos] = 0;
+    }
 
     await sql`
         INSERT INTO points_config (
@@ -57,13 +59,13 @@ async function seedSeason3() {
             ${leagueId},
             ${JSON.stringify(pointsMap)},
             ${JSON.stringify(qualiPointsMap)},
-            1,
             0,
-            3,
-            ${JSON.stringify(['Spa', 'Silverstone', 'Austria'])}
+            0,
+            4,
+            ${JSON.stringify(['Spa', 'Silverstone', 'Austria', 'Brazil'])}
         )
     `;
-    console.log('✓ Points configuration set (25-18-15-... + 1 FL)');
+    console.log('✓ Points configuration set (20-1 points system, 0 FL, 0 CD, DNF = 0)');
 
     // 3. Create Teams
     const [mclaren] = await sql`
@@ -84,19 +86,19 @@ async function seedSeason3() {
     console.log(`✓ Teams registered: McLaren (${mclaren.id}), Mercedes (${mercedes.id}), Ferrari (${ferrari.id})`);
 
     // 4. Create the 4 Human Drivers (no AI drivers)
-    const [kaydn] = await sql`
-        INSERT INTO drivers (league_id, name, team, team_id, color, game_name, total_points, raw_points)
-        VALUES (${leagueId}, 'kaydn87', 'Ferrari', ${ferrari.id}, '#E8002D', 'kaydn87', 69, 69)
-        RETURNING id, name
-    `;
     const [lanz] = await sql`
         INSERT INTO drivers (league_id, name, team, team_id, color, game_name, total_points, raw_points)
-        VALUES (${leagueId}, 'Markus Lanz', 'McLaren', ${mclaren.id}, '#FF8000', 'TRunKX', 58, 58)
+        VALUES (${leagueId}, 'Markus Lanz', 'McLaren', ${mclaren.id}, '#FF8000', 'TRunKX', 66, 66)
+        RETURNING id, name
+    `;
+    const [kaydn] = await sql`
+        INSERT INTO drivers (league_id, name, team, team_id, color, game_name, total_points, raw_points)
+        VALUES (${leagueId}, 'kaydn87', 'Ferrari', ${ferrari.id}, '#E8002D', 'kaydn87', 59, 59)
         RETURNING id, name
     `;
     const [dox] = await sql`
         INSERT INTO drivers (league_id, name, team, team_id, color, game_name, total_points, raw_points)
-        VALUES (${leagueId}, 'Dox23y5', 'Mercedes', ${mercedes.id}, '#00D2BE', 'Dox23y5', 34, 34)
+        VALUES (${leagueId}, 'Dox23y5', 'Mercedes', ${mercedes.id}, '#00D2BE', 'Dox23y5', 33, 33)
         RETURNING id, name
     `;
     const [precht] = await sql`
@@ -104,7 +106,7 @@ async function seedSeason3() {
         VALUES (${leagueId}, 'Richard David Precht', 'Independent', null, '#7F8C8D', 'Richard David Precht', 0, 0)
         RETURNING id, name
     `;
-    console.log(`✓ Drivers created: ${kaydn.name}, ${lanz.name}, ${dox.name}, ${precht.name}`);
+    console.log(`✓ Drivers created: ${lanz.name}, ${kaydn.name}, ${dox.name}, ${precht.name}`);
 
     // 5. Create Races & Results
 
@@ -117,12 +119,12 @@ async function seedSeason3() {
     await sql`
         INSERT INTO race_results (race_id, driver_id, position, quali_position, fastest_lap, clean_driver, is_dnf, points_earned)
         VALUES 
-            (${race1.id}, ${lanz.id}, 1, 1, false, false, false, 25),
-            (${race1.id}, ${kaydn.id}, 2, 2, false, false, false, 18),
-            (${race1.id}, ${dox.id}, 3, 3, false, false, false, 15),
-            (${race1.id}, ${precht.id}, 4, 4, false, false, true, 0)
+            (${race1.id}, ${lanz.id}, 1, 1, false, false, false, 20),
+            (${race1.id}, ${kaydn.id}, 2, 2, false, false, false, 19),
+            (${race1.id}, ${dox.id}, 6, 6, false, false, false, 15),
+            (${race1.id}, ${precht.id}, 18, 18, false, false, true, 0)
     `;
-    console.log('✓ Race 1: Spa recorded (Lanz P1 25P, kaydn87 P2 18P, Dox23y5 P3 15P, Precht DNF 0P)');
+    console.log('✓ Race 1: Spa recorded (Lanz P1 20P, kaydn87 P2 19P, Dox23y5 P6 15P, Precht P18/DNF 0P)');
 
     // Race 2: Silverstone (Date: 2026-09-08)
     const [race2] = await sql`
@@ -133,11 +135,12 @@ async function seedSeason3() {
     await sql`
         INSERT INTO race_results (race_id, driver_id, position, quali_position, fastest_lap, clean_driver, is_dnf, penalties_time, points_earned)
         VALUES 
-            (${race2.id}, ${kaydn.id}, 1, 1, false, false, false, 0, 25),
-            (${race2.id}, ${dox.id}, 2, 2, true, false, false, 0, 19),
-            (${race2.id}, ${lanz.id}, 3, 3, false, false, false, 3, 15)
+            (${race2.id}, ${kaydn.id}, 1, 1, false, false, false, 0, 20),
+            (${race2.id}, ${dox.id}, 3, 3, false, false, false, 0, 18),
+            (${race2.id}, ${lanz.id}, 9, 9, false, false, false, 3, 12),
+            (${race2.id}, ${precht.id}, 18, 18, false, false, true, 0, 0)
     `;
-    console.log('✓ Race 2: Silverstone recorded (kaydn87 P1 25P, Dox23y5 P2 + FL 19P, Lanz P3 +3s 15P)');
+    console.log('✓ Race 2: Silverstone recorded (kaydn87 P1 20P, Dox23y5 P3 18P, Lanz P9 12P, Precht P18/DNF 0P)');
 
     // Race 3: Red Bull Ring / Austria (Date: 2026-09-15)
     const [race3] = await sql`
@@ -148,11 +151,28 @@ async function seedSeason3() {
     await sql`
         INSERT INTO race_results (race_id, driver_id, position, quali_position, fastest_lap, clean_driver, is_dnf, penalties_time, points_earned)
         VALUES 
-            (${race3.id}, ${kaydn.id}, 1, 1, true, false, false, 0, 26),
-            (${race3.id}, ${lanz.id}, 2, 2, false, false, false, 3, 18),
-            (${race3.id}, ${dox.id}, 3, 3, false, false, true, 0, 0)
+            (${race3.id}, ${kaydn.id}, 1, 1, false, false, false, 0, 20),
+            (${race3.id}, ${lanz.id}, 6, 6, false, false, false, 3, 15),
+            (${race3.id}, ${dox.id}, 20, 20, false, false, true, 0, 0),
+            (${race3.id}, ${precht.id}, 18, 18, false, false, true, 0, 0)
     `;
-    console.log('✓ Race 3: Red Bull Ring recorded (kaydn87 P1 + FL 26P, Lanz P2 +3s 18P, Dox23y5 P3/DNF 0P)');
+    console.log('✓ Race 3: Red Bull Ring recorded (kaydn87 P1 20P, Lanz P6 15P, Dox23y5 P20/DNF 0P, Precht P18/DNF 0P)');
+
+    // Race 4: Interlagos / Brazil (Date: 2026-09-22)
+    const [race4] = await sql`
+        INSERT INTO races (league_id, track, scheduled_date, race_date, is_finished, is_random, is_hidden)
+        VALUES (${leagueId}, 'Brazil', '2026-09-22T18:00:00Z', '2026-09-22T19:00:00Z', true, false, false)
+        RETURNING id, track
+    `;
+    await sql`
+        INSERT INTO race_results (race_id, driver_id, position, quali_position, fastest_lap, clean_driver, is_dnf, penalties_time, points_earned)
+        VALUES 
+            (${race4.id}, ${lanz.id}, 2, 2, false, false, false, 0, 19),
+            (${race4.id}, ${kaydn.id}, 3, 3, false, false, true, 0, 0),
+            (${race4.id}, ${dox.id}, 4, 4, false, false, true, 0, 0),
+            (${race4.id}, ${precht.id}, 5, 5, false, false, true, 0, 0)
+    `;
+    console.log('✓ Race 4: Brazil recorded (Lanz P2 19P, kaydn87 P3/DNF 0P, Dox23y5 P4/DNF 0P, Precht P5/DNF 0P)');
 
     // 6. Verify and calculate final standings from DB
     console.log('\n📊 VERIFYING OFFICIAL CHAMPIONSHIP STANDINGS FROM NEON DB:');
@@ -176,9 +196,9 @@ async function seedSeason3() {
 
     // Assert expected point values
     const pointCheck = {
-        'kaydn87': 69,
-        'Markus Lanz': 58,
-        'Dox23y5': 34,
+        'Markus Lanz': 66,
+        'kaydn87': 59,
+        'Dox23y5': 33,
         'Richard David Precht': 0
     };
 
@@ -196,6 +216,15 @@ async function seedSeason3() {
 
     if (!allCorrect) {
         throw new Error('Points verification failed!');
+    }
+
+    // Sync drivers table total_points and raw_points
+    for (const [driverName, expectedPoints] of Object.entries(pointCheck)) {
+        await sql`
+            UPDATE drivers 
+            SET total_points = ${expectedPoints}, raw_points = ${expectedPoints} 
+            WHERE league_id = ${leagueId} AND name = ${driverName}
+        `;
     }
 
     console.log('\n🏁 Season 3 Setup successfully verified and locked into DB.');
